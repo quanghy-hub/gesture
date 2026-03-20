@@ -1,0 +1,52 @@
+{
+    "manifest_version": 3,
+    "name": "Gesture Suite",
+    "version": "1.0.0",
+    "description": "Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.",
+    "icons": {
+        "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "permissions": [
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background/service-worker.js"
+    },
+    "action": {
+        "default_title": "Gesture Suite",
+        "default_popup": "ui/popup/popup.html",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "32": "icons/icon32.png",
+            "48": "icons/icon48.png"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "shared/namespace.js",
+                "shared/config.js",
+                "shared/storage.js",
+                "shared/runtime.js",
+                "shared/tab-actions-client.js",
+                "content/forum/styles.js",
+                "content/forum/layout.js",
+                "content/forum/index.js",
+                "content/gestures-desktop/index.js",
+                "content/gestures-mobile/index.js",
+                "content/bootstrap.js"
+            ],
+            "run_at": "document_start"
+        }
+    ]
+}

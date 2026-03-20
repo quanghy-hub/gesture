@@ -1,0 +1,144 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 430px;
+    max-width: 430px;
+    background: #111827;
+    color: #f9fafb;
+    font: 14px/1.45 system-ui, sans-serif;
+}
+
+.popup {
+    padding: 12px;
+    max-height: 600px;
+    overflow: auto;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.header p {
+    margin: 4px 0 0;
+    color: #9ca3af;
+    word-break: break-word;
+}
+
+.card {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #1f2937;
+    border: 1px solid rgba(255, 255, 255, .06);
+}
+
+.card h2 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #d1d5db;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.table {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+}
+
+.item:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.label {
+    color: #e5e7eb;
+    font-size: 12px;
+}
+
+.control {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.control.inline {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+select,
+input[type="number"] {
+    height: 30px;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 8px;
+    background: #111827;
+    color: #f9fafb;
+    font: inherit;
+}
+
+input.num {
+    width: 82px;
+}
+
+input.num.small {
+    width: 70px;
+}
+
+input.num.xs {
+    width: 58px;
+}
+
+select {
+    min-width: 74px;
+}
+
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.mini-label {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.actions {
+    margin-top: 12px;
+}
+
+button {
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font: inherit;
+    cursor: pointer;
+}
+
+button.primary {
+    background: #2563eb;
+    color: #fff;
+}
+
+.hint {
+    margin: 10px 0 0;
+    color: #9ca3af;
+    font-size: 12px;
+}
