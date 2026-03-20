@@ -30,6 +30,7 @@
     const gPagerWindow = document.getElementById('g-pager-window');
     const gPagerHops = document.getElementById('g-pager-hops');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
+    const hostBoundControls = [forumEnabled, forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
 
     let activeHost = null;
     let config = null;
@@ -49,6 +50,15 @@
         } catch {
             return null;
         }
+    };
+
+    const setHostControlsState = (enabled) => {
+        hostBoundControls.forEach((control) => {
+            control.disabled = !enabled;
+        });
+        hostOnlyRows.forEach((row) => {
+            row.style.opacity = enabled ? '1' : '.55';
+        });
     };
 
     const render = () => {
@@ -75,25 +85,13 @@
 
         if (!activeHost) {
             hostLabel.textContent = 'Không lấy được host trang hiện tại.';
-            forumEnabled.disabled = true;
-            forumWide.disabled = true;
-            forumMinWidth.disabled = true;
-            forumGap.disabled = true;
-            forumFade.disabled = true;
-            forumDelay.disabled = true;
-            hostOnlyRows.forEach((row) => row.style.opacity = '.55');
+            setHostControlsState(false);
             return;
         }
 
         const forumConfig = getForumConfig(config, activeHost);
         hostLabel.textContent = activeHost;
-        forumEnabled.disabled = false;
-        forumWide.disabled = false;
-        forumMinWidth.disabled = false;
-        forumGap.disabled = false;
-        forumFade.disabled = false;
-        forumDelay.disabled = false;
-        hostOnlyRows.forEach((row) => row.style.opacity = '1');
+        setHostControlsState(true);
         forumEnabled.checked = !!forumConfig.enabled;
         forumWide.checked = !!forumConfig.wide;
         forumMinWidth.value = forumConfig.minWidth;
