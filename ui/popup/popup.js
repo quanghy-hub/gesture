@@ -6,6 +6,7 @@
     const hostLabel = document.getElementById('current-host');
     const statusLabel = document.getElementById('status');
     const saveButton = document.getElementById('save-settings');
+    const closeButton = document.getElementById('close-popup');
     const forumEnabled = document.getElementById('forum-enabled');
     const forumWide = document.getElementById('forum-wide');
     const forumMinWidth = document.getElementById('forum-min-width');
@@ -18,6 +19,7 @@
     const gLpMs = document.getElementById('g-lp-ms');
     const gRcEnabled = document.getElementById('g-rc-enabled');
     const gRcMode = document.getElementById('g-rc-mode');
+    const gDblRightEnabled = document.getElementById('g-dbl-right-enabled');
     const gDblRight = document.getElementById('g-dbl-right');
     const gDblTapEnabled = document.getElementById('g-dbl-tap-enabled');
     const gDblTapMs = document.getElementById('g-dbl-tap-ms');
@@ -26,8 +28,6 @@
     const gEdgeWidth = document.getElementById('g-edge-width');
     const gEdgeSpeed = document.getElementById('g-edge-speed');
     const gPagerEnabled = document.getElementById('g-pager-enabled');
-    const gPagerThreshold = document.getElementById('g-pager-threshold');
-    const gPagerWindow = document.getElementById('g-pager-window');
     const gPagerHops = document.getElementById('g-pager-hops');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumEnabled, forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
@@ -71,7 +71,8 @@
         gLpMs.value = gestures.longPress.ms;
         gRcEnabled.checked = !!gestures.rightClick.enabled;
         gRcMode.value = gestures.rightClick.mode;
-        gDblRight.value = gestures.doubleRightMs;
+        gDblRightEnabled.checked = !!gestures.doubleRight.enabled;
+        gDblRight.value = gestures.doubleRight.ms;
         gDblTapEnabled.checked = !!gestures.doubleTap.enabled;
         gDblTapMs.value = gestures.doubleTap.ms;
         gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
@@ -79,12 +80,10 @@
         gEdgeWidth.value = gestures.edgeSwipe.width;
         gEdgeSpeed.value = gestures.edgeSwipe.speed;
         gPagerEnabled.checked = !!gestures.pager.enabled;
-        gPagerThreshold.value = gestures.pager.threshold;
-        gPagerWindow.value = gestures.pager.window;
         gPagerHops.value = gestures.pager.hops;
 
         if (!activeHost) {
-            hostLabel.textContent = 'Không lấy được host trang hiện tại.';
+            hostLabel.textContent = 'Không có host hiện tại';
             setHostControlsState(false);
             return;
         }
@@ -114,7 +113,10 @@
                 enabled: gRcEnabled.checked,
                 mode: gRcMode.value
             },
-            doubleRightMs: Number(gDblRight.value),
+            doubleRight: {
+                enabled: gDblRightEnabled.checked,
+                ms: Number(gDblRight.value)
+            },
             doubleTap: {
                 enabled: gDblTapEnabled.checked,
                 ms: Number(gDblTapMs.value)
@@ -127,8 +129,6 @@
             },
             pager: {
                 enabled: gPagerEnabled.checked,
-                threshold: Number(gPagerThreshold.value),
-                window: Number(gPagerWindow.value),
                 hops: Number(gPagerHops.value)
             }
         });
@@ -165,5 +165,9 @@
             console.error('[GestureExtension][popup] save failed', error);
             setStatus(error?.message || 'Không lưu được cấu hình.', true);
         });
+    });
+
+    closeButton.addEventListener('click', () => {
+        window.close();
     });
 })();

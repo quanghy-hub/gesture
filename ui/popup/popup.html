@@ -11,105 +11,142 @@
 <body>
   <main class="popup">
     <header class="header">
-      <h1>Gesture Suite</h1>
-      <p id="current-host">Đang tải host...</p>
+      <div>
+        <h1>Gesture Suite</h1>
+        <p id="current-host">Đang tải...</p>
+      </div>
+      <div class="header-actions">
+        <button id="close-popup" class="secondary" type="button">Đóng</button>
+        <button id="save-settings" class="primary" type="button">Lưu</button>
+      </div>
     </header>
 
     <section class="card">
-      <h2>Cài đặt</h2>
-
       <div class="table">
-        <label class="item">
-          <span class="label">Bật gestures</span>
-          <span class="control"><input id="gestures-enabled" type="checkbox"></span>
-        </label>
+        <div class="item item-single">
+          <span class="label-main">Gestures</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="gestures-enabled" type="checkbox"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Long press</span>
-          <span class="control inline">
-            <input id="g-lp-enabled" type="checkbox">
-            <select id="g-lp-mode">
-              <option value="bg">Nền</option>
-              <option value="fg">Trước</option>
-            </select>
-            <input id="g-lp-ms" class="num small" type="number" min="200" max="2000" step="50">
-          </span>
-        </label>
+        <div class="item">
+          <span class="label-main">Long press</span>
+          <span class="label-sub">Mode</span>
+          <span class="param"><span class="param-name">Open</span><select id="g-lp-mode">
+              <option value="bg">Tab nền</option>
+              <option value="fg">Tab trước</option>
+            </select></span>
+          <span class="toggle"><input id="g-lp-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Delay</span>
+          <span class="param"><span class="param-name">Ms</span><input id="g-lp-ms" class="num small" type="number"
+              min="200" max="2000" step="50"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Right click</span>
-          <span class="control inline">
-            <input id="g-rc-enabled" type="checkbox">
-            <select id="g-rc-mode">
-              <option value="bg">Nền</option>
-              <option value="fg">Trước</option>
-            </select>
-          </span>
-        </label>
+        <div class="item">
+          <span class="label-main">Right click</span>
+          <span class="label-sub">Mode</span>
+          <span class="param"><span class="param-name">Open</span><select id="g-rc-mode">
+              <option value="bg">Tab nền</option>
+              <option value="fg">Tab trước</option>
+            </select></span>
+          <span class="toggle"><input id="g-rc-enabled" type="checkbox"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Double right</span>
-          <span class="control"><input id="g-dbl-right" class="num small" type="number" min="200" max="1000"
-              step="50"></span>
-        </label>
+        <div class="item item-single">
+          <span class="label-main">Double right</span>
+          <span class="label-sub">Delay</span>
+          <span class="param"><span class="param-name">Ms</span><input id="g-dbl-right" class="num small" type="number"
+              min="200" max="1000" step="50"></span>
+          <span class="toggle"><input id="g-dbl-right-enabled" type="checkbox"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Double tap</span>
-          <span class="control inline">
-            <input id="g-dbl-tap-enabled" type="checkbox">
-            <input id="g-dbl-tap-ms" class="num small" type="number" min="150" max="500" step="50">
-          </span>
-        </label>
+        <div class="item">
+          <span class="label-main">Double tap</span>
+          <span class="label-sub">Delay</span>
+          <span class="param"><span class="param-name">Ms</span><input id="g-dbl-tap-ms" class="num small" type="number"
+              min="150" max="500" step="50"></span>
+          <span class="toggle"><input id="g-dbl-tap-enabled" type="checkbox"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Edge swipe</span>
-          <span class="control inline">
-            <input id="g-edge-enabled" type="checkbox">
-            <select id="g-edge-side">
+        <div class="item">
+          <span class="label-main">Edge swipe</span>
+          <span class="label-sub">Side</span>
+          <span class="param"><span class="param-name">Edge</span><select id="g-edge-side">
               <option value="both">2 bên</option>
               <option value="left">Trái</option>
               <option value="right">Phải</option>
-            </select>
-            <input id="g-edge-width" class="num xs" type="number" min="20" max="120" step="5">
-            <input id="g-edge-speed" class="num xs" type="number" min="1" max="10" step="0.5">
-          </span>
-        </label>
+            </select></span>
+          <span class="toggle"><input id="g-edge-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Width</span>
+          <span class="param"><span class="param-name">Px</span><input id="g-edge-width" class="num xs" type="number"
+              min="20" max="120" step="5"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Speed</span>
+          <span class="param"><span class="param-name">Rate</span><input id="g-edge-speed" class="num xs" type="number"
+              min="1" max="10" step="0.5"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Pager</span>
-          <span class="control inline">
-            <input id="g-pager-enabled" type="checkbox">
-            <input id="g-pager-threshold" class="num xs" type="number" min="20" max="500">
-            <input id="g-pager-window" class="num xs" type="number" min="100" max="3000">
-            <input id="g-pager-hops" class="num xs" type="number" min="1" max="10">
-          </span>
-        </label>
+        <div class="item">
+          <span class="label-main">Pager</span>
+          <span class="label-sub">Hops</span>
+          <span class="param"><span class="param-name">Max</span><input id="g-pager-hops" class="num xs" type="number"
+              min="1" max="3"></span>
+          <span class="toggle"><input id="g-pager-enabled" type="checkbox"></span>
+        </div>
 
-        <label class="item">
-          <span class="label">Forum split</span>
-          <span class="control inline">
-            <input id="forum-enabled" type="checkbox">
-            <span class="mini-label">Wide</span>
-            <input id="forum-wide" type="checkbox">
-          </span>
-        </label>
+        <div class="item">
+          <span class="label-main">Forum split</span>
+          <span class="label-sub">Wide</span>
+          <span class="param"><span class="param-name">Layout</span><input id="forum-wide" type="checkbox"></span>
+          <span class="toggle"><input id="forum-enabled" type="checkbox"></span>
+        </div>
 
-        <label class="item host-only">
-          <span class="label">Forum size</span>
-          <span class="control inline">
-            <input id="forum-min-width" class="num" type="number" min="0" max="4000" step="50">
-            <input id="forum-gap" class="num xs" type="number" min="0" max="24">
-            <input id="forum-fade" class="num xs" type="number" min="0" max="1000">
-            <input id="forum-delay" class="num xs" type="number" min="0" max="1000">
-          </span>
-        </label>
+        <div class="item host-only">
+          <span class="label-main">Forum size</span>
+          <span class="label-sub">Min width</span>
+          <span class="param"><span class="param-name">Px</span><input id="forum-min-width" class="num" type="number"
+              min="0" max="4000" step="50"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub host-only">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Gap</span>
+          <span class="param"><span class="param-name">Px</span><input id="forum-gap" class="num xs" type="number"
+              min="0" max="24"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub host-only">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Fade</span>
+          <span class="param"><span class="param-name">Ms</span><input id="forum-fade" class="num xs" type="number"
+              min="0" max="1000"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub host-only">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Delay</span>
+          <span class="param"><span class="param-name">Ms</span><input id="forum-delay" class="num xs" type="number"
+              min="0" max="1000"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
       </div>
-
-      <div class="actions">
-        <button id="save-settings" class="primary">Lưu</button>
-      </div>
-      <p id="status" class="hint">Sẵn sàng.</p>
     </section>
+
+    <footer class="footer">
+      <p id="status" class="hint">Sẵn sàng.</p>
+    </footer>
   </main>
 
   <script src="../../shared/namespace.js"></script>

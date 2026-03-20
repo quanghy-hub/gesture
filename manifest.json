@@ -42,8 +42,7 @@
                 "content/forum/styles.js",
                 "content/forum/layout.js",
                 "content/forum/index.js",
-                "content/gestures-desktop/index.js",
-                "content/gestures-mobile/index.js",
+                "content/gestures/index.js",
                 "content/bootstrap.js"
             ],
             "run_at": "document_start"

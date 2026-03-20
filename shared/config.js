@@ -21,8 +21,8 @@
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
                 rclick: { enabled: true, mode: 'fg' },
-                dblRightMs: 500,
-                pager: { enabled: true, threshold: 80, window: 1000, hops: 4 }
+                dblRight: { enabled: true, ms: 500 },
+                pager: { enabled: true, hops: 3 }
             },
             mobile: {
                 enabled: true,
@@ -102,11 +102,11 @@
         config.gestures.desktop.lpress.ms = clampNumber(config.gestures.desktop.lpress.ms, 500, 200, 2000);
         config.gestures.desktop.rclick.enabled = !!config.gestures.desktop.rclick.enabled;
         config.gestures.desktop.rclick.mode = normalizeMode(config.gestures.desktop.rclick.mode, 'fg');
-        config.gestures.desktop.dblRightMs = clampNumber(config.gestures.desktop.dblRightMs, 500, 200, 1000);
+        config.gestures.desktop.dblRight.enabled = !!config.gestures.desktop.dblRight.enabled;
+        config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
-        config.gestures.desktop.pager.threshold = clampNumber(config.gestures.desktop.pager.threshold, 80, 20, 500);
-        config.gestures.desktop.pager.window = clampNumber(config.gestures.desktop.pager.window, 1000, 100, 3000);
-        config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 4, 1, 10);
+        config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 3);
+        config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
 
         config.gestures.mobile.enabled = !!config.gestures.mobile.enabled;
         config.gestures.mobile.lpress.enabled = !!config.gestures.mobile.lpress.enabled;
@@ -152,7 +152,10 @@
                 enabled: !!normalized.gestures.desktop.rclick.enabled,
                 mode: normalized.gestures.desktop.rclick.mode
             },
-            doubleRightMs: normalized.gestures.desktop.dblRightMs,
+            doubleRight: {
+                enabled: !!normalized.gestures.desktop.dblRight.enabled,
+                ms: normalized.gestures.desktop.dblRight.ms,
+            },
             doubleTap: {
                 enabled: !!normalized.gestures.mobile.dblTap.enabled,
                 ms: normalized.gestures.mobile.dblTap.ms
@@ -165,8 +168,6 @@
             },
             pager: {
                 enabled: !!normalized.gestures.desktop.pager.enabled,
-                threshold: normalized.gestures.desktop.pager.threshold,
-                window: normalized.gestures.desktop.pager.window,
                 hops: normalized.gestures.desktop.pager.hops
             }
         };
@@ -185,6 +186,10 @@
             rightClick: {
                 ...current.rightClick,
                 ...(patch?.rightClick || {})
+            },
+            doubleRight: {
+                ...current.doubleRight,
+                ...(patch?.doubleRight || {})
             },
             doubleTap: {
                 ...current.doubleTap,
@@ -218,7 +223,10 @@
             enabled: !!merged.rightClick.enabled,
             mode: merged.rightClick.mode
         };
-        next.gestures.desktop.dblRightMs = merged.doubleRightMs;
+        next.gestures.desktop.dblRight = {
+            enabled: !!merged.doubleRight.enabled,
+            ms: merged.doubleRight.ms
+        };
         next.gestures.mobile.dblTap = {
             enabled: !!merged.doubleTap.enabled,
             ms: merged.doubleTap.ms
@@ -231,8 +239,6 @@
         };
         next.gestures.desktop.pager = {
             enabled: !!merged.pager.enabled,
-            threshold: merged.pager.threshold,
-            window: merged.pager.window,
             hops: merged.pager.hops
         };
 
