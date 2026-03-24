@@ -11,7 +11,8 @@
     },
     "permissions": [
         "storage",
-        "tabs"
+        "tabs",
+        "downloads"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -43,6 +44,14 @@
                 "content/forum/layout.js",
                 "content/forum/index.js",
                 "content/gestures/index.js",
+                "content/clipboard/styles.js",
+                "content/clipboard/index.js",
+                "content/google-search/index.js",
+                "content/quick-search/index.js",
+                "content/inline-translate/index.js",
+                "content/video-screenshot/index.js",
+                "content/trusted-types/index.js",
+                "content/youtube-subtitles/index.js",
                 "content/bootstrap.js"
             ],
             "run_at": "document_start"

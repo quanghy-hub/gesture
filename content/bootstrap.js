@@ -17,6 +17,14 @@
 
     const activateFeatures = () => {
         const features = [
+            ext.features.clipboardStyles,
+            ext.features.clipboard,
+            ext.features.googleSearch,
+            ext.features.quickSearch,
+            ext.features.inlineTranslate,
+            ext.features.videoScreenshot,
+            ext.features.trustedTypes,
+            ext.features.youtubeSubtitles,
             ext.features.forum,
             ext.features.gesturesDesktop,
             ext.features.gesturesMobile

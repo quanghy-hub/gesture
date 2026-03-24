@@ -107,6 +107,158 @@
         </div>
 
         <div class="item">
+          <span class="label-main">Clipboard</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="clipboard-enabled" type="checkbox"></span>
+        </div>
+
+        <div class="item">
+          <span class="label-main">Google search</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="google-search-enabled" type="checkbox"></span>
+        </div>
+
+        <div class="item">
+          <span class="label-main">Quick search</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="quick-search-enabled" type="checkbox"></span>
+        </div>
+
+        <div class="item item-single">
+          <span class="label-main">Clipboard data</span>
+          <span class="label-sub">Panels</span>
+          <span class="param"><span class="param-name">Count</span><input id="clipboard-max-history" class="num xs"
+              type="number" min="1" max="20" step="1"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+
+        <div class="item item-single">
+          <span class="label-main">Clipboard data</span>
+          <span class="label-sub">History</span>
+          <span class="param"><span class="param-name">Clear</span><button id="clipboard-clear"
+              class="secondary inline-button" type="button">Xóa</button></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+
+        <div class="item">
+          <span class="label-main">Inline translate</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="inline-translate-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Hotkey</span>
+          <span class="param"><span class="param-name">Key</span><select id="inline-translate-hotkey">
+              <option value="f2">F2</option>
+              <option value="f4">F4</option>
+              <option value="f8">F8</option>
+            </select></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Swipe</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="inline-translate-swipe-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Direction</span>
+          <span class="param"><span class="param-name">Swipe</span><select id="inline-translate-swipe-dir">
+              <option value="both">Both</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Distance</span>
+          <span class="param"><span class="param-name">Px</span><input id="inline-translate-swipe-px" class="num xs" type="number"
+              min="20" max="240" step="5"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Font</span>
+          <span class="param"><span class="param-name">Scale</span><input id="inline-translate-font-scale" class="num xs" type="number"
+              min="0.5" max="2" step="0.05"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Color</span>
+          <span class="param"><span class="param-name">Muted</span><input id="inline-translate-muted-color" type="color"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+
+        <div class="item">
+          <span class="label-main">YouTube subtitles</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="youtube-subtitles-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Target</span>
+          <span class="param"><span class="param-name">Lang</span><input id="youtube-subtitles-target-lang" class="num small" type="text"
+              maxlength="8"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Original</span>
+          <span class="param"><span class="param-name">Font</span><input id="youtube-subtitles-font-size" class="num xs" type="number"
+              min="12" max="32"></span>
+          <span class="toggle"><input id="youtube-subtitles-show-original" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Translated</span>
+          <span class="param"><span class="param-name">Font</span><input id="youtube-subtitles-translated-font-size" class="num xs" type="number"
+              min="12" max="32"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Original color</span>
+          <span class="param"><span class="param-name">Color</span><input id="youtube-subtitles-original-color" type="color"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Translated color</span>
+          <span class="param"><span class="param-name">Color</span><input id="youtube-subtitles-translated-color" type="color"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Display</span>
+          <span class="param"><span class="param-name">Mode</span><select id="youtube-subtitles-display-mode">
+              <option value="compact">Compact</option>
+              <option value="full">Full</option>
+            </select></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+
+        <div class="item">
+          <span class="label-main">Trusted Types</span>
+          <span class="label-sub">Enabled</span>
+          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="trusted-types-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Domains</span>
+          <span class="param"><span class="param-name">Allow</span><input id="trusted-types-allow-domains" class="num small" type="text"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+
+        <div class="item">
           <span class="label-main">Forum</span>
           <span class="label-sub">Enabled</span>
           <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>

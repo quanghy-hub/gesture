@@ -7,6 +7,28 @@
     const statusLabel = document.getElementById('status');
     const saveButton = document.getElementById('save-settings');
     const closeButton = document.getElementById('close-popup');
+    const clipboardEnabled = document.getElementById('clipboard-enabled');
+    const googleSearchEnabled = document.getElementById('google-search-enabled');
+    const quickSearchEnabled = document.getElementById('quick-search-enabled');
+    const inlineTranslateEnabled = document.getElementById('inline-translate-enabled');
+    const inlineTranslateHotkey = document.getElementById('inline-translate-hotkey');
+    const inlineTranslateSwipeEnabled = document.getElementById('inline-translate-swipe-enabled');
+    const inlineTranslateSwipeDir = document.getElementById('inline-translate-swipe-dir');
+    const inlineTranslateFontScale = document.getElementById('inline-translate-font-scale');
+    const inlineTranslateMutedColor = document.getElementById('inline-translate-muted-color');
+    const youtubeSubtitlesEnabled = document.getElementById('youtube-subtitles-enabled');
+    const youtubeSubtitlesTargetLang = document.getElementById('youtube-subtitles-target-lang');
+    const youtubeSubtitlesFontSize = document.getElementById('youtube-subtitles-font-size');
+    const youtubeSubtitlesTranslatedFontSize = document.getElementById('youtube-subtitles-translated-font-size');
+    const youtubeSubtitlesDisplayMode = document.getElementById('youtube-subtitles-display-mode');
+    const youtubeSubtitlesShowOriginal = document.getElementById('youtube-subtitles-show-original');
+    const youtubeSubtitlesOriginalColor = document.getElementById('youtube-subtitles-original-color');
+    const youtubeSubtitlesTranslatedColor = document.getElementById('youtube-subtitles-translated-color');
+    const trustedTypesEnabled = document.getElementById('trusted-types-enabled');
+    const trustedTypesAllowDomains = document.getElementById('trusted-types-allow-domains');
+    const inlineTranslateSwipePx = document.getElementById('inline-translate-swipe-px');
+    const clipboardMaxHistory = document.getElementById('clipboard-max-history');
+    const clipboardClear = document.getElementById('clipboard-clear');
     const forumEnabled = document.getElementById('forum-enabled');
     const forumWide = document.getElementById('forum-wide');
     const forumMinWidth = document.getElementById('forum-min-width');
@@ -65,6 +87,27 @@
         if (!config) return;
 
         const gestures = getGestureSettings(config);
+        clipboardEnabled.checked = config.clipboard.enabled !== false;
+        googleSearchEnabled.checked = config.googleSearch?.enabled !== false;
+        quickSearchEnabled.checked = config.quickSearch?.enabled !== false;
+        inlineTranslateEnabled.checked = config.inlineTranslate?.enabled !== false;
+        inlineTranslateHotkey.value = config.inlineTranslate?.hotkey || 'f2';
+        inlineTranslateSwipeEnabled.checked = config.inlineTranslate?.swipeEnabled !== false;
+        inlineTranslateSwipeDir.value = config.inlineTranslate?.swipeDir || 'both';
+        inlineTranslateSwipePx.value = config.inlineTranslate?.swipePx || 60;
+        inlineTranslateFontScale.value = config.inlineTranslate?.fontScale || 0.95;
+        inlineTranslateMutedColor.value = config.inlineTranslate?.mutedColor || '#00bfff';
+        youtubeSubtitlesEnabled.checked = !!config.youtubeSubtitles?.enabled;
+        youtubeSubtitlesTargetLang.value = config.youtubeSubtitles?.targetLang || 'vi';
+        youtubeSubtitlesFontSize.value = config.youtubeSubtitles?.fontSize || 16;
+        youtubeSubtitlesTranslatedFontSize.value = config.youtubeSubtitles?.translatedFontSize || 16;
+        youtubeSubtitlesOriginalColor.value = config.youtubeSubtitles?.originalColor || '#ffffff';
+        youtubeSubtitlesTranslatedColor.value = config.youtubeSubtitles?.translatedColor || '#0e8cef';
+        youtubeSubtitlesDisplayMode.value = config.youtubeSubtitles?.displayMode || 'compact';
+        youtubeSubtitlesShowOriginal.checked = config.youtubeSubtitles?.showOriginal !== false;
+        trustedTypesEnabled.checked = !!config.trustedTypes?.enabled;
+        trustedTypesAllowDomains.value = Array.isArray(config.trustedTypes?.allowDomains) ? config.trustedTypes.allowDomains.join(', ') : '';
+        clipboardMaxHistory.value = config.clipboard.maxHistory || 5;
         gesturesEnabled.checked = !!gestures.enabled;
         gLpEnabled.checked = !!gestures.longPress.enabled;
         gLpMode.value = gestures.longPress.mode;
@@ -133,6 +176,31 @@
             }
         });
 
+        next.clipboard.enabled = clipboardEnabled.checked;
+        next.clipboard.maxHistory = Number(clipboardMaxHistory.value);
+        next.googleSearch.enabled = googleSearchEnabled.checked;
+        next.quickSearch.enabled = quickSearchEnabled.checked;
+        next.inlineTranslate.enabled = inlineTranslateEnabled.checked;
+        next.inlineTranslate.hotkey = inlineTranslateHotkey.value;
+        next.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
+        next.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
+        next.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
+        next.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
+        next.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
+        next.youtubeSubtitles.enabled = youtubeSubtitlesEnabled.checked;
+        next.youtubeSubtitles.targetLang = youtubeSubtitlesTargetLang.value;
+        next.youtubeSubtitles.fontSize = Number(youtubeSubtitlesFontSize.value);
+        next.youtubeSubtitles.translatedFontSize = Number(youtubeSubtitlesTranslatedFontSize.value);
+        next.youtubeSubtitles.originalColor = youtubeSubtitlesOriginalColor.value;
+        next.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
+        next.youtubeSubtitles.displayMode = youtubeSubtitlesDisplayMode.value;
+        next.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
+        next.trustedTypes.enabled = trustedTypesEnabled.checked;
+        next.trustedTypes.allowDomains = trustedTypesAllowDomains.value
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+
         let normalized = next;
         if (activeHost) {
             normalized = updateForumHostConfig(next, activeHost, {
@@ -164,6 +232,17 @@
         save().catch((error) => {
             console.error('[GestureExtension][popup] save failed', error);
             setStatus(error?.message || 'Không lưu được cấu hình.', true);
+        });
+    });
+
+    clipboardClear.addEventListener('click', () => {
+        storage.clearClipboardHistory().then((nextConfig) => {
+            config = nextConfig;
+            render();
+            setStatus('Đã xóa lịch sử clipboard.');
+        }).catch((error) => {
+            console.error('[GestureExtension][popup] clear clipboard failed', error);
+            setStatus(error?.message || 'Không xóa được lịch sử clipboard.', true);
         });
     });
 

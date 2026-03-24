@@ -5,6 +5,46 @@
 
     const DEFAULT_CONFIG = Object.freeze({
         version: 1,
+        clipboard: {
+            enabled: true,
+            maxHistory: 5,
+            history: [],
+            pinned: []
+        },
+        googleSearch: {
+            enabled: true
+        },
+        quickSearch: {
+            enabled: true
+        },
+        inlineTranslate: {
+            enabled: true,
+            provider: 'google',
+            hotkey: 'f2',
+            swipeEnabled: true,
+            swipeDir: 'both',
+            swipePx: 60,
+            swipeSlopeMax: 0.4,
+            fontScale: 0.95,
+            mutedColor: '#00bfff',
+            dedupeSeconds: 0.7
+        },
+        trustedTypes: {
+            enabled: false,
+            allowDomains: []
+        },
+        youtubeSubtitles: {
+            targetLang: 'vi',
+            fontSize: 16,
+            translatedFontSize: 16,
+            originalColor: '#ffffff',
+            translatedColor: '#0e8cef',
+            displayMode: 'compact',
+            showOriginal: true,
+            containerPosition: { x: '5%', y: '70px' },
+            containerAlignment: 'left',
+            enabled: false
+        },
         forum: {
             defaults: {
                 enabled: false,
@@ -74,6 +114,75 @@
         const config = deepClone(merged);
 
         config.version = 1;
+
+        // clipboard
+        config.clipboard = config.clipboard && typeof config.clipboard === 'object' ? config.clipboard : {};
+        config.clipboard.enabled = config.clipboard.enabled !== false;
+        config.clipboard.maxHistory = clampNumber(config.clipboard.maxHistory, 5, 1, 20);
+        config.clipboard.history = Array.isArray(config.clipboard.history)
+            ? config.clipboard.history.filter((s) => typeof s === 'string' && s.length > 0).slice(0, 20)
+            : [];
+        config.clipboard.pinned = Array.isArray(config.clipboard.pinned)
+            ? config.clipboard.pinned.filter((s) => typeof s === 'string' && s.length > 0)
+            : [];
+
+        config.googleSearch = config.googleSearch && typeof config.googleSearch === 'object' ? config.googleSearch : {};
+        config.googleSearch.enabled = config.googleSearch.enabled !== false;
+
+        config.quickSearch = config.quickSearch && typeof config.quickSearch === 'object' ? config.quickSearch : {};
+        config.quickSearch.enabled = config.quickSearch.enabled !== false;
+
+        config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
+        config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;
+        config.inlineTranslate.provider = config.inlineTranslate.provider === 'google' ? 'google' : 'google';
+        config.inlineTranslate.hotkey = ['f2', 'f4', 'f8'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
+            ? String(config.inlineTranslate.hotkey).toLowerCase()
+            : 'f2';
+        config.inlineTranslate.swipeEnabled = config.inlineTranslate.swipeEnabled !== false;
+        config.inlineTranslate.swipeDir = ['left', 'right', 'both'].includes(config.inlineTranslate.swipeDir) ? config.inlineTranslate.swipeDir : 'both';
+        config.inlineTranslate.swipePx = clampNumber(config.inlineTranslate.swipePx, 60, 20, 240);
+        config.inlineTranslate.swipeSlopeMax = clampNumber(config.inlineTranslate.swipeSlopeMax, 0.4, 0.1, 1);
+        config.inlineTranslate.fontScale = clampNumber(config.inlineTranslate.fontScale, 0.95, 0.5, 2);
+        config.inlineTranslate.mutedColor = typeof config.inlineTranslate.mutedColor === 'string' && config.inlineTranslate.mutedColor.trim()
+            ? config.inlineTranslate.mutedColor.trim()
+            : '#00bfff';
+        config.inlineTranslate.dedupeSeconds = clampNumber(config.inlineTranslate.dedupeSeconds, 0.7, 0.1, 10);
+
+        config.trustedTypes = config.trustedTypes && typeof config.trustedTypes === 'object' ? config.trustedTypes : {};
+        config.trustedTypes.enabled = !!config.trustedTypes.enabled;
+        config.trustedTypes.allowDomains = Array.isArray(config.trustedTypes.allowDomains)
+            ? config.trustedTypes.allowDomains.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
+            : [];
+
+        config.youtubeSubtitles = config.youtubeSubtitles && typeof config.youtubeSubtitles === 'object' ? config.youtubeSubtitles : {};
+        config.youtubeSubtitles.targetLang = typeof config.youtubeSubtitles.targetLang === 'string' && config.youtubeSubtitles.targetLang.trim()
+            ? config.youtubeSubtitles.targetLang.trim()
+            : 'vi';
+        config.youtubeSubtitles.fontSize = clampNumber(config.youtubeSubtitles.fontSize, 16, 12, 32);
+        config.youtubeSubtitles.translatedFontSize = clampNumber(config.youtubeSubtitles.translatedFontSize, 16, 12, 32);
+        config.youtubeSubtitles.originalColor = typeof config.youtubeSubtitles.originalColor === 'string' && config.youtubeSubtitles.originalColor.trim()
+            ? config.youtubeSubtitles.originalColor.trim()
+            : '#ffffff';
+        config.youtubeSubtitles.translatedColor = typeof config.youtubeSubtitles.translatedColor === 'string' && config.youtubeSubtitles.translatedColor.trim()
+            ? config.youtubeSubtitles.translatedColor.trim()
+            : '#0e8cef';
+        config.youtubeSubtitles.displayMode = ['compact', 'full'].includes(config.youtubeSubtitles.displayMode)
+            ? config.youtubeSubtitles.displayMode
+            : 'compact';
+        config.youtubeSubtitles.showOriginal = config.youtubeSubtitles.showOriginal !== false;
+        config.youtubeSubtitles.containerPosition = config.youtubeSubtitles.containerPosition && typeof config.youtubeSubtitles.containerPosition === 'object'
+            ? config.youtubeSubtitles.containerPosition
+            : {};
+        config.youtubeSubtitles.containerPosition.x = typeof config.youtubeSubtitles.containerPosition.x === 'string' && config.youtubeSubtitles.containerPosition.x.trim()
+            ? config.youtubeSubtitles.containerPosition.x.trim()
+            : '5%';
+        config.youtubeSubtitles.containerPosition.y = typeof config.youtubeSubtitles.containerPosition.y === 'string' && config.youtubeSubtitles.containerPosition.y.trim()
+            ? config.youtubeSubtitles.containerPosition.y.trim()
+            : '70px';
+        config.youtubeSubtitles.containerAlignment = ['left', 'center', 'right'].includes(config.youtubeSubtitles.containerAlignment)
+            ? config.youtubeSubtitles.containerAlignment
+            : 'left';
+        config.youtubeSubtitles.enabled = !!config.youtubeSubtitles.enabled;
 
         config.forum.defaults.enabled = !!config.forum.defaults.enabled;
         config.forum.defaults.wide = !!config.forum.defaults.wide;

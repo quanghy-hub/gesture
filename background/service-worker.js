@@ -1,3 +1,26 @@
+const detectTargetLanguage = (text) => /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text)
+    ? 'en'
+    : 'vi';
+
+const parseGoogleTranslateResponse = (data) => data?.[0]?.map((item) => item?.[0] ?? '').join('').trim() ?? '';
+
+const translateWithGoogle = async (text, targetLanguage) => {
+    const url = new URL('https://translate.googleapis.com/translate_a/single');
+    url.searchParams.set('client', 'gtx');
+    url.searchParams.set('sl', 'auto');
+    url.searchParams.set('tl', targetLanguage);
+    url.searchParams.set('dt', 't');
+    url.searchParams.set('q', text);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+        throw new Error(`Google Translate HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return parseGoogleTranslateResponse(data);
+};
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string') {
         return false;
@@ -35,6 +58,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 await chrome.tabs.remove(sender.tab.id);
                 sendResponse({ ok: true });
+                return;
+            }
+
+            case 'gesture-ext/translate-text': {
+                const text = String(message.payload?.text ?? '').trim();
+                if (!text) {
+                    sendResponse({ ok: false, error: 'Missing text for translation' });
+                    return;
+                }
+
+                const provider = 'google';
+                const targetLanguage = message.payload?.targetLanguage ?? detectTargetLanguage(text);
+                const translatedText = await translateWithGoogle(text, targetLanguage);
+
+                sendResponse({
+                    ok: true,
+                    result: {
+                        provider,
+                        text,
+                        translatedText,
+                        sourceLanguage: message.payload?.sourceLanguage ?? 'auto',
+                        targetLanguage
+                    }
+                });
                 return;
             }
 
