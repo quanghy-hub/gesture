@@ -81,12 +81,13 @@
         rootStyle.setProperty('--gesture-ilt-fg', nextSettings.mutedColor);
     };
 
-    const createTranslationBox = (text = '') => {
+    const createTranslationBox = (text = '', targetNode = null) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'gesture-inline-translate-box';
 
         if (IS_REDDIT) {
-            wrapper.setAttribute('slot', 'text-body');
+            const slot = targetNode?.getAttribute('slot') || 'text-body';
+            wrapper.setAttribute('slot', slot);
         }
 
         const content = document.createElement('div');
@@ -123,7 +124,10 @@
         }
 
         if (IS_REDDIT) {
-            return { host: node, mode: 'append' };
+            if (node.closest('h1, h2, h3, h4, [slot="title"]')) {
+                return { host: node, mode: 'append' };
+            }
+            return { host: node, mode: 'afterend' };
         }
 
         if (isClippedContainer(node)) {
@@ -163,6 +167,14 @@
         }
 
         if (IS_REDDIT) {
+            const comment = element.closest('shreddit-comment');
+            if (comment) {
+                const candidate = comment.querySelector('.md, [slot="comment"], [id$="-rtjson-content"], [id$="-post-rtjson-content"]');
+                if (candidate?.innerText.trim()) {
+                    return { text: candidate.innerText.trim(), node: candidate };
+                }
+            }
+
             const post = element.closest('shreddit-post');
             if (post) {
                 const body = post.querySelector('shreddit-post-text-body');
@@ -173,14 +185,6 @@
                             return { text: candidate.innerText.trim(), node: candidate };
                         }
                     }
-                }
-            }
-
-            const comment = element.closest('shreddit-comment');
-            if (comment) {
-                const candidate = comment.querySelector('.md, [slot="comment"]');
-                if (candidate?.innerText.trim()) {
-                    return { text: candidate.innerText.trim(), node: candidate };
                 }
             }
         }
@@ -337,7 +341,7 @@
             return;
         }
 
-        const box = createTranslationBox();
+        const box = createTranslationBox('', hit.node);
         insertTranslationBox(hit.node, box);
 
         try {
