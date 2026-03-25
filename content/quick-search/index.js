@@ -5,10 +5,10 @@
         maxProviders: 6,
         columns: 4,
         selectionDelay: 300,
-        selectionOffsetY: 30,
+        textBubbleOffsetY: 36,
+        imageBubbleOffsetY: 8,
         hoverDelay: 120,
-        hideDelay: 220,
-        longPressDelay: 450
+        hideDelay: 220
     };
 
     const DEFAULT_SETTINGS = {
@@ -290,11 +290,6 @@
                 longPress: 0
             };
 
-            const showTimestamps = {
-                text: 0,
-                image: 0
-            };
-
             const hideTextBubble = () => {
                 textBubble?.hide();
                 textContext = null;
@@ -342,7 +337,7 @@
                 }
                 return {
                     x: anchorRect.left + ((anchorRect.width || 0) / 2),
-                    y: anchorRect.bottom + CONFIG.selectionOffsetY
+                    y: anchorRect.bottom + CONFIG.textBubbleOffsetY
                 };
             };
 
@@ -365,10 +360,10 @@
                     return event ? { x: event.clientX + 6, y: event.clientY + 6 } : null;
                 }
                 const fallbackX = rect.left + (rect.width / 2);
-                const fallbackY = rect.bottom + 6;
+                const fallbackY = rect.bottom + CONFIG.imageBubbleOffsetY;
                 return {
-                    x: event?.clientX ?? fallbackX,
-                    y: event?.clientY ?? fallbackY
+                    x: fallbackX,
+                    y: fallbackY
                 };
             };
 
@@ -485,7 +480,6 @@
                     }))
                 ];
                 ensureTextBubble().show(items, context.x, context.y, CONFIG.columns);
-                showTimestamps.text = Date.now();
             };
 
             const syncTextBubbleToSelection = () => {
@@ -539,7 +533,6 @@
                     }))
                 ];
                 ensureImageBubble().show(items, context.x, context.y, CONFIG.columns);
-                showTimestamps.image = Date.now();
             };
 
             const scheduleSelectionBubble = () => {

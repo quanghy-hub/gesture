@@ -103,10 +103,10 @@
 
             .gesture-clipboard-item {
                 width: 100%;
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                align-items: stretch;
+                display: grid;
+                grid-template-columns: 20px minmax(0, 1fr) 20px;
+                gap: 8px;
+                align-items: start;
                 padding: 7px;
                 margin: 0 0 6px;
                 border-radius: 12px;
@@ -116,44 +116,61 @@
                 background: rgba(255, 255, 255, 0.06);
             }
 
+            .gesture-clipboard-item-pin,
+            .gesture-clipboard-item-remove {
+                margin-top: 1px;
+            }
+
+            .gesture-clipboard-item-remove {
+                justify-self: end;
+            }
+
             .gesture-clipboard-item-text {
+                border: 0;
+                background: transparent;
+                color: inherit;
+                cursor: pointer;
+                padding: 0;
+                margin: 0;
+                width: 100%;
+                text-align: left;
                 font-size: 12px;
                 line-height: 1.45;
                 white-space: pre-wrap;
                 word-break: break-word;
             }
 
-            .gesture-clipboard-item-actions {
-                display: flex;
-                flex-direction: row;
-                gap: 6px;
-                align-items: center;
-                justify-content: flex-start;
-                flex-wrap: wrap;
+            .gesture-clipboard-item-text:hover {
+                opacity: 0.92;
             }
 
-            .gesture-clipboard-action {
+            .gesture-clipboard-icon-button {
+                width: 20px;
+                height: 20px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
                 border: 0;
-                border-radius: 8px;
-                background: rgba(255, 255, 255, 0.12);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.1);
                 color: #fff;
                 cursor: pointer;
-                padding: 4px 7px;
-                font-size: 10px;
-                line-height: 1.2;
+                padding: 0;
+                font-size: 11px;
+                line-height: 1;
                 touch-action: manipulation;
             }
 
-            .gesture-clipboard-action:hover {
+            .gesture-clipboard-icon-button:hover {
                 background: rgba(255, 255, 255, 0.2);
             }
 
-            .gesture-clipboard-action-danger {
+            .gesture-clipboard-icon-button-danger {
                 background: rgba(239, 68, 68, 0.18);
                 color: #fecaca;
             }
 
-            .gesture-clipboard-action-danger:hover {
+            .gesture-clipboard-icon-button-danger:hover {
                 background: rgba(239, 68, 68, 0.28);
             }
         `;

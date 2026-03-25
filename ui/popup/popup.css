@@ -132,15 +132,19 @@ body {
 }
 
 select,
-input[type="number"] {
+input[type="number"],
+input[type="text"],
+input[type="color"] {
     height: 30px;
     padding: 4px 8px;
-    border: 1px solid rgba(255, 255, 255, .08);
+    border: 0;
+    outline: 0;
     border-radius: 8px;
     background: #111827;
     color: #f9fafb;
     font: inherit;
     box-sizing: border-box;
+    box-shadow: none;
 }
 
 input.num,
@@ -154,6 +158,29 @@ select {
     width: max-content;
     min-width: 86px;
     border: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+input[type="text"] {
+    width: 100%;
+    min-width: 0;
+}
+
+input[type="color"] {
+    padding: 0;
+    width: 34px;
+    min-width: 34px;
+    overflow: hidden;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: 0;
+    border-radius: 8px;
 }
 
 input[type="checkbox"] {

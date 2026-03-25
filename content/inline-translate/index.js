@@ -337,7 +337,8 @@
     ext.features.inlineTranslate = {
         shouldRun: ({ getConfig, runtime }) => runtime.isHttpPage() && !!getConfig()?.inlineTranslate?.enabled,
         init: ({ getConfig }) => {
-            if (window.top !== window || document.body?.dataset.gestureInlineTranslateMounted === 'true') {
+            const body = document.body;
+            if (window.top !== window || body?.dataset?.gestureInlineTranslateMounted === 'true') {
                 return {
                     onConfigChange() { },
                     destroy() { }
@@ -347,7 +348,9 @@
             settings = getConfig().inlineTranslate;
             ensureStyles();
             applyInlineTranslateCssVars(settings);
-            document.body.dataset.gestureInlineTranslateMounted = 'true';
+            if (body?.dataset) {
+                body.dataset.gestureInlineTranslateMounted = 'true';
+            }
 
             const onMouseMove = (event) => {
                 lastPointer = { x: event.clientX, y: event.clientY };

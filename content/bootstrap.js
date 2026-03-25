@@ -15,6 +15,13 @@
         configUtils: ext.shared.config
     };
 
+    const getFeatureName = (feature, index) => {
+        if (!feature || typeof feature !== 'object') {
+            return `unknown-${index}`;
+        }
+        return feature.name || feature.id || feature.key || feature.title || `feature-${index}`;
+    };
+
     const activateFeatures = () => {
         const features = [
             ext.features.clipboardStyles,
@@ -30,15 +37,23 @@
             ext.features.gesturesMobile
         ].filter(Boolean);
 
-        for (const feature of features) {
+        features.forEach((feature, index) => {
+            const featureName = getFeatureName(feature, index);
             try {
-                if (!feature.shouldRun?.(context)) continue;
-                const controller = feature.init?.(context);
+                const shouldRun = typeof feature.shouldRun === 'function' ? feature.shouldRun(context) : true;
+                if (!shouldRun) return;
+
+                if (typeof feature.init !== 'function') {
+                    console.warn(`[GestureExtension] Feature ${featureName} has no init()`);
+                    return;
+                }
+
+                const controller = feature.init(context);
                 if (controller) controllers.push(controller);
             } catch (error) {
-                console.error('[GestureExtension] Failed to initialize feature', feature, error);
+                console.error(`[GestureExtension] Failed to initialize feature: ${featureName}`, error);
             }
-        }
+        });
     };
 
     ext.shared.storage.getConfig().then((config) => {

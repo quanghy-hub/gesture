@@ -89,8 +89,16 @@
         return panel;
     };
 
+    const isGoogleSearchPage = () => {
+        if (!/^https?:$/i.test(window.location.protocol)) {
+            return false;
+        }
+        const host = window.location.hostname.toLowerCase();
+        return host === 'www.google.com' || host === 'google.com';
+    };
+
     ext.features.googleSearch = {
-        shouldRun: ({ runtime }) => runtime.isHttpPage(),
+        shouldRun: () => isGoogleSearchPage(),
         init: () => {
             let trigger = null;
             let panel = null;

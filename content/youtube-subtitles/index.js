@@ -679,7 +679,8 @@
                 });
             };
 
-            if (window.top !== window || document.body?.dataset.gestureYoutubeSubtitlesMounted === 'true') {
+            const body = document.body;
+            if (window.top !== window || body?.dataset?.gestureYoutubeSubtitlesMounted === 'true') {
                 return {
                     onConfigChange() { },
                     destroy() { }
@@ -708,7 +709,9 @@
                 };
             }
 
-            document.body.dataset.gestureYoutubeSubtitlesMounted = 'true';
+            if (body?.dataset) {
+                body.dataset.gestureYoutubeSubtitlesMounted = 'true';
+            }
             mountControlButtons({ onToggleTranslate: toggleTranslationMode });
             applySettingsStyles();
 
