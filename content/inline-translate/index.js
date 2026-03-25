@@ -85,6 +85,10 @@
         const wrapper = document.createElement('div');
         wrapper.className = 'gesture-inline-translate-box';
 
+        if (IS_REDDIT) {
+            wrapper.setAttribute('slot', 'text-body');
+        }
+
         const content = document.createElement('div');
         content.className = 'gesture-inline-translate-text';
         if (text) {
@@ -113,12 +117,41 @@
         return false;
     };
 
-    const insertTranslationBox = (node, box) => {
+    const getSafeTranslationAnchor = (node) => {
+        if (!node?.parentElement) {
+            return { host: node, mode: 'append' };
+        }
+
+        if (IS_REDDIT) {
+            return { host: node, mode: 'append' };
+        }
+
         if (isClippedContainer(node)) {
-            node.insertAdjacentElement('afterend', box);
+            return { host: node, mode: 'afterend' };
+        }
+
+        const nodeStyle = window.getComputedStyle(node);
+        const parent = node.parentElement;
+        const parentStyle = window.getComputedStyle(parent);
+        const hasMultiElementContent = node.children.length > 1;
+        const isInlineLike = /^(inline|contents)$/i.test(nodeStyle.display);
+        const isFlexRow = parentStyle.display === 'flex' && !/^column/i.test(parentStyle.flexDirection || 'row');
+        const isGridParent = parentStyle.display === 'grid' || parentStyle.display === 'inline-grid';
+
+        if (isInlineLike || isFlexRow || isGridParent || hasMultiElementContent) {
+            return { host: node, mode: 'afterend' };
+        }
+
+        return { host: node, mode: 'append' };
+    };
+
+    const insertTranslationBox = (node, box) => {
+        const anchor = getSafeTranslationAnchor(node);
+        if (anchor.mode === 'afterend') {
+            anchor.host.insertAdjacentElement('afterend', box);
             return;
         }
-        node.appendChild(box);
+        anchor.host.appendChild(box);
     };
 
     const findTranslationBox = (node) => node.querySelector(':scope > .gesture-inline-translate-box')
@@ -225,9 +258,12 @@
                 --gesture-ilt-fg: #00bfff;
             }
             .gesture-inline-translate-box {
+                display: block;
                 width: 100%;
-                margin: 8px 0;
+                clear: both;
+                margin: 8px 0 0;
                 padding-top: 6px;
+                box-sizing: border-box;
                 animation: gesture-inline-translate-fade-in 0.2s ease;
             }
             .gesture-inline-translate-text {

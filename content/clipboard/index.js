@@ -657,7 +657,9 @@
             document.addEventListener('selectionchange', onSelectionChange, true);
             window.addEventListener('scroll', onScrollOrResize, true);
             window.addEventListener('resize', onScrollOrResize, true);
-            window.addEventListener('focus', onClipboardChange, true);
+            if (window.location.protocol === 'chrome:' || window.location.protocol === 'chrome-extension:') {
+                window.addEventListener('focus', onClipboardChange, true);
+            }
             if (typeof MutationObserver === 'function') {
                 mutationObserver = new MutationObserver(() => {
                     if (panelOpen && activeTarget?.isConnected) {
