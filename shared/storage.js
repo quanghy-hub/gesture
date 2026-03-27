@@ -45,6 +45,8 @@
         const trimmed = text.trim();
         if (!trimmed) return;
         return updateConfig((draft) => {
+            draft.clipboard = draft.clipboard || { history: [], pinned: [] };
+            draft.clipboard.history = draft.clipboard.history || [];
             const cb = draft.clipboard;
             const max = cb.maxHistory || 5;
             cb.history = [trimmed, ...cb.history.filter((s) => s !== trimmed)].slice(0, max);
@@ -57,6 +59,8 @@
         const trimmed = text.trim();
         if (!trimmed) return;
         return updateConfig((draft) => {
+            draft.clipboard = draft.clipboard || { history: [], pinned: [] };
+            draft.clipboard.pinned = draft.clipboard.pinned || [];
             const cb = draft.clipboard;
             const idx = cb.pinned.indexOf(trimmed);
             if (idx === -1) {
@@ -73,15 +77,16 @@
         const trimmed = text.trim();
         if (!trimmed) return;
         return updateConfig((draft) => {
-            draft.clipboard.history = draft.clipboard.history.filter((s) => s !== trimmed);
-            draft.clipboard.pinned = draft.clipboard.pinned.filter((s) => s !== trimmed);
+            if (!draft.clipboard) return draft;
+            if (draft.clipboard.history) draft.clipboard.history = draft.clipboard.history.filter((s) => s !== trimmed);
+            if (draft.clipboard.pinned) draft.clipboard.pinned = draft.clipboard.pinned.filter((s) => s !== trimmed);
             return draft;
         });
     };
 
     const clearClipboardHistory = async () => {
         return updateConfig((draft) => {
-            draft.clipboard.history = [];
+            if (draft.clipboard) draft.clipboard.history = [];
             return draft;
         });
     };

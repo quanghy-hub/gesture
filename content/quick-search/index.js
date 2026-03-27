@@ -54,6 +54,11 @@
                 name: 'Bing Visual',
                 url: 'https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIIDP&q=imgurl:{{img}}',
                 icon: 'https://www.bing.com/favicon.ico'
+            },
+            {
+                name: 'Yandex Images',
+                url: 'https://yandex.com/images/search?rpt=imageview&url={{img}}',
+                icon: 'https://yandex.com/favicon.ico'
             }
         ]
     };
@@ -470,7 +475,12 @@
                         title: 'Copy',
                         glyph: '⧉',
                         onClick: () => {
-                            ext.shared.domUtils.copyText(context.text).then(() => ext.shared.toastCore.createToast('Đã chép', context.x, context.y, 1200));
+                            ext.shared.domUtils.copyText(context.text).then(async () => {
+                                if (ext.shared.storage?.saveClipboardHistory) {
+                                    await ext.shared.storage.saveClipboardHistory(context.text);
+                                }
+                                ext.shared.toastCore.createToast('Đã chép', context.x, context.y, 1200);
+                            });
                             hideTextBubble();
                         }
                     },
@@ -530,9 +540,18 @@
                     {
                         label: 'Save',
                         title: 'Save image',
-                        glyph: '⇩',
+                        glyph: '︾',
                         onClick: () => {
                             downloadImage(context.url, context.x, context.y);
+                            hideImageBubble();
+                        }
+                    },
+                    {
+                        label: 'OCR',
+                        title: 'Trích xuất văn bản từ ảnh',
+                        glyph: '[T]',
+                        onClick: () => {
+                            ext.shared.ocrCore.extractText(context.url, context.x, context.y);
                             hideImageBubble();
                         }
                     },
@@ -588,9 +607,20 @@
                     if (!anchor) {
                         return;
                     }
+                    // Ưu tiên URL HTTP thật, bỏ qua data: URLs từ lazy-loading
+                    const resolvedUrl = (() => {
+                        const candidates = [
+                            image.currentSrc,
+                            image.src,
+                            image.getAttribute('data-src'),
+                            image.getAttribute('data-lazy-src'),
+                            image.getAttribute('data-original'),
+                        ];
+                        return candidates.find(u => u && !u.startsWith('data:') && !u.startsWith('blob:')) || image.currentSrc || image.src;
+                    })();
                     imageContext = {
                         image,
-                        url: image.currentSrc || image.src,
+                        url: resolvedUrl,
                         x: anchor.x,
                         y: anchor.y
                     };

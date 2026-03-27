@@ -45,6 +45,7 @@
                 "shared/selection-core.js",
                 "shared/ui-core.js",
                 "shared/dom-utils.js",
+                "shared/ocr-core.js",
                 "content/forum/styles.js",
                 "content/forum/layout.js",
                 "content/forum/index.js",

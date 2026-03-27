@@ -85,6 +85,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return;
             }
 
+            case 'gesture-ext/perform-ocr': {
+                const imageUrl = message.payload?.imageUrl;
+                if (!imageUrl) {
+                    sendResponse({ ok: false, error: 'Missing imageUrl' });
+                    return;
+                }
+
+                (async () => {
+                    try {
+                        const res = await fetch(imageUrl);
+                        const blob = await res.blob();
+
+                        const formData = new FormData();
+                        formData.append('file', blob, 'image.jpg');
+                        formData.append('language', 'auto');
+                        formData.append('OCREngine', '3');
+                        formData.append('apikey', 'helloworld');
+
+                        const ocrRes = await fetch('https://api.ocr.space/parse/image', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await ocrRes.json();
+                        if (data.IsErroredOnProcessing) {
+                            throw new Error(data.ErrorMessage?.[0] || 'Lỗi OCR (E201/Máy chủ)');
+                        }
+                        const text = data.ParsedResults?.[0]?.ParsedText?.trim() || '';
+                        sendResponse({ ok: true, text });
+                    } catch (error) {
+                        sendResponse({ ok: false, error: error.message });
+                    }
+                })();
+                return true;
+            }
+
             default:
                 sendResponse({ ok: false, error: `Unsupported message type: ${message.type}` });
         }

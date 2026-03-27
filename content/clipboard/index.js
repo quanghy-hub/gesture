@@ -86,7 +86,8 @@
                         return `
                             <div class="gesture-clipboard-item">
                                 <button type="button" class="gesture-clipboard-icon-button gesture-clipboard-item-pin" data-pin="${encoded}" aria-label="${pinLabel}" title="${pinLabel}">📌</button>
-                                <button type="button" class="gesture-clipboard-item-text" data-insert="${encoded}" title="Chèn nội dung">${previewText(escaped)}</button>
+                                <button type="button" class="gesture-clipboard-icon-button gesture-clipboard-item-paste" data-paste="${encoded}" aria-label="Paste" title="Dán nội dung">⚡</button>
+                                <div class="gesture-clipboard-item-text" title="Bôi đen để copy">${escaped}</div>
                                 <button type="button" class="gesture-clipboard-icon-button gesture-clipboard-icon-button-danger gesture-clipboard-item-remove" data-remove="${encoded}" aria-label="Xóa" title="Xóa">🗑</button>
                             </div>
                         `;
@@ -124,7 +125,12 @@
                     if (!triggerRef || !panelRef) {
                         return;
                     }
-                     if (!config?.clipboard?.enabled || !activeTarget || !activeTarget.isConnected || !isEditableTarget(activeTarget) || (!isDraggingTrigger && document.activeElement !== activeTarget)) {
+                     if (!config?.clipboard?.enabled || !activeTarget || !activeTarget.isConnected || !isEditableTarget(activeTarget)) {
+                         triggerRef.hide();
+                         panelRef.hide();
+                         return;
+                     }
+                     if (!isDraggingTrigger && !panelOpen && document.activeElement !== activeTarget) {
                          triggerRef.hide();
                          panelRef.hide();
                          return;
@@ -249,15 +255,15 @@ const rect = activeTarget.getBoundingClientRect();
 
                 panelRef.element.addEventListener('click', (event) => {
                     floating.stopFloatingEvent(event);
-                    const insertButton = event.target.closest('[data-insert]');
+                    const insertButton = event.target.closest('[data-paste]');
                     const pinButton = event.target.closest('[data-pin]');
                     const removeButton = event.target.closest('[data-remove]');
                     if (insertButton) {
-                        const text = decodeAttribute(insertButton.getAttribute('data-insert') || '');
+                        const text = decodeAttribute(insertButton.getAttribute('data-paste') || '');
                         suppressNextFocusReset = true;
                         focusActiveTarget();
                         insertTextAtCaret(activeTarget, text);
-                        panelOpen = false;
+                        // Không đóng panel theo yêu cầu mới
                         renderPanel();
                         positionUI();
                         return;

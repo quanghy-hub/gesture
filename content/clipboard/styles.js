@@ -104,9 +104,9 @@
             .gesture-clipboard-item {
                 width: 100%;
                 display: grid;
-                grid-template-columns: 20px minmax(0, 1fr) 20px;
+                grid-template-columns: 20px 20px minmax(0, 1fr) 20px;
                 gap: 8px;
-                align-items: start;
+                align-items: center;
                 padding: 7px;
                 margin: 0 0 6px;
                 border-radius: 12px;
@@ -126,18 +126,17 @@
             }
 
             .gesture-clipboard-item-text {
-                border: 0;
-                background: transparent;
+                flex: 1;
                 color: inherit;
-                cursor: pointer;
                 padding: 0;
                 margin: 0;
-                width: 100%;
-                text-align: left;
                 font-size: 12px;
                 line-height: 1.45;
                 white-space: pre-wrap;
                 word-break: break-word;
+                user-select: text;
+                -webkit-user-select: text;
+                cursor: text;
             }
 
             .gesture-clipboard-item-text:hover {

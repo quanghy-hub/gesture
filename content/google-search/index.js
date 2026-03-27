@@ -15,7 +15,8 @@
         { name: 'Week', unit: 'w', values: [1, 2, 3, 4] },
         { name: 'Month', unit: 'm', values: [1, 2, 3, 6, 9, 12] },
         { name: 'Year', unit: 'y', values: [1, 2, 3, 4, 5] },
-        { name: 'File', unit: 'file', values: ['PDF', 'DOC', 'XLS', 'PPT', 'TXT'] }
+        { name: 'File', unit: 'file', values: ['PDF', 'DOC', 'XLS', 'PPT', 'TXT'] },
+        { name: 'Tools', unit: 'tool', values: ['OCR'] }
     ];
 
     const STORAGE_KEY = 'gesture_google_search_position_v1';
@@ -46,10 +47,20 @@
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'cell';
-                button.textContent = filter.unit === 'file' ? value : `${value}${filter.unit.toUpperCase()}`;
+                if (filter.unit === 'tool' && value === 'OCR') {
+                    button.textContent = 'OCR';
+                } else {
+                    button.textContent = filter.unit === 'file' ? value : `${value}${filter.unit.toUpperCase()}`;
+                }
                 button.addEventListener('click', (event) => {
                     floating.stopFloatingEvent(event);
                     if (filter.unit === 'file') onApplyFile(value);
+                    else if (filter.unit === 'tool' && value === 'OCR') {
+                        // For google-search, we might not have a specific image, 
+                        // so we could trigger a general OCR mode or just info.
+                        // Let's assume they want to OCR the most likely image or just show how.
+                        ext.shared.toastCore.createToast('Di chuột vào ảnh để dùng OCR', event.clientX, event.clientY, 2000);
+                    }
                     else onApplyTime(filter.unit, value);
                 });
                 grid.appendChild(button);
