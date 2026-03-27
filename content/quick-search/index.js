@@ -218,17 +218,6 @@
         bubble.style.top = `${clampedTop}px`;
     };
 
-    const createToast = (message, x, y) => {
-        const root = ensureUiRoot();
-        const toast = document.createElement('div');
-        toast.className = 'gesture-quick-search-toast';
-        toast.textContent = message;
-        toast.style.left = `${Math.min(x, window.innerWidth - 200)}px`;
-        toast.style.top = `${Math.max(6, y - 36)}px`;
-        root.appendChild(toast);
-        window.setTimeout(() => toast.remove(), 1200);
-    };
-
     const createBubble = (type) => {
         const root = ensureUiRoot();
         const bubble = document.createElement('div');
@@ -336,11 +325,6 @@
                 return bubbleInstance.bubble.contains(event.target);
             };
 
-            const isEditableElement = (element) => Boolean(
-                element instanceof HTMLElement &&
-                (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.isContentEditable)
-            );
-
             const getSelectionText = () => String(window.getSelection?.() || '').trim();
 
             const getSelectionAnchor = (selection) => {
@@ -387,24 +371,6 @@
                 };
             };
 
-            const copyText = async (value) => {
-                try {
-                    await navigator.clipboard.writeText(value);
-                    return true;
-                } catch {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = value;
-                    textarea.style.position = 'fixed';
-                    textarea.style.opacity = '0';
-                    document.body.appendChild(textarea);
-                    textarea.focus();
-                    textarea.select();
-                    document.execCommand('copy');
-                    textarea.remove();
-                    return true;
-                }
-            };
-
             const selectAllPageText = () => {
                 const activeElement = document.activeElement;
                 if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) {
@@ -437,10 +403,10 @@
                     a.rel = 'noopener';
                     a.download = `image_${Date.now()}.jpg`;
                     a.click();
-                    createToast('Đang tải ảnh...', x, y);
+                    ext.shared.toastCore.createToast('Đang tải ảnh...', x, y, 1200);
                 } catch {
                     await openTab(url);
-                    createToast('Mở tab mới để lưu', x, y);
+                    ext.shared.toastCore.createToast('Mở tab mới để lưu', x, y, 1200);
                 }
             };
 
@@ -504,7 +470,7 @@
                         title: 'Copy',
                         glyph: '⧉',
                         onClick: () => {
-                            copyText(context.text).then(() => createToast('Đã chép', context.x, context.y));
+                            ext.shared.domUtils.copyText(context.text).then(() => ext.shared.toastCore.createToast('Đã chép', context.x, context.y, 1200));
                             hideTextBubble();
                         }
                     },
@@ -514,7 +480,7 @@
                         glyph: '⤢',
                         onClick: () => {
                             selectAllPageText();
-                            createToast('Đã chọn hết', context.x, context.y);
+                            ext.shared.toastCore.createToast('Đã chọn hết', context.x, context.y, 1200);
                         }
                     },
                     ...providers.map((provider) => ({
@@ -575,7 +541,7 @@
                         title: 'Copy image URL',
                         glyph: '⧉',
                         onClick: () => {
-                            copyText(context.url).then(() => createToast('Đã chép URL', context.x, context.y));
+                            ext.shared.domUtils.copyText(context.url).then(() => ext.shared.toastCore.createToast('Đã chép URL', context.x, context.y, 1200));
                             hideImageBubble();
                         }
                     },
@@ -633,7 +599,7 @@
             };
 
             const onPointerUp = () => {
-                if (isEditableElement(document.activeElement)) {
+                if (ext.shared.selectionCore.isEditableTarget(document.activeElement)) {
                     hideTextBubble();
                     return;
                 }

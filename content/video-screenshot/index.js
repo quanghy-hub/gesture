@@ -25,9 +25,8 @@
     const IS_MOBILE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const managedVideos = new WeakMap();
 
-    const sanitizeFilename = (input) => input.replace(/[<>:"/\\|?*]+/g, '_').replace(/\s+/g, ' ').trim();
     const buildFilename = () => {
-        const base = sanitizeFilename(document.title || 'screenshot') || 'screenshot';
+        const base = ext.shared.domUtils.sanitizeFilename(document.title || 'screenshot') || 'screenshot';
         return `${base}_${Date.now()}.png`;
     };
     const fallbackDownload = (url, filename) => {

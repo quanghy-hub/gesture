@@ -1,14 +1,12 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const floating = ext.shared.floatingCore;
+    const { createShadowContainer } = ext.shared.uiCore;
 
     const UI = {
         triggerSize: 36,
-        dragThreshold: 5,
         panelOffset: 8,
-        defaultPosition: {
-            top: 130,
-            left: 160
-        }
+        defaultPosition: { top: 130, left: 160 }
     };
 
     const FILTERS = [
@@ -22,64 +20,37 @@
 
     const STORAGE_KEY = 'gesture_google_search_position_v1';
 
-    const clampPosition = (left, top) => {
-        const maxLeft = Math.max(0, window.innerWidth - UI.triggerSize);
-        const maxTop = Math.max(0, window.innerHeight - UI.triggerSize);
-        return {
-            left: Math.min(Math.max(0, left), maxLeft),
-            top: Math.min(Math.max(0, top), maxTop)
-        };
-    };
-
     const getStoredPosition = () => new Promise((resolve) => {
-        try {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                if (chrome.runtime.lastError) {
-                    resolve(UI.defaultPosition);
-                    return;
-                }
-                const value = result?.[STORAGE_KEY];
-                resolve(value && typeof value === 'object' ? value : UI.defaultPosition);
-            });
-        } catch {
-            resolve(UI.defaultPosition);
-        }
+        chrome.storage.local.get([STORAGE_KEY], (result) => {
+            const value = result?.[STORAGE_KEY];
+            resolve(value && typeof value === 'object' ? value : UI.defaultPosition);
+        });
     });
 
-    const setStoredPosition = (position) => new Promise((resolve) => {
-        try {
-            chrome.storage.local.set({ [STORAGE_KEY]: position }, () => resolve());
-        } catch {
-            resolve();
-        }
-    });
+    const setStoredPosition = (position) => chrome.storage.local.set({ [STORAGE_KEY]: position });
 
     const createFilterPanel = ({ onApplyTime, onApplyFile }) => {
         const panel = document.createElement('div');
-        panel.className = 'gesture-google-search-panel';
+        panel.className = 'panel';
 
         const grid = document.createElement('div');
-        grid.className = 'gesture-google-search-grid';
+        grid.className = 'grid';
 
         FILTERS.forEach((filter) => {
             const header = document.createElement('div');
-            header.className = 'gesture-google-search-header';
+            header.className = 'header';
             header.textContent = filter.name;
             grid.appendChild(header);
 
             filter.values.forEach((value) => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'gesture-google-search-cell';
+                button.className = 'cell';
                 button.textContent = filter.unit === 'file' ? value : `${value}${filter.unit.toUpperCase()}`;
                 button.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (filter.unit === 'file') {
-                        onApplyFile(value);
-                        return;
-                    }
-                    onApplyTime(filter.unit, value);
+                    floating.stopFloatingEvent(event);
+                    if (filter.unit === 'file') onApplyFile(value);
+                    else onApplyTime(filter.unit, value);
                 });
                 grid.appendChild(button);
             });
@@ -90,61 +61,82 @@
     };
 
     const isGoogleSearchPage = () => {
-        if (!/^https?:$/i.test(window.location.protocol)) {
-            return false;
-        }
         const host = window.location.hostname.toLowerCase();
-        return host === 'www.google.com' || host === 'google.com';
+        return (host === 'www.google.com' || host === 'google.com') && /^https?:$/i.test(window.location.protocol);
     };
+
+    const STYLES = `
+        :host { all: initial; }
+        .trigger {
+            position: fixed;
+            z-index: 2147483646;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 50%;
+            background: #4285f4;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+            cursor: grab;
+            font-size: 16px;
+            line-height: 1;
+            user-select: none;
+            touch-action: none;
+        }
+        .trigger.is-active { background: #1a73e8; }
+        .trigger.is-dragging { cursor: grabbing; opacity: 0.75; }
+        .panel {
+            position: fixed;
+            z-index: 2147483645;
+            display: none;
+            padding: 10px;
+            border-radius: 12px;
+            background: #1a1a1a;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+            color: #e8eaed;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .panel.is-visible { display: block; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(6, 32px);
+            gap: 4px;
+        }
+        .header {
+            grid-column: 1 / -1;
+            padding: 4px 2px 2px;
+            color: #9aa0a6;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .cell {
+            width: 32px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: #2a2a2a;
+            color: #e8eaed;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .cell:hover { background: #4285f4; color: #fff; }
+    `;
 
     ext.features.googleSearch = {
         shouldRun: () => isGoogleSearchPage(),
         init: () => {
-            let trigger = null;
-            let panel = null;
-            let isPanelOpen = false;
-            let isDragging = false;
-            let dragCleanup = () => { };
-
-            const applyTriggerPosition = (position) => {
-                if (!trigger) return;
-                const next = clampPosition(position.left, position.top);
-                trigger.style.left = `${next.left}px`;
-                trigger.style.top = `${next.top}px`;
-            };
-
-            const updatePanelPosition = () => {
-                if (!trigger || !panel) return;
-                const rect = trigger.getBoundingClientRect();
-                const preferredLeft = Math.min(rect.left, Math.max(0, window.innerWidth - panel.offsetWidth - 8));
-                const preferredTop = Math.min(rect.bottom + UI.panelOffset, Math.max(0, window.innerHeight - panel.offsetHeight - 8));
-                panel.style.left = `${Math.max(0, preferredLeft)}px`;
-                panel.style.top = `${Math.max(0, preferredTop)}px`;
-            };
-
-            const showPanel = () => {
-                updatePanelPosition();
-                panel.classList.add('is-visible');
-                trigger.classList.add('is-active');
-                isPanelOpen = true;
-            };
-
-            const hidePanel = () => {
-                panel.classList.remove('is-visible');
-                trigger.classList.remove('is-active');
-                isPanelOpen = false;
-            };
-
-            const togglePanel = () => {
-                if (isPanelOpen) {
-                    hidePanel();
-                    return;
-                }
-                showPanel();
-            };
-
-            const urlSearchParamsFallback = () => new URL(window.location.href).searchParams.get('q') ?? '';
-
+            let config = { left: 0, top: 0, open: false };
+            const { container, shadow } = createShadowContainer('gesture-google-search-ui', STYLES);
+            
+            const trigger = document.createElement('button');
+            trigger.className = 'trigger';
+            trigger.textContent = '🔍';
+            
             const applyTimeFilter = (period, amount) => {
                 const url = new URL(window.location.href);
                 url.searchParams.set('tbs', `qdr:${period}${amount > 1 ? amount : ''}`);
@@ -153,249 +145,85 @@
 
             const applyFileFilter = (type) => {
                 const input = document.querySelector('textarea[name="q"], input[name="q"]');
-                const currentQuery = (input?.value || urlSearchParamsFallback())
-                    .replace(/\s*filetype:\w+/gi, '')
-                    .trim();
                 const url = new URL(window.location.href);
-                const nextQuery = [currentQuery, `filetype:${String(type).toLowerCase()}`].filter(Boolean).join(' ');
-                url.searchParams.set('q', nextQuery);
+                const currentQuery = (input?.value || url.searchParams.get('q') || '').replace(/\s*filetype:\w+/gi, '').trim();
+                url.searchParams.set('q', [currentQuery, `filetype:${String(type).toLowerCase()}`].filter(Boolean).join(' '));
                 window.location.assign(url.toString());
             };
 
-            const savePosition = async () => {
-                if (!trigger) return;
-                await setStoredPosition({
-                    top: trigger.offsetTop,
-                    left: trigger.offsetLeft
-                });
-            };
+            const panel = createFilterPanel({ onApplyTime: applyTimeFilter, onApplyFile: applyFileFilter });
+            shadow.append(trigger, panel);
+            document.documentElement.appendChild(container);
 
-            const bindDragEvents = () => {
-                let startX = 0;
-                let startY = 0;
-                let startLeft = 0;
-                let startTop = 0;
-
-                const onPointerMove = (event) => {
-                    const deltaX = event.clientX - startX;
-                    const deltaY = event.clientY - startY;
-
-                    if (Math.abs(deltaX) > UI.dragThreshold || Math.abs(deltaY) > UI.dragThreshold) {
-                        isDragging = true;
-                    }
-
-                    if (!isDragging) {
-                        return;
-                    }
-
-                    event.preventDefault();
-                    event.stopPropagation();
-                    applyTriggerPosition({
-                        left: startLeft + deltaX,
-                        top: startTop + deltaY
+            const updateUI = () => {
+                trigger.style.left = `${config.left}px`;
+                trigger.style.top = `${config.top}px`;
+                panel.classList.toggle('is-visible', config.open);
+                trigger.classList.toggle('is-active', config.open);
+                if (config.open) {
+                    const rect = trigger.getBoundingClientRect();
+                    const pPos = floating.clampFixedPosition({
+                        left: rect.left,
+                        top: rect.bottom + UI.panelOffset,
+                        width: panel.offsetWidth,
+                        height: panel.offsetHeight
                     });
-
-                    if (isPanelOpen) {
-                        updatePanelPosition();
-                    }
-                };
-
-                const onPointerUp = async () => {
-                    trigger.classList.remove('is-dragging');
-                    dragCleanup();
-
-                    if (isDragging) {
-                        await savePosition();
-                    }
-                };
-
-                trigger.addEventListener('pointerdown', (event) => {
-                    if (event.button !== 0 && event.pointerType !== 'touch') {
-                        return;
-                    }
-
-                    event.preventDefault();
-                    event.stopPropagation();
-                    isDragging = false;
-                    startX = event.clientX;
-                    startY = event.clientY;
-                    startLeft = trigger.offsetLeft;
-                    startTop = trigger.offsetTop;
-                    trigger.classList.add('is-dragging');
-                    trigger.setPointerCapture?.(event.pointerId);
-
-                    const moveHandler = (moveEvent) => onPointerMove(moveEvent);
-                    const upHandler = () => {
-                        onPointerUp().catch((error) => {
-                            console.error('[GestureExtension] Failed to persist google search position', error);
-                        });
-                        document.removeEventListener('pointermove', moveHandler);
-                        document.removeEventListener('pointerup', upHandler);
-                        document.removeEventListener('pointercancel', upHandler);
-                    };
-
-                    dragCleanup = () => {
-                        document.removeEventListener('pointermove', moveHandler);
-                        document.removeEventListener('pointerup', upHandler);
-                        document.removeEventListener('pointercancel', upHandler);
-                    };
-
-                    document.addEventListener('pointermove', moveHandler, { passive: false });
-                    document.addEventListener('pointerup', upHandler, { once: true });
-                    document.addEventListener('pointercancel', upHandler, { once: true });
-                });
-
-                trigger.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    event.stopImmediatePropagation();
-
-                    if (isDragging) {
-                        isDragging = false;
-                        return;
-                    }
-
-                    togglePanel();
-                }, true);
-            };
-
-            const bindLifecycleEvents = () => {
-                document.addEventListener('click', (event) => {
-                    if (!isPanelOpen) {
-                        return;
-                    }
-
-                    const target = event.target;
-                    if (target instanceof Node && (trigger.contains(target) || panel.contains(target))) {
-                        return;
-                    }
-
-                    hidePanel();
-                }, true);
-
-                window.addEventListener('resize', () => {
-                    applyTriggerPosition({
-                        left: trigger.offsetLeft,
-                        top: trigger.offsetTop
-                    });
-
-                    if (isPanelOpen) {
-                        updatePanelPosition();
-                    }
-                });
-            };
-
-            const ensureStyles = () => {
-                if (document.getElementById('gesture-google-search-style')) {
-                    return;
+                    panel.style.left = `${pPos.left}px`;
+                    panel.style.top = `${pPos.top}px`;
                 }
-                const style = document.createElement('style');
-                style.id = 'gesture-google-search-style';
-                style.textContent = `
-                    .gesture-google-search-trigger {
-                        position: fixed;
-                        z-index: 2147483646;
-                        width: 36px;
-                        height: 36px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        border: none;
-                        border-radius: 50%;
-                        background: #4285f4;
-                        color: #fff;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-                        cursor: grab;
-                        font-size: 16px;
-                        line-height: 1;
-                        user-select: none;
-                        touch-action: none;
-                    }
-                    .gesture-google-search-trigger.is-active {
-                        background: #1a73e8;
-                    }
-                    .gesture-google-search-trigger.is-dragging {
-                        cursor: grabbing;
-                        opacity: 0.75;
-                    }
-                    .gesture-google-search-panel {
-                        position: fixed;
-                        z-index: 2147483645;
-                        display: none;
-                        padding: 10px;
-                        border-radius: 12px;
-                        background: #1a1a1a;
-                        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-                        color: #e8eaed;
-                    }
-                    .gesture-google-search-panel.is-visible {
-                        display: block;
-                    }
-                    .gesture-google-search-grid {
-                        display: grid;
-                        grid-template-columns: repeat(6, 32px);
-                        gap: 4px;
-                    }
-                    .gesture-google-search-header {
-                        grid-column: 1 / -1;
-                        padding: 4px 2px 2px;
-                        color: #9aa0a6;
-                        font-size: 10px;
-                        font-weight: 600;
-                    }
-                    .gesture-google-search-header:first-child {
-                        padding-top: 0;
-                    }
-                    .gesture-google-search-cell {
-                        width: 32px;
-                        height: 28px;
-                        border: none;
-                        border-radius: 6px;
-                        background: #2a2a2a;
-                        color: #e8eaed;
-                        font-size: 11px;
-                        font-weight: 500;
-                        cursor: pointer;
-                    }
-                    .gesture-google-search-cell:hover {
-                        background: #4285f4;
-                        color: #fff;
-                    }
-                `;
-                (document.head || document.documentElement).appendChild(style);
             };
 
-            const createUi = async () => {
-                ensureStyles();
-                trigger = document.createElement('button');
-                trigger.type = 'button';
-                trigger.className = 'gesture-google-search-trigger';
-                trigger.setAttribute('aria-label', 'Google search filters');
-                trigger.textContent = '🔍';
+            const unbindDrag = floating.bindDragBehavior({
+                target: trigger,
+                getInitialPosition: () => ({ left: config.left, top: config.top }),
+                onMove: ({ deltaX, deltaY, origin }) => {
+                    const next = floating.clampFixedPosition({
+                        left: origin.left + deltaX,
+                        top: origin.top + deltaY,
+                        width: UI.triggerSize,
+                        height: UI.triggerSize,
+                        margin: 0
+                    });
+                    config.left = next.left;
+                    config.top = next.top;
+                    trigger.classList.add('is-dragging');
+                    updateUI();
+                },
+                onDragEnd: () => {
+                    trigger.classList.remove('is-dragging');
+                    setStoredPosition({ left: config.left, top: config.top });
+                },
+                onClick: () => {
+                    config.open = !config.open;
+                    updateUI();
+                }
+            });
 
-                panel = createFilterPanel({
-                    onApplyTime: applyTimeFilter,
-                    onApplyFile: applyFileFilter
+            const unbindOutside = floating.bindOutsideClickGuard({
+                isOpen: () => config.open,
+                containsTarget: (t) => trigger.contains(t) || panel.contains(t),
+                onOutside: () => { config.open = false; updateUI(); }
+            });
+
+            getStoredPosition().then((pos) => {
+                const initial = floating.clampFixedPosition({
+                    left: pos.left,
+                    top: pos.top,
+                    width: UI.triggerSize,
+                    height: UI.triggerSize,
+                    margin: 0
                 });
-
-                document.documentElement.appendChild(trigger);
-                document.documentElement.appendChild(panel);
-
-                applyTriggerPosition(await getStoredPosition());
-                bindDragEvents();
-                bindLifecycleEvents();
-            };
-
-            createUi().catch((error) => {
-                console.error('[GestureExtension] Failed to initialize google search feature', error);
+                config.left = initial.left;
+                config.top = initial.top;
+                updateUI();
             });
 
             return {
                 onConfigChange() { },
                 destroy() {
-                    dragCleanup();
-                    trigger?.remove();
-                    panel?.remove();
+                    unbindDrag();
+                    unbindOutside();
+                    container.remove();
                 }
             };
         }
