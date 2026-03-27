@@ -36,7 +36,6 @@
             ],
             "all_frames": true,
             "css": [
-                "content/cookie-bypass/styles.css",
                 "content/video-floating/styles.css",
                 "content/google-search/styles.css",
                 "content/clipboard/styles.css"
@@ -68,7 +67,6 @@
                 "content/video-screenshot/index.js",
                 "content/trusted-types/index.js",
                 "content/youtube-subtitles/index.js",
-                "content/cookie-bypass/index.js",
                 "content/video-floating/index.js",
                 "content/bootstrap.js"
             ],

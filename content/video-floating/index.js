@@ -672,12 +672,6 @@
         const total = list.length + iframeList.length;
         const m = menuRef.element;
         m.innerHTML = `<div style="padding:10px 16px;font-size:12px;color:#888;font-weight:600">VIDEOS (${total})</div>`;
-        const cb = ext?.features?.cookieBypass;
-        if (cb?.isActive?.()) {
-            const status = el('div', 'fvp-menu-item'); status.style.cssText = 'font-size:12px;color:#1da6f0;border-top:1px solid #333';
-            status.innerHTML = `<span>🍪</span><span style="flex:1">Cookie Bypasser Active (${cb.getBypassedCount()})</span>`;
-            m.appendChild(status);
-        }
         if (!total) { m.innerHTML += '<div class="fvp-menu-item" style="opacity:0.5">No videos found</div>'; return; }
         list.forEach((v, i) => {
             const item = el('div', 'fvp-menu-item', `<span>🎬</span><span style="flex:1">Video ${i + 1}</span>`);

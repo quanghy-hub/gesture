@@ -26,9 +26,6 @@
             layout: null,
             iconPos: null
         },
-        cookieBypass: {
-            enabled: true
-        },
         quickSearch: {
             enabled: true
         },
@@ -173,10 +170,6 @@
         config.videoFloating.noticeFontSize = clampNumber(config.videoFloating.noticeFontSize, 14, 8, 48);
         config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
         config.videoFloating.iconPos = config.videoFloating.iconPos && typeof config.videoFloating.iconPos === 'object' ? config.videoFloating.iconPos : null;
-
-        // cookieBypass
-        config.cookieBypass = config.cookieBypass && typeof config.cookieBypass === 'object' ? config.cookieBypass : {};
-        config.cookieBypass.enabled = config.cookieBypass.enabled !== false;
 
         config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
         config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;
