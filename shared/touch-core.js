@@ -53,7 +53,6 @@
         getPrimaryPoint,
         isExtensionUiTarget,
         isTouchLikeEvent,
-        preventCancelable,
-        BASE_EXTENSION_UI_SELECTORS: uiGuard?.BASE_EXTENSION_UI_SELECTORS || []
+        preventCancelable
     };
 })();

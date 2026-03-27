@@ -32,11 +32,6 @@
 
     const hasMeaningfulText = (text) => text.replace(JUNK, '').length > 0;
 
-    const cleanTranslatedText = (text) => String(text || '')
-        .replace(/^[\s\p{P}\p{S}]+|[\s\p{P}\p{S}]+$/gmu, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-
     const normalizeBlockText = (text) => String(text || '')
         .replace(/\s+/g, ' ')
         .trim();
@@ -103,8 +98,6 @@
 
         return currentBest;
     };
-
-
 
     const applyInlineTranslateCssVars = (nextSettings) => {
         const rootStyle = document.documentElement.style;
