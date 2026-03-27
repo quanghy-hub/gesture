@@ -204,53 +204,6 @@
                 word-break: break-word;
                 white-space: pre-wrap;
             }
-            .gesture-quick-search-clipboard-panel {
-                position: fixed;
-                z-index: 3;
-                display: none;
-                width: min(340px, calc(100vw - 16px));
-                max-height: min(360px, calc(100vh - 16px));
-                overflow: auto;
-                padding: 8px;
-                border-radius: 12px;
-                background: rgba(17, 24, 39, 0.98);
-                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-                pointer-events: auto;
-            }
-            .gesture-quick-search-clipboard-title {
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                opacity: 0.72;
-                margin: 2px 4px 8px;
-            }
-            .gesture-quick-search-clipboard-item {
-                width: 100%;
-                margin: 0 0 6px;
-                padding: 8px 10px;
-                border: none;
-                border-radius: 10px;
-                background: rgba(255, 255, 255, 0.08);
-                color: #f3f4f6;
-                text-align: left;
-                font: inherit;
-                line-height: 1.35;
-                cursor: pointer;
-                white-space: pre-wrap;
-                word-break: break-word;
-            }
-            .gesture-quick-search-clipboard-item:hover {
-                background: rgba(255, 255, 255, 0.14);
-            }
-            .gesture-quick-search-clipboard-empty {
-                padding: 8px 10px;
-                border-radius: 10px;
-                background: rgba(255, 255, 255, 0.05);
-                font-size: 12px;
-                line-height: 1.4;
-                opacity: 0.75;
-            }
         `;
 
         uiLayer = document.createElement('div');
@@ -293,7 +246,6 @@
                     button.appendChild(createIconElement(item));
 
                     let handledPointerDown = false;
-                    let handledTouchStart = false;
                     const runAction = (event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -304,19 +256,9 @@
                         handledPointerDown = true;
                         runAction(event);
                     });
-                    button.addEventListener('touchstart', (event) => {
-                        handledTouchStart = true;
-                        runAction(event);
-                    }, { passive: false });
                     button.addEventListener('click', (event) => {
                         if (handledPointerDown) {
                             handledPointerDown = false;
-                            event.preventDefault();
-                            event.stopPropagation();
-                            return;
-                        }
-                        if (handledTouchStart) {
-                            handledTouchStart = false;
                             event.preventDefault();
                             event.stopPropagation();
                             return;
@@ -346,16 +288,15 @@
         .replaceAll('{{img}}', encodeURIComponent(imageUrl || ''));
 
     ext.features.quickSearch = {
-        shouldRun: ({ runtime }) => runtime.isHttpPage(),
+        shouldRun: ({ runtime, getConfig }) => runtime.isHttpPage() && getConfig()?.quickSearch?.enabled !== false,
         init: ({ tabActions }) => {
             const settings = DEFAULT_SETTINGS;
             let textBubble;
             let imageBubble;
-            let clipboardPanel;
             let textContext = null;
             let imageContext = null;
             let hoverImage = null;
-            let lastEditableTarget = null;
+            let touchCandidate = null;
 
             const timers = {
                 selection: 0,
@@ -374,16 +315,14 @@
                 imageContext = null;
             };
 
-            const hideClipboardPanel = () => {
-                if (clipboardPanel) {
-                    clipboardPanel.style.display = 'none';
-                }
-            };
-
             const hideAllBubbles = () => {
                 hideTextBubble();
                 hideImageBubble();
-                hideClipboardPanel();
+            };
+
+            const clearTouchLongPress = () => {
+                window.clearTimeout(timers.longPress);
+                touchCandidate = null;
             };
 
             const isEventInsideBubble = (event, bubbleInstance) => {
@@ -482,111 +421,6 @@
                 }
             };
 
-            const getEditableTarget = () => {
-                if (lastEditableTarget?.isConnected && ext.shared.selectionCore.isEditableTarget(lastEditableTarget)) {
-                    return lastEditableTarget;
-                }
-                const active = document.activeElement;
-                if (ext.shared.selectionCore.isEditableTarget(active)) {
-                    lastEditableTarget = active;
-                    return active;
-                }
-                return null;
-            };
-
-            const rememberEditableTarget = (node) => {
-                const target = ext.shared.selectionCore.getEditableTarget(node instanceof Element ? node : null);
-                if (target) {
-                    lastEditableTarget = target;
-                }
-                return target;
-            };
-
-            const getClipboardEntries = async () => {
-                const cfg = await ext.shared.storage.getConfig();
-                const clipboard = cfg?.clipboard || {};
-                const pinned = Array.isArray(clipboard.pinned) ? clipboard.pinned.slice(0, 5) : [];
-                const history = Array.isArray(clipboard.history) ? clipboard.history : [];
-                const recent = history.filter((item) => !pinned.includes(item)).slice(0, 8);
-                return [...pinned, ...recent].filter((item, index, list) => item && list.indexOf(item) === index);
-            };
-
-            const pasteClipboardEntry = (text, x, y) => {
-                const target = getEditableTarget();
-                if (!text) {
-                    ext.shared.toastCore.createToast('Chưa có nội dung nhớ tạm', x, y, 1400);
-                    return;
-                }
-                if (target) {
-                    try { target.focus({ preventScroll: true }); } catch { target.focus?.(); }
-                    ext.shared.selectionCore.insertTextAtCaret(target, text);
-                    ext.shared.toastCore.createToast('Đã dán', x, y, 1200);
-                } else {
-                    ext.shared.domUtils.copyText(text).then(() => {
-                        ext.shared.toastCore.createToast('Đã chép để dán thủ công', x, y, 1500);
-                    });
-                }
-            };
-
-            const ensureClipboardPanel = () => {
-                if (clipboardPanel?.isConnected) {
-                    return clipboardPanel;
-                }
-                const root = ensureUiRoot();
-                clipboardPanel = document.createElement('div');
-                clipboardPanel.className = 'gesture-quick-search-clipboard-panel';
-                clipboardPanel.addEventListener('pointerdown', (event) => {
-                    event.stopPropagation();
-                });
-                clipboardPanel.addEventListener('touchstart', (event) => {
-                    event.stopPropagation();
-                }, { passive: true });
-                clipboardPanel.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                });
-                root.appendChild(clipboardPanel);
-                return clipboardPanel;
-            };
-
-            const showClipboardPanel = async (x, y) => {
-                const panel = ensureClipboardPanel();
-                const entries = await getClipboardEntries();
-                panel.replaceChildren();
-
-                const title = document.createElement('div');
-                title.className = 'gesture-quick-search-clipboard-title';
-                title.textContent = 'Clipboard nhớ tạm';
-                panel.appendChild(title);
-
-                if (!entries.length) {
-                    const empty = document.createElement('div');
-                    empty.className = 'gesture-quick-search-clipboard-empty';
-                    empty.textContent = 'Chưa có nội dung được lưu từ copy hoặc OCR.';
-                    panel.appendChild(empty);
-                } else {
-                    entries.forEach((text) => {
-                        const item = document.createElement('button');
-                        item.type = 'button';
-                        item.className = 'gesture-quick-search-clipboard-item';
-                        item.textContent = text;
-                        const handlePick = (event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            pasteClipboardEntry(text, x, y);
-                            hideClipboardPanel();
-                            hideTextBubble();
-                        };
-                        item.addEventListener('pointerdown', handlePick);
-                        item.addEventListener('touchstart', handlePick, { passive: false });
-                        item.addEventListener('click', handlePick);
-                        panel.appendChild(item);
-                    });
-                }
-
-                panel.style.display = 'block';
-                applyBubblePosition(panel, x, y);
-            };
-
             const ensureTextBubble = () => {
                 if (!textBubble) {
                     textBubble = createBubble('text');
@@ -654,16 +488,6 @@
                                 ext.shared.toastCore.createToast('Đã chép', context.x, context.y, 1200);
                             });
                             hideTextBubble();
-                        }
-                    },
-                    {
-                        label: 'Paste',
-                        title: 'Mở nội dung clipboard đã lưu',
-                        glyph: '📋',
-                        onClick: () => {
-                            showClipboardPanel(context.x, context.y).catch(() => {
-                                ext.shared.toastCore.createToast('Không mở được nhớ tạm', context.x, context.y, 1200);
-                            });
                         }
                     },
                     {
@@ -782,6 +606,13 @@
                 }, CONFIG.selectionDelay);
             };
 
+            const scheduleSelectionBubbleSoon = (delay = 80) => {
+                window.clearTimeout(timers.selection);
+                timers.selection = window.setTimeout(() => {
+                    scheduleSelectionBubble();
+                }, delay);
+            };
+
             const scheduleImageBubble = (image, event) => {
                 window.clearTimeout(timers.hover);
                 timers.hover = window.setTimeout(() => {
@@ -812,16 +643,6 @@
 
             const onPointerUp = () => {
                 if (ext.shared.selectionCore.isEditableTarget(document.activeElement)) {
-                    rememberEditableTarget(document.activeElement);
-                    hideTextBubble();
-                    return;
-                }
-                scheduleSelectionBubble();
-            };
-
-            const onTouchEnd = () => {
-                if (ext.shared.selectionCore.isEditableTarget(document.activeElement)) {
-                    rememberEditableTarget(document.activeElement);
                     hideTextBubble();
                     return;
                 }
@@ -841,24 +662,18 @@
             };
 
             const onPointerDown = (event) => {
-                rememberEditableTarget(event.target);
                 const insideText = isEventInsideBubble(event, textBubble);
                 const insideImage = isEventInsideBubble(event, imageBubble);
-                const insideClipboard = clipboardPanel?.contains(event.target);
-                if (!insideText && !insideClipboard) {
+                if (!insideText) {
                     hideTextBubble();
                 }
                 if (!insideImage) {
                     hideImageBubble();
                 }
-                if (!insideClipboard) {
-                    hideClipboardPanel();
-                }
             };
 
             const onScrollOrResize = () => {
                 syncTextBubbleToSelection();
-                hideClipboardPanel();
                 if (imageContext && imageBubble) {
                     const anchor = getImageAnchor(imageContext.image);
                     if (!anchor) {
@@ -876,11 +691,83 @@
                 }
             };
 
+            const onTouchStart = (event) => {
+                if (isEventInsideBubble(event, textBubble) || isEventInsideBubble(event, imageBubble) || event.touches.length !== 1) {
+                    return;
+                }
+
+                const touch = event.touches[0];
+                const image = getImageElement(event.target);
+                touchCandidate = { x: touch.clientX, y: touch.clientY, image };
+
+                if (!(image instanceof HTMLImageElement)) {
+                    return;
+                }
+
+                timers.longPress = window.setTimeout(() => {
+                    if (!touchCandidate?.image?.isConnected) {
+                        return;
+                    }
+                    const anchor = getImageAnchor(touchCandidate.image, { clientX: touchCandidate.x, clientY: touchCandidate.y });
+                    if (!anchor) {
+                        return;
+                    }
+                    const resolvedUrl = (() => {
+                        const candidates = [
+                            touchCandidate.image.currentSrc,
+                            touchCandidate.image.src,
+                            touchCandidate.image.getAttribute('data-src'),
+                            touchCandidate.image.getAttribute('data-lazy-src'),
+                            touchCandidate.image.getAttribute('data-original')
+                        ];
+                        return candidates.find((url) => url && !url.startsWith('data:') && !url.startsWith('blob:')) || touchCandidate.image.currentSrc || touchCandidate.image.src;
+                    })();
+                    imageContext = {
+                        image: touchCandidate.image,
+                        url: resolvedUrl,
+                        x: anchor.x,
+                        y: anchor.y
+                    };
+                    showImageActions(imageContext);
+                }, 320);
+            };
+
+            const onTouchMove = (event) => {
+                if (!touchCandidate || event.touches.length !== 1) {
+                    clearTouchLongPress();
+                    return;
+                }
+                const touch = event.touches[0];
+                if (Math.hypot(touch.clientX - touchCandidate.x, touch.clientY - touchCandidate.y) > 18) {
+                    clearTouchLongPress();
+                }
+            };
+
+            const onTouchEnd = () => {
+                clearTouchLongPress();
+                if (ext.shared.selectionCore.isEditableTarget(document.activeElement)) {
+                    hideTextBubble();
+                    return;
+                }
+                scheduleSelectionBubbleSoon(140);
+            };
+
+            const onSelectionChange = () => {
+                if (ext.shared.selectionCore.isEditableTarget(document.activeElement)) {
+                    hideTextBubble();
+                    return;
+                }
+                scheduleSelectionBubbleSoon(120);
+            };
+
             document.addEventListener('pointerup', onPointerUp, true);
-            document.addEventListener('touchend', onTouchEnd, true);
             document.addEventListener('pointermove', onPointerMove, true);
             document.addEventListener('pointerdown', onPointerDown, true);
-            document.addEventListener('focusin', (event) => rememberEditableTarget(event.target), true);
+            document.addEventListener('touchstart', onTouchStart, true);
+            document.addEventListener('touchmove', onTouchMove, true);
+            document.addEventListener('touchend', onTouchEnd, true);
+            document.addEventListener('touchcancel', clearTouchLongPress, true);
+            document.addEventListener('selectionchange', onSelectionChange, true);
             document.addEventListener('keydown', onKeyDown, true);
             window.addEventListener('scroll', onScrollOrResize, true);
             window.addEventListener('resize', onScrollOrResize, true);
@@ -893,9 +780,13 @@
                     window.clearTimeout(timers.hide);
                     window.clearTimeout(timers.longPress);
                     document.removeEventListener('pointerup', onPointerUp, true);
-                    document.removeEventListener('touchend', onTouchEnd, true);
                     document.removeEventListener('pointermove', onPointerMove, true);
                     document.removeEventListener('pointerdown', onPointerDown, true);
+                    document.removeEventListener('touchstart', onTouchStart, true);
+                    document.removeEventListener('touchmove', onTouchMove, true);
+                    document.removeEventListener('touchend', onTouchEnd, true);
+                    document.removeEventListener('touchcancel', clearTouchLongPress, true);
+                    document.removeEventListener('selectionchange', onSelectionChange, true);
                     document.removeEventListener('keydown', onKeyDown, true);
                     window.removeEventListener('scroll', onScrollOrResize, true);
                     window.removeEventListener('resize', onScrollOrResize, true);

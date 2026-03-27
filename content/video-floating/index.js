@@ -32,7 +32,6 @@
     const formatTime = s => `${Math.floor(s / 60)}.${(Math.floor(s) % 60).toString().padStart(2, '0')}`;
     const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
     const onPointer = (el, fn) => { el?.addEventListener('touchstart', fn, { passive: false }); el?.addEventListener('mousedown', fn); };
-    const isTouchEvent = e => e?.type?.startsWith('touch');
     const getRect = node => node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
 
     const isDetectableVideo = video => {
@@ -60,7 +59,7 @@
         if (storage?.saveVideoLayout) storage.saveVideoLayout(layout);
     };
 
-    const iconPosStorage = floating.createPositionStorage('fvp_icon_pos', { left: 12, top: 200 });
+    const iconPosStorage = floating.createPositionStorage('fvp_icon_pos', { left: 56, top: 200 });
 
     const loadCfgAsync = async () => {
         if (storage?.getConfig) {
@@ -289,6 +288,7 @@
     let iframeStatePollTimer = 0;
     const iframePlaybackState = { hasVideo: false, paused: true, muted: false, volume: 1, currentTime: 0, duration: 0, bufferedEnd: 0, fitIdx: 0, zoomIdx: 0, rotationAngle: 0 };
     const state = { isDrag: false, isResize: false, startX: 0, startY: 0, initX: 0, initY: 0, initW: 0, initH: 0, resizeDir: '', idleTimer: null, rafId: null, isSeeking: false };
+    const isTouchLikeEvent = event => !!(event?.touches || event?.changedTouches);
 
     const getVideos = () => [...document.querySelectorAll('video')].filter(v => {
         if (!v?.isConnected || v.closest('#fvp-wrapper')) return false;
@@ -471,59 +471,6 @@
         }
     };
 
-    const bindMenuAction = (item, action) => {
-        if (!item) return;
-        let touchStarted = false;
-        let touchMoved = false;
-        let startX = 0;
-        let startY = 0;
-        const run = e => {
-            e?.preventDefault?.();
-            e?.stopPropagation?.();
-            menuRef?.hide();
-            action?.();
-        };
-        item.addEventListener('touchstart', e => {
-            const t = e.touches?.length === 1 ? e.touches[0] : null;
-            if (!t) return;
-            touchStarted = true;
-            touchMoved = false;
-            startX = t.clientX;
-            startY = t.clientY;
-        }, { passive: true });
-        item.addEventListener('touchmove', e => {
-            if (!touchStarted) return;
-            const t = e.touches?.length === 1 ? e.touches[0] : null;
-            if (!t) return;
-            if (Math.hypot(t.clientX - startX, t.clientY - startY) >= 8) touchMoved = true;
-        }, { passive: true });
-        item.addEventListener('touchend', e => {
-            if (!touchStarted) return;
-            touchStarted = false;
-            if (touchMoved) return;
-            run(e);
-        }, { passive: false });
-        item.addEventListener('touchcancel', () => {
-            touchStarted = false;
-            touchMoved = false;
-        }, { passive: true });
-        item.addEventListener('click', e => {
-            if (touchMoved) {
-                touchMoved = false;
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-            }
-            if (touchStarted) {
-                touchStarted = false;
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-            }
-            run(e);
-        });
-    };
-
     const renderMenu = () => {
         const list = getOrderedVideoSequence();
         const iframeList = [...iframeVideoMap.entries()].filter(([f]) => f.isConnected);
@@ -539,14 +486,12 @@
         if (!total) { m.innerHTML += '<div class="fvp-menu-item" style="opacity:0.5">No videos found</div>'; return; }
         list.forEach((v, i) => {
             const item = el('div', 'fvp-menu-item', `<span>🎬</span><span style="flex:1">Video ${i + 1}</span>`);
-            bindMenuAction(item, () => float(v));
-            m.appendChild(item);
+            item.onclick = () => float(v); m.appendChild(item);
         });
         iframeList.forEach(([iframe], i) => {
             const domain = (() => { try { return new URL(iframe.src).hostname; } catch { return 'iframe'; } })();
             const item = el('div', 'fvp-menu-item', `<span>🖼️</span><span style="flex:1">iFrame: ${domain}</span>`);
-            bindMenuAction(item, () => floatIframe(iframe));
-            m.appendChild(item);
+            item.onclick = () => floatIframe(iframe); m.appendChild(item);
         });
     };
 
@@ -614,14 +559,6 @@
             onClick: toggleMenu
         });
 
-
-        menuRef.element.addEventListener('touchstart', e => {
-            e.stopPropagation();
-        }, { passive: true, capture: true });
-        menuRef.element.addEventListener('click', e => {
-            e.stopPropagation();
-        }, true);
-
         floating.bindOutsideClickGuard({
             isOpen: () => menuRef.element.style.display !== 'none',
             containsTarget: t => iconRef.element.contains(t) || menuRef.element.contains(t),
@@ -630,17 +567,17 @@
 
         // Player Events
         onPointer($('fvp-left-drag'), e => {
-            if (isTouchEvent(e) && e.cancelable) e.preventDefault();
+            if (isTouchLikeEvent(e) && e.cancelable) e.preventDefault();
             const c = getCoord(e); state.isDrag = true; state.startX = c.x; state.startY = c.y; state.initX = box.offsetLeft; state.initY = box.offsetTop;
         });
         box.querySelectorAll('.fvp-resize-handle').forEach(h => onPointer(h, e => {
-            if (isTouchEvent(e) && e.cancelable) e.preventDefault();
+            if (isTouchLikeEvent(e) && e.cancelable) e.preventDefault();
             state.isResize = true; state.resizeDir = h.className.includes('bl') ? 'bl' : 'br';
             const c = getCoord(e); state.startX = c.x; state.startY = c.y; state.initW = box.offsetWidth; state.initH = box.offsetHeight; state.initX = box.offsetLeft;
         }));
-        const movePlayerBox = e => {
+        const handleBoxPointerMove = e => {
             if (!state.isDrag && !state.isResize) return;
-            if (isTouchEvent(e) && e.cancelable) e.preventDefault();
+            if (isTouchLikeEvent(e) && e.cancelable) e.preventDefault();
             const c = getCoord(e), dx = c.x - state.startX, dy = c.y - state.startY;
             if (state.isDrag) { box.style.left = `${state.initX + dx}px`; box.style.top = `${state.initY + dy}px`; }
             else if (state.isResize) {
@@ -649,15 +586,15 @@
                 if (state.resizeDir === 'bl') box.style.left = `${state.initX + (state.initW - box.offsetWidth)}px`;
             }
         };
-        const endPlayerBoxMove = () => {
+        const handleBoxPointerEnd = () => {
             if (state.isDrag || state.isResize) saveLayout({ top: box.style.top, left: box.style.left, width: box.style.width, height: box.style.height, borderRadius: box.style.borderRadius });
             state.isDrag = state.isResize = false;
         };
-        document.addEventListener('mousemove', movePlayerBox);
-        document.addEventListener('mouseup', endPlayerBoxMove);
-        box.addEventListener('touchmove', movePlayerBox, { capture: true, passive: false });
-        box.addEventListener('touchend', endPlayerBoxMove, { passive: true });
-        box.addEventListener('touchcancel', endPlayerBoxMove, { passive: true });
+        document.addEventListener('mousemove', handleBoxPointerMove);
+        document.addEventListener('mouseup', handleBoxPointerEnd);
+        document.addEventListener('touchmove', handleBoxPointerMove, { passive: false });
+        document.addEventListener('touchend', handleBoxPointerEnd, { passive: true });
+        document.addEventListener('touchcancel', handleBoxPointerEnd, { passive: true });
 
         // UI Controls
         $('fvp-close').onclick = restore;

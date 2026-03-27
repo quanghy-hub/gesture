@@ -338,6 +338,17 @@
         init(context) {
             const TOLERANCE = { move: 20, tap: 30 };
             const listeners = [];
+            const EXTENSION_UI_SELECTORS = [
+                '#fvp-master-icon',
+                '#fvp-menu',
+                '#fvp-container',
+                '.gesture-clipboard-trigger',
+                '.gesture-clipboard-panel',
+                '.gesture-google-search-trigger',
+                '.gesture-google-search-panel',
+                '#gesture-quick-search-ui-host',
+                '.gesture-quick-search-bubble'
+            ].join(', ');
             const state = {
                 suppressUntil: 0,
                 lpFired: false,
@@ -359,6 +370,13 @@
             const isInteractive = (el) => {
                 if (!el) return false;
                 return ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'VIDEO', 'AUDIO'].includes(el.tagName) || !!el.closest?.('button, a, [role="button"], [onclick]');
+            };
+            const isExtensionUiTarget = (eventOrTarget) => {
+                const isMatch = (node) => node instanceof Element && !!node.closest?.(EXTENSION_UI_SELECTORS);
+                if (eventOrTarget?.composedPath) {
+                    return eventOrTarget.composedPath().some(isMatch);
+                }
+                return isMatch(eventOrTarget);
             };
 
             const getValidLink = (event) => {
@@ -447,6 +465,12 @@
                 const cfg = getConfig();
                 state.lpFired = false;
                 stopMomentum();
+                if (isExtensionUiTarget(event)) {
+                    cancelLongPress();
+                    state.edge.active = false;
+                    state.dblTap.last = null;
+                    return;
+                }
                 if (!cfg.enabled || isEditable(event.target) || event.touches.length !== 1) return;
 
                 const touch = event.touches[0];
@@ -487,6 +511,11 @@
             }, { capture: true, passive: false });
 
             addListener(window, 'touchmove', (event) => {
+                if (isExtensionUiTarget(event)) {
+                    cancelLongPress();
+                    state.edge.active = false;
+                    return;
+                }
                 if (state.lp.active && event.touches.length === 1) {
                     const touch = event.touches[0];
                     if (dist(touch.clientX, touch.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {

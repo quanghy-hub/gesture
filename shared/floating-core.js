@@ -84,35 +84,22 @@
             }
 
             let pointerId = null;
-            let touchActive = false;
             let startX = 0;
             let startY = 0;
             let dragging = false;
             let origin = { left: 0, top: 0 };
 
-            const reset = () => {
-                pointerId = null;
-                touchActive = false;
-                dragging = false;
-            };
+            const reset = () => { pointerId = null; dragging = false; };
 
-            const ensureOrigin = () => {
-                origin = getInitialPosition?.() || { left: 0, top: 0 };
-            };
-
-            const emitMove = (event, clientX, clientY) => {
-                const deltaX = clientX - startX;
-                const deltaY = clientY - startY;
+            const onPointerMove = (event) => {
+                if (event.pointerId !== pointerId) return;
+                const deltaX = event.clientX - startX;
+                const deltaY = event.clientY - startY;
                 if (!dragging && Math.hypot(deltaX, deltaY) >= threshold) {
                     dragging = true;
                 }
                 if (!dragging) return;
                 onMove?.({ event, deltaX, deltaY, origin });
-            };
-
-            const onPointerMove = (event) => {
-                if (event.pointerId !== pointerId) return;
-                emitMove(event, event.clientX, event.clientY);
             };
 
             const onPointerUp = (event) => {
@@ -132,71 +119,32 @@
                 pointerId = event.pointerId;
                 startX = event.clientX;
                 startY = event.clientY;
-                ensureOrigin();
+                origin = getInitialPosition?.() || { left: 0, top: 0 };
                 dragging = false;
                 try { target.setPointerCapture(event.pointerId); } catch {}
-            };
-
-            const onTouchStart = (event) => {
-                const touch = event.touches?.length === 1 ? event.touches[0] : null;
-                if (!touch || pointerId !== null) return;
-                touchActive = true;
-                startX = touch.clientX;
-                startY = touch.clientY;
-                ensureOrigin();
-                dragging = false;
-            };
-
-            const onTouchMove = (event) => {
-                if (!touchActive) return;
-                const touch = event.touches?.length === 1 ? event.touches[0] : null;
-                if (!touch) return;
-                if (event.cancelable) event.preventDefault();
-                emitMove(event, touch.clientX, touch.clientY);
-            };
-
-            const onTouchEnd = (event) => {
-                if (!touchActive) return;
-                if (dragging) onDragEnd?.({ event, origin });
-                else onClick?.({ event, origin });
-                reset();
-            };
-
-            const onTouchCancel = () => {
-                if (!touchActive) return;
-                reset();
             };
 
             target.addEventListener('pointerdown', onPointerDown, true);
             target.addEventListener('pointermove', onPointerMove, true);
             target.addEventListener('pointerup', onPointerUp, true);
             target.addEventListener('pointercancel', onPointerCancel, true);
-            target.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
-            target.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
-            target.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
-            target.addEventListener('touchcancel', onTouchCancel, { capture: true, passive: true });
 
             return () => {
                 target.removeEventListener('pointerdown', onPointerDown, true);
                 target.removeEventListener('pointermove', onPointerMove, true);
                 target.removeEventListener('pointerup', onPointerUp, true);
                 target.removeEventListener('pointercancel', onPointerCancel, true);
-                target.removeEventListener('touchstart', onTouchStart, true);
-                target.removeEventListener('touchmove', onTouchMove, true);
-                target.removeEventListener('touchend', onTouchEnd, true);
-                target.removeEventListener('touchcancel', onTouchCancel, true);
             };
         },
         bindOutsideClickGuard: ({ isOpen, containsTarget, onOutside, eventName = 'pointerdown', capture = true }) => {
-            const eventNames = Array.isArray(eventName) ? eventName : [eventName, ...(eventName === 'pointerdown' ? ['touchstart'] : [])];
             const handler = (event) => {
                 if (!isOpen?.()) return;
                 const path = event.composedPath?.() || [event.target];
                 if (path.some((t) => containsTarget?.(t))) return;
                 onOutside?.(event);
             };
-            eventNames.forEach((name) => document.addEventListener(name, handler, capture));
-            return () => eventNames.forEach((name) => document.removeEventListener(name, handler, capture));
+            document.addEventListener(eventName, handler, capture);
+            return () => document.removeEventListener(eventName, handler, capture);
         },
         createPositionStorage: (storageKey, defaultPos = { left: 20, top: 20 }) => ({
             load: () => new Promise((resolve) => {

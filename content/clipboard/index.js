@@ -36,6 +36,9 @@
                 const pinned = Array.isArray(clipboard.pinned) ? clipboard.pinned.slice(0, 5) : [];
                 const history = Array.isArray(clipboard.history) ? clipboard.history : [];
                 const recent = history.filter((item) => !pinned.includes(item)).slice(0, 5);
+                if (copiedTextCache && !pinned.includes(copiedTextCache) && !recent.includes(copiedTextCache)) {
+                    recent.unshift(copiedTextCache);
+                }
                 return { pinned, recent };
             };
 
@@ -82,8 +85,7 @@
 
             const updateTriggerVisibility = () => {
                 if (!triggerRef) return;
-                // Chỉ hiện khi CÓ DỮ LIỆU và ĐANG FOCUS vào input
-                const isVisible = hasClipboardData() && !!activeTarget;
+                const isVisible = !!activeTarget && (hasClipboardData() || !!copiedTextCache);
                 if (isVisible) triggerRef.show();
                 else triggerRef.hide();
             };
@@ -165,10 +167,6 @@
                     event.stopPropagation();
                     suppressNextFocusReset = true;
                 });
-                panelRef.element.addEventListener('touchstart', (event) => {
-                    event.stopPropagation();
-                    suppressNextFocusReset = true;
-                }, { passive: true, capture: true });
 
                 panelRef.element.addEventListener('click', (event) => {
                     floating.stopFloatingEvent(event);
@@ -252,19 +250,13 @@
                     e.stopPropagation();
                 }, true);
                 triggerRef.element.addEventListener('pointerdown', (e) => {
-                    suppressNextFocusReset = true;
                     e.preventDefault();
                     e.stopPropagation();
                 }, false);
-                triggerRef.element.addEventListener('touchstart', (e) => {
-                    suppressNextFocusReset = true;
-                    e.stopPropagation();
-                }, { passive: true, capture: true });
 
                 // Chặn nổi bọt từ nội bộ clipboard để các floating panel khác không xử lý
                 // click ở pha bubble, nhưng không chặn event click tại target của panel.
                 panelRef.element.addEventListener('mousedown', (e) => e.stopPropagation(), true);
-                panelRef.element.addEventListener('touchstart', (e) => e.stopPropagation(), true);
                 triggerRef.element.addEventListener('click', (e) => e.stopPropagation(), true);
 
                 posStorage.load().then(({ left, top }) => {
@@ -276,7 +268,8 @@
 
             // ─── Event listeners ──────────────────────────────────────────
 
-            const syncActiveTargetFromEvent = (event) => {
+            const onPointerDown = (event) => {
+                // Nếu click vào nội bộ clipboard thì bỏ qua
                 if (panelRef?.element.contains(event.target) || triggerRef?.element.contains(event.target)) {
                     suppressNextFocusReset = true;
                     return;
@@ -288,13 +281,10 @@
                     updateUI();
                     return;
                 }
+                // Click ra ngoài input và ngoài clipboard -> xóa focus, ẩn icon
                 activeTarget = null;
                 panelOpen = false;
                 updateUI();
-            };
-
-            const onPointerDown = (event) => {
-                syncActiveTargetFromEvent(event);
             };
 
             const onFocusIn = (event) => {
@@ -329,6 +319,7 @@
             const onSelectionChange = () => {
                 const selectionText = getActiveSelectionText();
                 if (selectionText) updateCopiedTextCache(selectionText);
+                if (panelOpen) updateUI();
             };
 
             const onClipboardChange = async () => {
@@ -349,11 +340,11 @@
             document.addEventListener('focusin', onFocusIn, true);
             document.addEventListener('pointerdown', onPointerDown, true);
             document.addEventListener('copy', onCopy, true);
+            document.addEventListener('cut', onCopy, true);
             document.addEventListener('keyup', onKeyUp, true);
             document.addEventListener('selectionchange', onSelectionChange, true);
-            if (window.location.protocol === 'chrome:' || window.location.protocol === 'chrome-extension:') {
-                window.addEventListener('focus', onClipboardChange, true);
-            }
+            window.addEventListener('focus', onClipboardChange, true);
+            document.addEventListener('visibilitychange', onClipboardChange, true);
             return {
                 onConfigChange(nextConfig) {
                     config = nextConfig;
@@ -364,9 +355,11 @@
                     document.removeEventListener('focusin', onFocusIn, true);
                     document.removeEventListener('pointerdown', onPointerDown, true);
                     document.removeEventListener('copy', onCopy, true);
+                    document.removeEventListener('cut', onCopy, true);
                     document.removeEventListener('keyup', onKeyUp, true);
                     document.removeEventListener('selectionchange', onSelectionChange, true);
                     window.removeEventListener('focus', onClipboardChange, true);
+                    document.removeEventListener('visibilitychange', onClipboardChange, true);
 
                     removeDragBinding();
                     removeOutsideClick();
