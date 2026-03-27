@@ -473,7 +473,10 @@
 
     const bindMenuAction = (item, action) => {
         if (!item) return;
-        let handledTouch = false;
+        let touchStarted = false;
+        let touchMoved = false;
+        let startX = 0;
+        let startY = 0;
         const run = e => {
             e?.preventDefault?.();
             e?.stopPropagation?.();
@@ -481,12 +484,38 @@
             action?.();
         };
         item.addEventListener('touchstart', e => {
-            handledTouch = true;
+            const t = e.touches?.length === 1 ? e.touches[0] : null;
+            if (!t) return;
+            touchStarted = true;
+            touchMoved = false;
+            startX = t.clientX;
+            startY = t.clientY;
+        }, { passive: true });
+        item.addEventListener('touchmove', e => {
+            if (!touchStarted) return;
+            const t = e.touches?.length === 1 ? e.touches[0] : null;
+            if (!t) return;
+            if (Math.hypot(t.clientX - startX, t.clientY - startY) >= 8) touchMoved = true;
+        }, { passive: true });
+        item.addEventListener('touchend', e => {
+            if (!touchStarted) return;
+            touchStarted = false;
+            if (touchMoved) return;
             run(e);
         }, { passive: false });
+        item.addEventListener('touchcancel', () => {
+            touchStarted = false;
+            touchMoved = false;
+        }, { passive: true });
         item.addEventListener('click', e => {
-            if (handledTouch) {
-                handledTouch = false;
+            if (touchMoved) {
+                touchMoved = false;
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            if (touchStarted) {
+                touchStarted = false;
                 e.preventDefault();
                 e.stopPropagation();
                 return;

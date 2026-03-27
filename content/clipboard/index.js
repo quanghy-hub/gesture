@@ -297,10 +297,6 @@
                 syncActiveTargetFromEvent(event);
             };
 
-            const onTouchStart = (event) => {
-                syncActiveTargetFromEvent(event);
-            };
-
             const onFocusIn = (event) => {
                 const target = getEditableTarget(event.target);
                 if (!target) return;
@@ -352,7 +348,6 @@
             bindFloatingUi();
             document.addEventListener('focusin', onFocusIn, true);
             document.addEventListener('pointerdown', onPointerDown, true);
-            document.addEventListener('touchstart', onTouchStart, true);
             document.addEventListener('copy', onCopy, true);
             document.addEventListener('keyup', onKeyUp, true);
             document.addEventListener('selectionchange', onSelectionChange, true);
@@ -368,7 +363,6 @@
                 destroy() {
                     document.removeEventListener('focusin', onFocusIn, true);
                     document.removeEventListener('pointerdown', onPointerDown, true);
-                    document.removeEventListener('touchstart', onTouchStart, true);
                     document.removeEventListener('copy', onCopy, true);
                     document.removeEventListener('keyup', onKeyUp, true);
                     document.removeEventListener('selectionchange', onSelectionChange, true);
