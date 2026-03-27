@@ -34,6 +34,7 @@
             "matches": [
                 "<all_urls>"
             ],
+            "all_frames": true,
             "css": [
                 "content/cookie-bypass/styles.css",
                 "content/video-floating/styles.css",
@@ -72,6 +73,7 @@
         },
         {
             "matches": ["<all_urls>"],
+            "all_frames": true,
             "js": ["content/video-floating/page-api.js"],
             "run_at": "document_start",
             "world": "MAIN"

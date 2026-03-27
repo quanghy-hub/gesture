@@ -21,6 +21,8 @@
     height: 42px;
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(10px);
+    border: none;
+    outline: none;
     border-radius: 50%;
     color: #fff;
     display: flex;

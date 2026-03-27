@@ -174,7 +174,20 @@
         let activeIframeVideo = null, styledIframeVideo = null;
 
         const getOwnVideoCount = () => document.querySelectorAll('video').length;
-        const getIframeVideos = () => [...document.querySelectorAll('video')].filter(isDetectableVideo);
+        const getIframeVideos = () => [...document.querySelectorAll('video')].filter(v => {
+            if (!v?.isConnected) return false;
+            if (isDetectableVideo(v)) return true;
+            const rect = getRect(v);
+            const hasMediaSource = Boolean(v.currentSrc || v.src || v.querySelector('source[src]'));
+            const hasPlaybackState = Number.isFinite(v.duration) || v.readyState > 0 || v.currentTime > 0;
+            return hasMediaSource || hasPlaybackState || (rect.width > 0 && rect.height > 0);
+        });
+
+        const postIframeBridgeMessage = payload => {
+            try {
+                window.postMessage({ source: FVP_IFRAME_BRIDGE, ...payload }, '*');
+            } catch { }
+        };
 
         const pruneChildFrames = () => {
             for (const f of [...childFrameVideoMap.keys()]) if (!f?.isConnected) childFrameVideoMap.delete(f);
@@ -229,6 +242,14 @@
         };
 
         window.addEventListener('message', e => {
+            if (e.source === window && e.data?.source === FVP_IFRAME_BRIDGE) {
+                if (e.data?.type === 'fvp-page-quality-result') {
+                    try {
+                        window.parent.postMessage({ type: 'fvp-iframe-quality-result', detail: e.data.detail || [] }, '*');
+                    } catch { }
+                }
+                return;
+            }
             if (e.data?.type === 'fvp-iframe-videos') {
                 const f = Array.from(document.querySelectorAll('iframe')).find(i => i.contentWindow === e.source);
                 if (f) { if (e.data.count > 0) childFrameVideoMap.set(f, e.data.count); else childFrameVideoMap.delete(f); reportVideos(); }
@@ -245,6 +266,8 @@
                 case 'cycle-fit': iframeUiState.fitIdx = (iframeUiState.fitIdx + 1) % FIT_MODES.length; applyIframePresentation(); break;
                 case 'cycle-zoom': iframeUiState.zoomIdx = (iframeUiState.zoomIdx + 1) % ZOOM_LEVELS.length; applyIframePresentation(); break;
                 case 'rotate': iframeUiState.rotationAngle = (iframeUiState.rotationAngle + 90) % 360; applyIframePresentation(); break;
+                case 'get-quality': postIframeBridgeMessage({ type: 'fvp-page-get-quality' }); break;
+                case 'set-quality': postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: e.data.item }); break;
             }
             postIframeState();
             setTimeout(postIframeState, 80);
@@ -266,7 +289,34 @@
     const iframePlaybackState = { hasVideo: false, paused: true, muted: false, volume: 1, currentTime: 0, duration: 0, bufferedEnd: 0, fitIdx: 0, zoomIdx: 0, rotationAngle: 0 };
     const state = { isDrag: false, isResize: false, startX: 0, startY: 0, initX: 0, initY: 0, initW: 0, initH: 0, resizeDir: '', idleTimer: null, rafId: null, isSeeking: false };
 
-    const getVideos = () => [...document.querySelectorAll('video')].filter(v => isDetectableVideo(v) && !v.closest('#fvp-wrapper'));
+    const getVideos = () => [...document.querySelectorAll('video')].filter(v => {
+        if (!v?.isConnected || v.closest('#fvp-wrapper')) return false;
+        if (isDetectableVideo(v)) return true;
+        const rect = getRect(v);
+        const hasMediaSource = Boolean(v.currentSrc || v.src || v.querySelector('source[src]'));
+        const hasPlaybackState = Number.isFinite(v.duration) || v.readyState > 0 || v.currentTime > 0;
+        return hasMediaSource || hasPlaybackState || (rect.width > 0 && rect.height > 0);
+    });
+
+    const getOrderedVideoSequence = () => {
+        const list = getVideos();
+        if (!curVid) return list;
+        const withoutCurrent = list.filter(v => v !== curVid);
+        if (!ph?.isConnected || !ph.parentNode) return [curVid, ...withoutCurrent];
+
+        const ordered = [];
+        let inserted = false;
+        for (const video of withoutCurrent) {
+            const pos = ph.compareDocumentPosition(video);
+            if (!inserted && (pos & Node.DOCUMENT_POSITION_FOLLOWING)) {
+                ordered.push(curVid);
+                inserted = true;
+            }
+            ordered.push(video);
+        }
+        if (!inserted) ordered.push(curVid);
+        return ordered;
+    };
 
     const updateVideoDetectionUI = () => {
         if (!iconRef) return;
@@ -325,9 +375,13 @@
     };
 
     const switchVid = dir => {
-        const list = getVideos(); if (!list.length) return;
-        const idx = curVid ? list.indexOf(curVid) : -1;
-        float(list[(idx + dir + list.length) % list.length]);
+        const sequence = getOrderedVideoSequence();
+        if (!sequence.length) return;
+        const currentIndex = curVid && sequence.includes(curVid) ? sequence.indexOf(curVid) : 0;
+        const nextIndex = (currentIndex + dir + sequence.length) % sequence.length;
+        const nextVideo = sequence[nextIndex];
+        if (!nextVideo || nextVideo === curVid) return;
+        float(nextVideo);
     };
 
     const restore = () => {
@@ -417,7 +471,7 @@
     };
 
     const renderMenu = () => {
-        const list = getVideos();
+        const list = getOrderedVideoSequence();
         const iframeList = [...iframeVideoMap.entries()].filter(([f]) => f.isConnected);
         const total = list.length + iframeList.length;
         const m = menuRef.element;
@@ -538,6 +592,14 @@
         $('fvp-fit').onclick = () => { if (floatedIframe) postToFloatedIframe({ command: 'cycle-fit' }); else { fitIdx = (fitIdx + 1) % FIT_MODES.length; if (curVid) curVid.style.objectFit = FIT_MODES[fitIdx]; $('fvp-fit').textContent = FIT_ICONS[fitIdx]; } };
         $('fvp-zoom').onclick = () => { if (floatedIframe) postToFloatedIframe({ command: 'cycle-zoom' }); else if (curVid) { zoomIdx = (zoomIdx + 1) % ZOOM_LEVELS.length; applyTransform(); $('fvp-zoom').textContent = ZOOM_ICONS[zoomIdx]; } };
         $('fvp-rotate').onclick = () => { if (floatedIframe) postToFloatedIframe({ command: 'rotate' }); else if (curVid) { rotationAngle = (rotationAngle + 90) % 360; applyTransform(); $('fvp-rotate').style.transform = `rotate(${rotationAngle}deg)`; } };
+        $('fvp-prev').onclick = () => {
+            if (floatedIframe) postToFloatedIframe({ command: 'prev-video' });
+            else switchVid(-1);
+        };
+        $('fvp-next').onclick = () => {
+            if (floatedIframe) postToFloatedIframe({ command: 'next-video' });
+            else switchVid(1);
+        };
         $('fvp-full').onclick = () => { const fs = getFullscreenEl(); if (!fs) box.requestFullscreen?.() || box.webkitRequestFullscreen?.(); else document.exitFullscreen?.() || document.webkitExitFullscreen?.(); };
         $('fvp-res').onclick = () => { const p = $('fvp-res-popup'); if (p.style.display === 'flex') p.style.display = 'none'; else if (floatedIframe) postToFloatedIframe({ command: 'get-quality' }); else window.dispatchEvent(new CustomEvent('fvp-get-quality')); };
         $('fvp-seek').oninput = e => { state.isSeeking = true; const r = e.target.value / 10000; if (floatedIframe) postToFloatedIframe({ command: 'seek-to-ratio', ratio: r }); else if (curVid?.duration) curVid.currentTime = r * curVid.duration; };
