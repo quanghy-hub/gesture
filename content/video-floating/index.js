@@ -471,6 +471,30 @@
         }
     };
 
+    const bindMenuAction = (item, action) => {
+        if (!item) return;
+        let handledTouch = false;
+        const run = e => {
+            e?.preventDefault?.();
+            e?.stopPropagation?.();
+            menuRef?.hide();
+            action?.();
+        };
+        item.addEventListener('touchstart', e => {
+            handledTouch = true;
+            run(e);
+        }, { passive: false });
+        item.addEventListener('click', e => {
+            if (handledTouch) {
+                handledTouch = false;
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            run(e);
+        });
+    };
+
     const renderMenu = () => {
         const list = getOrderedVideoSequence();
         const iframeList = [...iframeVideoMap.entries()].filter(([f]) => f.isConnected);
@@ -486,12 +510,14 @@
         if (!total) { m.innerHTML += '<div class="fvp-menu-item" style="opacity:0.5">No videos found</div>'; return; }
         list.forEach((v, i) => {
             const item = el('div', 'fvp-menu-item', `<span>🎬</span><span style="flex:1">Video ${i + 1}</span>`);
-            item.onclick = () => float(v); m.appendChild(item);
+            bindMenuAction(item, () => float(v));
+            m.appendChild(item);
         });
         iframeList.forEach(([iframe], i) => {
             const domain = (() => { try { return new URL(iframe.src).hostname; } catch { return 'iframe'; } })();
             const item = el('div', 'fvp-menu-item', `<span>🖼️</span><span style="flex:1">iFrame: ${domain}</span>`);
-            item.onclick = () => floatIframe(iframe); m.appendChild(item);
+            bindMenuAction(item, () => floatIframe(iframe));
+            m.appendChild(item);
         });
     };
 
@@ -547,13 +573,6 @@
         document.body.appendChild(box);
 
         // Bind Behaviors
-        let isTouchIconDrag = false;
-        let iconTouchMoved = false;
-        let iconTouchStartX = 0;
-        let iconTouchStartY = 0;
-        let iconTouchOriginLeft = 0;
-        let iconTouchOriginTop = 0;
-
         floating.bindDragBehavior({
             target: iconRef.element,
             getInitialPosition: () => ({ left: iconRef.element.offsetLeft, top: iconRef.element.offsetTop }),
@@ -566,44 +585,13 @@
             onClick: toggleMenu
         });
 
-        iconRef.element.addEventListener('touchstart', e => {
-            const t = e.touches?.length === 1 ? e.touches[0] : null;
-            if (!t) return;
-            isTouchIconDrag = true;
-            iconTouchMoved = false;
-            iconTouchStartX = t.clientX;
-            iconTouchStartY = t.clientY;
-            iconTouchOriginLeft = iconRef.element.offsetLeft;
-            iconTouchOriginTop = iconRef.element.offsetTop;
-        }, { passive: true });
 
-        iconRef.element.addEventListener('touchmove', e => {
-            if (!isTouchIconDrag) return;
-            const t = e.touches?.length === 1 ? e.touches[0] : null;
-            if (!t) return;
-            const deltaX = t.clientX - iconTouchStartX;
-            const deltaY = t.clientY - iconTouchStartY;
-            if (!iconTouchMoved && Math.hypot(deltaX, deltaY) >= 8) iconTouchMoved = true;
-            if (!iconTouchMoved) return;
-            if (e.cancelable) e.preventDefault();
-            const next = floating.clampFixedPosition({ left: iconTouchOriginLeft + deltaX, top: iconTouchOriginTop + deltaY, width: 42, height: 42, margin: 10 });
-            iconRef.setPosition(next.left, next.top);
-            resetIdle();
-        }, { passive: false });
-
-        iconRef.element.addEventListener('touchend', e => {
-            if (!isTouchIconDrag) return;
-            if (iconTouchMoved) {
-                iconPosStorage.save(iconRef.element.style.left, iconRef.element.style.top);
-            } else {
-                toggleMenu();
-            }
-            isTouchIconDrag = false;
-        }, { passive: false });
-
-        iconRef.element.addEventListener('touchcancel', () => {
-            isTouchIconDrag = false;
-        }, { passive: true });
+        menuRef.element.addEventListener('touchstart', e => {
+            e.stopPropagation();
+        }, { passive: true, capture: true });
+        menuRef.element.addEventListener('click', e => {
+            e.stopPropagation();
+        }, true);
 
         floating.bindOutsideClickGuard({
             isOpen: () => menuRef.element.style.display !== 'none',

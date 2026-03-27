@@ -293,6 +293,7 @@
                     button.appendChild(createIconElement(item));
 
                     let handledPointerDown = false;
+                    let handledTouchStart = false;
                     const runAction = (event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -303,9 +304,19 @@
                         handledPointerDown = true;
                         runAction(event);
                     });
+                    button.addEventListener('touchstart', (event) => {
+                        handledTouchStart = true;
+                        runAction(event);
+                    }, { passive: false });
                     button.addEventListener('click', (event) => {
                         if (handledPointerDown) {
                             handledPointerDown = false;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            return;
+                        }
+                        if (handledTouchStart) {
+                            handledTouchStart = false;
                             event.preventDefault();
                             event.stopPropagation();
                             return;
@@ -524,6 +535,15 @@
                 const root = ensureUiRoot();
                 clipboardPanel = document.createElement('div');
                 clipboardPanel.className = 'gesture-quick-search-clipboard-panel';
+                clipboardPanel.addEventListener('pointerdown', (event) => {
+                    event.stopPropagation();
+                });
+                clipboardPanel.addEventListener('touchstart', (event) => {
+                    event.stopPropagation();
+                }, { passive: true });
+                clipboardPanel.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
                 root.appendChild(clipboardPanel);
                 return clipboardPanel;
             };
@@ -549,13 +569,16 @@
                         item.type = 'button';
                         item.className = 'gesture-quick-search-clipboard-item';
                         item.textContent = text;
-                        item.addEventListener('click', (event) => {
+                        const handlePick = (event) => {
                             event.preventDefault();
                             event.stopPropagation();
                             pasteClipboardEntry(text, x, y);
                             hideClipboardPanel();
                             hideTextBubble();
-                        });
+                        };
+                        item.addEventListener('pointerdown', handlePick);
+                        item.addEventListener('touchstart', handlePick, { passive: false });
+                        item.addEventListener('click', handlePick);
                         panel.appendChild(item);
                     });
                 }

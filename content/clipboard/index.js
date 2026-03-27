@@ -151,13 +151,6 @@
             // ─── Floating UI setup ────────────────────────────────────────
 
             const bindFloatingUi = () => {
-                let isTouchDragging = false;
-                let touchMoved = false;
-                let touchStartX = 0;
-                let touchStartY = 0;
-                let touchOriginLeft = 0;
-                let touchOriginTop = 0;
-
                 triggerRef = floating.createTriggerElement({
                     className: 'gesture-clipboard-trigger',
                     textContent: '📋',
@@ -259,57 +252,14 @@
                     e.stopPropagation();
                 }, true);
                 triggerRef.element.addEventListener('pointerdown', (e) => {
+                    suppressNextFocusReset = true;
                     e.preventDefault();
                     e.stopPropagation();
                 }, false);
                 triggerRef.element.addEventListener('touchstart', (e) => {
                     suppressNextFocusReset = true;
                     e.stopPropagation();
-                    const touch = e.touches?.[0];
-                    if (!touch) return;
-                    isTouchDragging = true;
-                    touchMoved = false;
-                    touchStartX = touch.clientX;
-                    touchStartY = touch.clientY;
-                    touchOriginLeft = triggerRef.element.offsetLeft;
-                    touchOriginTop = triggerRef.element.offsetTop;
                 }, { passive: true, capture: true });
-                triggerRef.element.addEventListener('touchmove', (e) => {
-                    if (!isTouchDragging) return;
-                    const touch = e.touches?.[0];
-                    if (!touch) return;
-                    const deltaX = touch.clientX - touchStartX;
-                    const deltaY = touch.clientY - touchStartY;
-                    if (!touchMoved && Math.hypot(deltaX, deltaY) >= 8) touchMoved = true;
-                    if (!touchMoved) return;
-                    if (e.cancelable) e.preventDefault();
-                    const next = floating.clampFixedPosition({
-                        left: touchOriginLeft + deltaX,
-                        top: touchOriginTop + deltaY,
-                        width: UI.triggerSize,
-                        height: UI.triggerSize,
-                        margin: 8
-                    });
-                    triggerRef.setPosition(next.left, next.top);
-                    triggerRef.element.classList.add('is-dragging');
-                    if (panelOpen) updateUI();
-                }, { passive: false });
-                triggerRef.element.addEventListener('touchend', () => {
-                    if (!isTouchDragging) return;
-                    if (touchMoved) {
-                        triggerRef.element.classList.remove('is-dragging');
-                        posStorage.save(triggerRef.element.offsetLeft, triggerRef.element.offsetTop);
-                    } else {
-                        setPanelOpen(!panelOpen).catch((error) => {
-                            console.error('[GestureExtension] toggle panel failed', error);
-                        });
-                    }
-                    isTouchDragging = false;
-                }, { passive: true });
-                triggerRef.element.addEventListener('touchcancel', () => {
-                    isTouchDragging = false;
-                    triggerRef.element.classList.remove('is-dragging');
-                }, { passive: true });
 
                 // Chặn nổi bọt từ nội bộ clipboard để các floating panel khác không xử lý
                 // click ở pha bubble, nhưng không chặn event click tại target của panel.
