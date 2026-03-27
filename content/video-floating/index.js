@@ -2,9 +2,13 @@
     'use strict';
 
     const ext = globalThis.GestureExtension;
-    const { hasVisibleSize, isVisible } = ext?.shared?.domUtils || {};
+    const { hasVisibleSize } = ext?.shared?.domUtils || {};
+    const touch = ext?.shared?.touchCore;
     const storage = ext?.shared?.storage;
+    const configUtils = ext?.shared?.config;
     const floating = ext?.shared?.floatingCore;
+    const viewport = ext?.shared?.viewportCore;
+    const CONFIG_STORAGE_KEY = configUtils?.STORAGE_KEY || 'gesture_extension_config_v1';
 
     const isInIframe = window !== window.top;
     const FVP_IFRAME_BRIDGE = 'fvp-page-bridge';
@@ -28,9 +32,9 @@
         return e;
     };
     const $ = id => document.getElementById(id);
-    const getCoord = e => { const t = e.touches?.[0] || e.changedTouches?.[0] || e; return { x: t.clientX, y: t.clientY }; };
+    const getCoord = e => touch?.getPrimaryPoint?.(e) || { x: 0, y: 0 };
     const formatTime = s => `${Math.floor(s / 60)}.${(Math.floor(s) % 60).toString().padStart(2, '0')}`;
-    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const clamp = (v, min, max) => viewport?.clamp?.(v, min, max) ?? Math.max(min, Math.min(max, v));
     const onPointer = (el, fn) => { el?.addEventListener('touchstart', fn, { passive: false }); el?.addEventListener('mousedown', fn); };
     const getRect = node => node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
 
@@ -45,16 +49,34 @@
     // PERSISTENCE
     // ============================================
     const LAYOUT_KEY = 'fvp_layout';
+    const DEFAULT_VIDEO_FLOATING_CONFIG = {
+        enabled: true,
+        swipeLong: 0.3,
+        swipeShort: 0.15,
+        shortThreshold: 200,
+        minSwipeDistance: 30,
+        verticalTolerance: 80,
+        diagonalThreshold: 1.5,
+        realtimePreview: true,
+        throttle: 15,
+        noticeFontSize: 14
+    };
     let _cfgCache = null;
+    let _layoutCache = null;
+    let _layoutReadyPromise = null;
 
-    const loadConfig = () => _cfgCache || {};
+    const getFeatureConfig = () => ({ ...DEFAULT_VIDEO_FLOATING_CONFIG, ...(_cfgCache?.videoFloating || {}) });
+    const isFeatureEnabled = () => getFeatureConfig().enabled !== false;
 
     const loadLayout = () => {
+        if (_layoutCache) return _layoutCache;
         if (_cfgCache?.videoFloating?.layout) return _cfgCache.videoFloating.layout;
         try { return JSON.parse(localStorage.getItem(LAYOUT_KEY)); } catch { return null; }
     };
 
     const saveLayout = (layout) => {
+        _layoutCache = layout;
+        if (_cfgCache?.videoFloating) _cfgCache.videoFloating.layout = layout;
         try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { }
         if (storage?.saveVideoLayout) storage.saveVideoLayout(layout);
     };
@@ -65,6 +87,25 @@
         if (storage?.getConfig) {
             try { _cfgCache = await storage.getConfig(); } catch { }
         }
+    };
+    const ensureLayoutReady = () => {
+        if (_layoutReadyPromise) return _layoutReadyPromise;
+        _layoutReadyPromise = (async () => {
+            if (storage?.getConfig) {
+                try {
+                    _cfgCache = await storage.getConfig();
+                    const saved = _cfgCache?.videoFloating?.layout;
+                    if (saved) {
+                        _layoutCache = saved;
+                        return saved;
+                    }
+                } catch { }
+            }
+            const fallback = loadLayout();
+            if (fallback) _layoutCache = fallback;
+            return fallback;
+        })();
+        return _layoutReadyPromise;
     };
 
     // ============================================
@@ -110,6 +151,7 @@
             if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
             container.appendChild(noticeEl);
         }
+        noticeEl.style.fontSize = `${getFeatureConfig().noticeFontSize}px`;
         noticeEl.textContent = `${delta >= 0 ? '▶ +' : '◀ '}${delta}s`;
         noticeEl.classList.add('show');
         clearTimeout(hideTimer);
@@ -117,10 +159,11 @@
     };
 
     /* ─── TOUCH SWIPE SEEK ─── */
-    const swipe = { active: false, video: null, startX: 0, startY: 0, startTime: 0, lastUpdate: 0, cancelled: false };
-    const resetSwipe = () => { swipe.active = false; swipe.cancelled = false; swipe.video = null; };
+    const swipe = { active: false, video: null, startX: 0, startY: 0, startTime: 0, lastUpdate: 0, lastDelta: 0, cancelled: false };
+    const resetSwipe = () => { swipe.active = false; swipe.cancelled = false; swipe.video = null; swipe.lastDelta = 0; };
 
     document.addEventListener('touchstart', e => {
+        if (!isFeatureEnabled()) return;
         resetSwipe();
         const t = e.touches?.length === 1 ? e.touches[0] : null;
         if (!t) return;
@@ -136,25 +179,28 @@
             }
             if (!video?.isConnected || !Number.isFinite(video.duration) || video.duration <= 0) return;
             const rect = getRect(video);
-            if (!rect.width || !rect.height || t.clientY > rect.bottom - rect.height * 0.15) return;
+            if (!rect.width || !rect.height || t.clientY > rect.bottom - rect.height * 0.08) return;
             Object.assign(swipe, { video, active: true, startX: t.clientX, startY: t.clientY, startTime: video.currentTime, lastUpdate: performance.now() });
         } catch { resetSwipe(); }
     }, { capture: true, passive: true });
 
     document.addEventListener('touchmove', e => {
         if (!swipe.active || !swipe.video || swipe.cancelled) return;
+        const vfConfig = getFeatureConfig();
         const t = e.touches?.length === 1 ? e.touches[0] : null;
         if (!t || !swipe.video.isConnected) { swipe.cancelled = true; return; }
         const dx = t.clientX - swipe.startX, dy = t.clientY - swipe.startY;
         const absDx = Math.abs(dx), absDy = Math.abs(dy);
         if (absDx < 5 && absDy < 5) return;
-        if (absDy > 60 || (absDx > 0 && absDx / (absDy + 1) < 1.5)) { swipe.cancelled = true; return; }
-        if (absDx < 20) return;
+        if (absDy > vfConfig.verticalTolerance || (absDx > 0 && absDx / (absDy + 1) < vfConfig.diagonalThreshold)) { swipe.cancelled = true; return; }
+        if (absDx < vfConfig.minSwipeDistance) return;
         if (absDx > absDy && e.cancelable) e.preventDefault();
-        const delta = Math.round((dx > 0 ? dx - 20 : dx + 20) * 0.3);
+        const scale = absDx < vfConfig.shortThreshold ? vfConfig.swipeShort : vfConfig.swipeLong;
+        const delta = Math.round((dx > 0 ? dx - vfConfig.minSwipeDistance : dx + vfConfig.minSwipeDistance) * scale);
+        swipe.lastDelta = delta;
         showSeekNotice(swipe.video, delta);
         const now = performance.now();
-        if (now - swipe.lastUpdate > 100) {
+        if (vfConfig.realtimePreview && now - swipe.lastUpdate > vfConfig.throttle) {
             swipe.lastUpdate = now;
             swipe.video.currentTime = clamp(swipe.startTime + delta, 0, swipe.video.duration);
         }
@@ -162,6 +208,10 @@
 
     document.addEventListener('touchend', e => {
         if (!swipe.active || !swipe.video) return;
+        const vfConfig = getFeatureConfig();
+        if (!swipe.cancelled && !vfConfig.realtimePreview && swipe.video.isConnected) {
+            swipe.video.currentTime = clamp(swipe.startTime + (swipe.lastDelta || 0), 0, swipe.video.duration);
+        }
         resetSwipe();
     }, { capture: true, passive: true });
 
@@ -287,8 +337,7 @@
     const iframeVideoMap = new Map();
     let iframeStatePollTimer = 0;
     const iframePlaybackState = { hasVideo: false, paused: true, muted: false, volume: 1, currentTime: 0, duration: 0, bufferedEnd: 0, fitIdx: 0, zoomIdx: 0, rotationAngle: 0 };
-    const state = { isDrag: false, isResize: false, startX: 0, startY: 0, initX: 0, initY: 0, initW: 0, initH: 0, resizeDir: '', idleTimer: null, rafId: null, isSeeking: false };
-    const isTouchLikeEvent = event => !!(event?.touches || event?.changedTouches);
+    const state = { isDrag: false, isResize: false, startX: 0, startY: 0, initX: 0, initY: 0, initW: 0, initH: 0, resizeDir: '', idleTimer: null, rafId: null, isSeeking: false, seekDragActive: false, seekApplyRaf: 0, pendingSeekRatio: null, seekPreviewRatio: null, lastSeekCommitAt: 0 };
 
     const getVideos = () => [...document.querySelectorAll('video')].filter(v => {
         if (!v?.isConnected || v.closest('#fvp-wrapper')) return false;
@@ -321,6 +370,11 @@
 
     const updateVideoDetectionUI = () => {
         if (!iconRef) return;
+        if (!isFeatureEnabled()) {
+            iconRef.hide();
+            menuRef?.hide();
+            return;
+        }
         for (const f of [...iframeVideoMap.keys()]) if (!f?.isConnected) iframeVideoMap.delete(f);
         const count = getVideos().length + iframeVideoMap.size + (curVid || floatedIframe ? 1 : 0);
         if (count > 0) {
@@ -332,6 +386,128 @@
     };
 
     const postToFloatedIframe = cmd => floatedIframe?.contentWindow?.postMessage({ type: 'fvp-iframe-command', ...cmd }, '*');
+    const getActiveSeekDuration = () => floatedIframe ? (iframePlaybackState.duration || 0) : (curVid?.duration || 0);
+    const getSeekRatioFromClientX = (clientX) => {
+        const container = $('fvp-seek-container');
+        const rect = getRect(container);
+        if (!rect.width) return 0;
+        return clamp((clientX - rect.left) / rect.width, 0, 1);
+    };
+    const renderSeekPreview = (ratio) => {
+        const seek = $('fvp-seek');
+        if (seek) seek.value = Math.round(clamp(ratio, 0, 1) * 10000);
+        const duration = getActiveSeekDuration();
+        const currentTime = duration > 0 ? clamp(ratio, 0, 1) * duration : 0;
+        const td = $('fvp-time-display');
+        if (td) td.textContent = `${formatTime(currentTime)}/${formatTime(duration)}`;
+    };
+    const flushPendingSeek = (force = false) => {
+        state.seekApplyRaf = 0;
+        if (state.pendingSeekRatio === null) return;
+        const ratio = clamp(state.pendingSeekRatio, 0, 1);
+        const now = performance.now();
+        if (!force && now - state.lastSeekCommitAt < 70) {
+            state.seekApplyRaf = requestAnimationFrame(() => flushPendingSeek(false));
+            return;
+        }
+        state.lastSeekCommitAt = now;
+        if (floatedIframe) {
+            postToFloatedIframe({ command: 'seek-to-ratio', ratio });
+        } else if (curVid?.duration) {
+            curVid.currentTime = ratio * curVid.duration;
+        }
+    };
+    const scheduleSeekApply = (ratio) => {
+        state.pendingSeekRatio = ratio;
+        state.seekPreviewRatio = ratio;
+        renderSeekPreview(ratio);
+        if (state.seekApplyRaf) return;
+        state.seekApplyRaf = requestAnimationFrame(() => flushPendingSeek(false));
+    };
+    const endSeekInteraction = () => {
+        state.isSeeking = false;
+        state.seekDragActive = false;
+        if (state.pendingSeekRatio !== null) {
+            flushPendingSeek(true);
+            state.pendingSeekRatio = null;
+        }
+        state.seekPreviewRatio = null;
+    };
+    const getDefaultLayout = () => {
+        const width = Math.min(Math.max(Math.round(window.innerWidth * 0.88), 260), 680);
+        const height = Math.min(Math.max(Math.round(width * 9 / 16), 160), Math.max(160, window.innerHeight - 24));
+        const centered = viewport?.getCenteredRect?.({ width, height, margin: 8 }) || {
+            left: Math.max(8, Math.round((window.innerWidth - width) / 2)),
+            top: Math.max(8, Math.round((window.innerHeight - height) / 2))
+        };
+        return {
+            width: `${width}px`,
+            height: `${height}px`,
+            left: `${centered.left}px`,
+            top: `${centered.top}px`,
+            borderRadius: '12px'
+        };
+    };
+    const getNormalizedLayout = (layout) => {
+        const fallback = getDefaultLayout();
+        const parsePx = (value, fallbackNumber) => viewport?.parsePx?.(value, fallbackNumber) ?? (() => {
+            const parsed = parseFloat(String(value || ''));
+            return Number.isFinite(parsed) ? parsed : fallbackNumber;
+        })();
+        const fallbackWidth = parsePx(fallback.width, 320);
+        const fallbackHeight = parsePx(fallback.height, 180);
+        const normalized = viewport?.normalizeFixedLayout?.({
+            layout,
+            fallbackLayout: fallback,
+            minWidth: 200,
+            minHeight: 120,
+            maxWidth: Math.max(200, window.innerWidth - 8),
+            maxHeight: Math.max(120, window.innerHeight - 8),
+            margin: 8
+        });
+        if (normalized) {
+            return {
+                ...normalized,
+                borderRadius: layout?.borderRadius || fallback.borderRadius || '12px'
+            };
+        }
+        const width = Math.min(Math.max(parsePx(layout?.width, fallbackWidth), 200), Math.max(200, window.innerWidth - 8));
+        const height = Math.min(Math.max(parsePx(layout?.height, fallbackHeight), 120), Math.max(120, window.innerHeight - 8));
+        const pos = floating.clampFixedPosition({
+            left: parsePx(layout?.left, parsePx(fallback.left, 8)),
+            top: parsePx(layout?.top, parsePx(fallback.top, 8)),
+            width,
+            height,
+            margin: 8
+        });
+        return {
+            width: `${Math.round(width)}px`,
+            height: `${Math.round(height)}px`,
+            left: `${Math.round(pos.left)}px`,
+            top: `${Math.round(pos.top)}px`,
+            borderRadius: layout?.borderRadius || fallback.borderRadius
+        };
+    };
+    const applyBoxLayout = (layout) => {
+        if (!box) return;
+        const next = getNormalizedLayout(layout);
+        box.style.width = next.width;
+        box.style.height = next.height;
+        box.style.left = next.left;
+        box.style.top = next.top;
+        box.style.borderRadius = next.borderRadius;
+        return next;
+    };
+    const persistCurrentBoxLayout = () => {
+        if (!box) return;
+        saveLayout({
+            top: box.style.top,
+            left: box.style.left,
+            width: box.style.width,
+            height: box.style.height,
+            borderRadius: box.style.borderRadius
+        });
+    };
 
     // IDLE
     const resetIdle = () => {
@@ -357,8 +533,12 @@
 
     const syncFloatedIframeUI = () => {
         const seek = $('fvp-seek'), dur = iframePlaybackState.duration || 0, cur = iframePlaybackState.currentTime || 0;
-        if (seek && dur > 0 && !state.isSeeking) seek.value = (cur / dur) * 10000;
-        const td = $('fvp-time-display'); if (td) td.textContent = `${formatTime(cur)}/${formatTime(dur)}`;
+        if (state.isSeeking && state.seekPreviewRatio !== null) {
+            renderSeekPreview(state.seekPreviewRatio);
+        } else {
+            if (seek && dur > 0) seek.value = (cur / dur) * 10000;
+            const td = $('fvp-time-display'); if (td) td.textContent = `${formatTime(cur)}/${formatTime(dur)}`;
+        }
         const buf = $('fvp-buffer'); if (buf) buf.style.width = dur > 0 ? `${(iframePlaybackState.bufferedEnd / dur) * 100}%` : '0%';
         updateVolUI(); updatePlayPauseUI();
         const fit = $('fvp-fit'); if (fit) fit.textContent = FIT_ICONS[iframePlaybackState.fitIdx] || FIT_ICONS[0];
@@ -387,6 +567,11 @@
 
     const restore = () => {
         if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+        if (state.seekApplyRaf) { cancelAnimationFrame(state.seekApplyRaf); state.seekApplyRaf = 0; }
+        state.pendingSeekRatio = null;
+        state.seekPreviewRatio = null;
+        state.isSeeking = false;
+        state.seekDragActive = false;
         if (floatedIframe) {
             clearInterval(iframeStatePollTimer);
             floatedIframe.setAttribute('style', iframeOrigStyle);
@@ -403,6 +588,7 @@
     };
 
     const floatIframe = iframe => {
+        if (!isFeatureEnabled()) return;
         if (floatedIframe) { clearInterval(iframeStatePollTimer); floatedIframe.setAttribute('style', iframeOrigStyle); iframeOrigPar?.replaceChild(floatedIframe, iframePh); }
         if (curVid) restore();
         if (!box) init();
@@ -415,12 +601,15 @@
         wrapper.appendChild(iframe);
         box.style.display = 'flex';
         menuRef?.hide();
-        const saved = loadLayout();
-        if (saved) { box.style.width = saved.width; box.style.height = saved.height; box.style.top = saved.top; box.style.left = saved.left; box.style.borderRadius = saved.borderRadius || '12px'; }
+        applyBoxLayout(loadLayout());
+        ensureLayoutReady().then((layout) => {
+            if (floatedIframe === iframe && layout) applyBoxLayout(layout);
+        });
         iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 350);
     };
 
     const float = v => {
+        if (!isFeatureEnabled()) return;
         if (floatedIframe) { clearInterval(iframeStatePollTimer); floatedIframe.setAttribute('style', iframeOrigStyle); iframeOrigPar?.replaceChild(floatedIframe, iframePh); floatedIframe = null; }
         if (curVid && curVid !== v) restore();
         if (curVid === v) return;
@@ -435,8 +624,10 @@
         updateVolUI();
         box.style.display = 'flex';
         menuRef?.hide();
-        const saved = loadLayout();
-        if (saved) { box.style.width = saved.width; box.style.height = saved.height; box.style.top = saved.top; box.style.left = saved.left; box.style.borderRadius = saved.borderRadius || '12px'; }
+        applyBoxLayout(loadLayout());
+        ensureLayoutReady().then((layout) => {
+            if (curVid === v && layout) applyBoxLayout(layout);
+        });
         const updateLoop = () => {
             if (!curVid) return;
             if (!state.isSeeking && curVid.duration) {
@@ -455,6 +646,10 @@
 
     const toggleMenu = () => {
         if (!menuRef) return;
+        if (!isFeatureEnabled()) {
+            menuRef.hide();
+            return;
+        }
         const isHidden = menuRef.element.hidden || getComputedStyle(menuRef.element).display === 'none';
         if (isHidden) {
             const r = iconRef.element.getBoundingClientRect();
@@ -508,6 +703,15 @@
         iconRef.element.id = 'fvp-master-icon';
         iconPosStorage.load().then((pos) => {
             iconRef.setPosition(pos.left, pos.top);
+        });
+        ensureLayoutReady();
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName !== 'local' || !changes?.[CONFIG_STORAGE_KEY]) return;
+            try {
+                _cfgCache = configUtils?.normalizeConfig?.(changes[CONFIG_STORAGE_KEY].newValue) || _cfgCache;
+            } catch { }
+            if (!isFeatureEnabled()) restore();
+            updateVideoDetectionUI();
         });
 
         // Menu (Panel)
@@ -567,27 +771,47 @@
 
         // Player Events
         onPointer($('fvp-left-drag'), e => {
-            if (isTouchLikeEvent(e) && e.cancelable) e.preventDefault();
+            if (touch?.isTouchLikeEvent?.(e)) touch.preventCancelable(e);
             const c = getCoord(e); state.isDrag = true; state.startX = c.x; state.startY = c.y; state.initX = box.offsetLeft; state.initY = box.offsetTop;
         });
         box.querySelectorAll('.fvp-resize-handle').forEach(h => onPointer(h, e => {
-            if (isTouchLikeEvent(e) && e.cancelable) e.preventDefault();
+            if (touch?.isTouchLikeEvent?.(e)) touch.preventCancelable(e);
             state.isResize = true; state.resizeDir = h.className.includes('bl') ? 'bl' : 'br';
             const c = getCoord(e); state.startX = c.x; state.startY = c.y; state.initW = box.offsetWidth; state.initH = box.offsetHeight; state.initX = box.offsetLeft;
         }));
         const handleBoxPointerMove = e => {
             if (!state.isDrag && !state.isResize) return;
-            if (isTouchLikeEvent(e) && e.cancelable) e.preventDefault();
+            if (touch?.isTouchLikeEvent?.(e)) touch.preventCancelable(e);
             const c = getCoord(e), dx = c.x - state.startX, dy = c.y - state.startY;
-            if (state.isDrag) { box.style.left = `${state.initX + dx}px`; box.style.top = `${state.initY + dy}px`; }
-            else if (state.isResize) {
-                const nw = state.resizeDir === 'bl' ? state.initW - dx : state.initW + dx;
-                box.style.width = `${Math.max(200, nw)}px`; box.style.height = `${Math.max(120, state.initH + dy)}px`;
-                if (state.resizeDir === 'bl') box.style.left = `${state.initX + (state.initW - box.offsetWidth)}px`;
+            if (state.isDrag) {
+                const next = floating.clampFixedPosition({
+                    left: state.initX + dx,
+                    top: state.initY + dy,
+                    width: box.offsetWidth,
+                    height: box.offsetHeight,
+                    margin: 8
+                });
+                box.style.left = `${next.left}px`;
+                box.style.top = `${next.top}px`;
+            } else if (state.isResize) {
+                const width = Math.min(Math.max(state.resizeDir === 'bl' ? state.initW - dx : state.initW + dx, 200), Math.max(200, window.innerWidth - 8));
+                const height = Math.min(Math.max(state.initH + dy, 120), Math.max(120, window.innerHeight - 8));
+                const left = state.resizeDir === 'bl' ? state.initX + (state.initW - width) : box.offsetLeft;
+                const next = floating.clampFixedPosition({
+                    left,
+                    top: box.offsetTop,
+                    width,
+                    height,
+                    margin: 8
+                });
+                box.style.width = `${Math.round(width)}px`;
+                box.style.height = `${Math.round(height)}px`;
+                box.style.left = `${Math.round(next.left)}px`;
+                box.style.top = `${Math.round(next.top)}px`;
             }
         };
         const handleBoxPointerEnd = () => {
-            if (state.isDrag || state.isResize) saveLayout({ top: box.style.top, left: box.style.left, width: box.style.width, height: box.style.height, borderRadius: box.style.borderRadius });
+            if (state.isDrag || state.isResize) persistCurrentBoxLayout();
             state.isDrag = state.isResize = false;
         };
         document.addEventListener('mousemove', handleBoxPointerMove);
@@ -595,6 +819,11 @@
         document.addEventListener('touchmove', handleBoxPointerMove, { passive: false });
         document.addEventListener('touchend', handleBoxPointerEnd, { passive: true });
         document.addEventListener('touchcancel', handleBoxPointerEnd, { passive: true });
+        window.addEventListener('resize', () => {
+            if (box?.style.display === 'none') return;
+            applyBoxLayout(loadLayout());
+            persistCurrentBoxLayout();
+        });
 
         // UI Controls
         $('fvp-close').onclick = restore;
@@ -613,8 +842,34 @@
         };
         $('fvp-full').onclick = () => { const fs = getFullscreenEl(); if (!fs) box.requestFullscreen?.() || box.webkitRequestFullscreen?.(); else document.exitFullscreen?.() || document.webkitExitFullscreen?.(); };
         $('fvp-res').onclick = () => { const p = $('fvp-res-popup'); if (p.style.display === 'flex') p.style.display = 'none'; else if (floatedIframe) postToFloatedIframe({ command: 'get-quality' }); else window.dispatchEvent(new CustomEvent('fvp-get-quality')); };
-        $('fvp-seek').oninput = e => { state.isSeeking = true; const r = e.target.value / 10000; if (floatedIframe) postToFloatedIframe({ command: 'seek-to-ratio', ratio: r }); else if (curVid?.duration) curVid.currentTime = r * curVid.duration; };
-        $('fvp-seek').onchange = () => state.isSeeking = false;
+        const seekEl = $('fvp-seek');
+        const beginSeekInteraction = (event) => {
+            state.isSeeking = true;
+            state.seekDragActive = true;
+            const point = getCoord(event);
+            const ratio = getSeekRatioFromClientX(point.x);
+            renderSeekPreview(ratio);
+            scheduleSeekApply(ratio);
+        };
+        const handleSeekDragMove = (event) => {
+            if (!state.seekDragActive) return;
+            if (touch?.isTouchLikeEvent?.(event)) touch.preventCancelable(event);
+            const point = getCoord(event);
+            const ratio = getSeekRatioFromClientX(point.x);
+            renderSeekPreview(ratio);
+            scheduleSeekApply(ratio);
+        };
+        const stopSeekDrag = () => {
+            if (!state.seekDragActive && !state.isSeeking) return;
+            endSeekInteraction();
+        };
+        seekEl.addEventListener('pointerdown', beginSeekInteraction, { capture: true });
+        seekEl.addEventListener('touchstart', beginSeekInteraction, { capture: true, passive: true });
+        document.addEventListener('pointermove', handleSeekDragMove, { capture: true });
+        document.addEventListener('touchmove', handleSeekDragMove, { capture: true, passive: false });
+        document.addEventListener('pointerup', stopSeekDrag, { capture: true });
+        document.addEventListener('touchend', stopSeekDrag, { capture: true, passive: true });
+        document.addEventListener('touchcancel', stopSeekDrag, { capture: true, passive: true });
 
         // Message Handling
         window.addEventListener('message', e => {

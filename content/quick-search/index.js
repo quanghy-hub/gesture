@@ -1,5 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const touch = ext.shared.touchCore;
+    const viewport = ext.shared.viewportCore;
 
     const CONFIG = {
         maxProviders: 8,
@@ -217,10 +219,18 @@
         const width = bubble.offsetWidth;
         const height = bubble.offsetHeight;
         const centeredLeft = x - (width / 2);
-        const clampedLeft = Math.max(6, Math.min(centeredLeft, window.innerWidth - width - 6));
-        const clampedTop = Math.max(6, Math.min(y, window.innerHeight - height - 6));
-        bubble.style.left = `${clampedLeft}px`;
-        bubble.style.top = `${clampedTop}px`;
+        const next = viewport?.fitPanelToViewport?.({
+            preferredLeft: centeredLeft,
+            preferredTop: y,
+            panelWidth: width,
+            panelHeight: height,
+            margin: 6
+        }) || {
+            left: Math.max(6, Math.min(centeredLeft, window.innerWidth - width - 6)),
+            top: Math.max(6, Math.min(y, window.innerHeight - height - 6))
+        };
+        bubble.style.left = `${next.left}px`;
+        bubble.style.top = `${next.top}px`;
     };
 
     const createBubble = (type) => {
@@ -696,9 +706,9 @@
                     return;
                 }
 
-                const touch = event.touches[0];
+                const point = touch.getPrimaryPoint(event);
                 const image = getImageElement(event.target);
-                touchCandidate = { x: touch.clientX, y: touch.clientY, image };
+                touchCandidate = { x: point.x, y: point.y, image };
 
                 if (!(image instanceof HTMLImageElement)) {
                     return;
@@ -737,8 +747,8 @@
                     clearTouchLongPress();
                     return;
                 }
-                const touch = event.touches[0];
-                if (Math.hypot(touch.clientX - touchCandidate.x, touch.clientY - touchCandidate.y) > 18) {
+                const point = touch.getPrimaryPoint(event);
+                if (touch.getDistance(point, touchCandidate) > 18) {
                     clearTouchLongPress();
                 }
             };

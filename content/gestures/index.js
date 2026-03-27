@@ -1,6 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const { isHttpPage } = ext.shared.runtime;
+    const touch = ext.shared.touchCore;
 
     ext.features.gesturesDesktop = {
         shouldRun() {
@@ -26,7 +27,7 @@
                 listeners.push(() => target.removeEventListener(event, handler, options));
             };
 
-            const dist = (x1, y1, x2, y2) => Math.hypot(x1 - x2, y1 - y2);
+            const dist = (x1, y1, x2, y2) => touch.getDistance({ x: x1, y: y1 }, { x: x2, y: y2 });
             const getConfig = () => context.getConfig().gestures.desktop;
             const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
             const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
@@ -338,17 +339,6 @@
         init(context) {
             const TOLERANCE = { move: 20, tap: 30 };
             const listeners = [];
-            const EXTENSION_UI_SELECTORS = [
-                '#fvp-master-icon',
-                '#fvp-menu',
-                '#fvp-container',
-                '.gesture-clipboard-trigger',
-                '.gesture-clipboard-panel',
-                '.gesture-google-search-trigger',
-                '.gesture-google-search-panel',
-                '#gesture-quick-search-ui-host',
-                '.gesture-quick-search-bubble'
-            ].join(', ');
             const state = {
                 suppressUntil: 0,
                 lpFired: false,
@@ -364,19 +354,12 @@
             };
 
             const getConfig = () => context.getConfig().gestures.mobile;
-            const dist = (x1, y1, x2, y2) => Math.hypot(x1 - x2, y1 - y2);
+            const dist = (x1, y1, x2, y2) => touch.getDistance({ x: x1, y: y1 }, { x: x2, y: y2 });
             const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
             const isEditable = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
             const isInteractive = (el) => {
                 if (!el) return false;
                 return ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'VIDEO', 'AUDIO'].includes(el.tagName) || !!el.closest?.('button, a, [role="button"], [onclick]');
-            };
-            const isExtensionUiTarget = (eventOrTarget) => {
-                const isMatch = (node) => node instanceof Element && !!node.closest?.(EXTENSION_UI_SELECTORS);
-                if (eventOrTarget?.composedPath) {
-                    return eventOrTarget.composedPath().some(isMatch);
-                }
-                return isMatch(eventOrTarget);
             };
 
             const getValidLink = (event) => {
@@ -465,7 +448,7 @@
                 const cfg = getConfig();
                 state.lpFired = false;
                 stopMomentum();
-                if (isExtensionUiTarget(event)) {
+                if (touch.isExtensionUiTarget(event)) {
                     cancelLongPress();
                     state.edge.active = false;
                     state.dblTap.last = null;
@@ -473,18 +456,18 @@
                 }
                 if (!cfg.enabled || isEditable(event.target) || event.touches.length !== 1) return;
 
-                const touch = event.touches[0];
+                const touchPoint = event.touches[0];
                 const now = Date.now();
 
-                if (isInEdgeZone(touch.clientX) && !event.target.closest?.('#fvp-container')) {
-                    state.edge = { active: true, lastY: touch.clientY, lastTime: now, velocity: 0 };
+                if (isInEdgeZone(touchPoint.clientX) && !event.target.closest?.('#fvp-container')) {
+                    state.edge = { active: true, lastY: touchPoint.clientY, lastTime: now, velocity: 0 };
                     return;
                 }
 
                 if (cfg.dblTap.enabled && !isInteractive(event.target)) {
                     const last = state.dblTap.last;
                     const timeSinceLast = last ? now - last.time : Infinity;
-                    if (last && last.ended && timeSinceLast >= 100 && timeSinceLast < cfg.dblTap.ms && dist(touch.clientX, touch.clientY, last.x, last.y) < TOLERANCE.tap) {
+                    if (last && last.ended && timeSinceLast >= 100 && timeSinceLast < cfg.dblTap.ms && dist(touchPoint.clientX, touchPoint.clientY, last.x, last.y) < TOLERANCE.tap) {
                         event.preventDefault();
                         event.stopPropagation();
                         state.dblTap.last = null;
@@ -493,7 +476,7 @@
                     }
 
                     if (!last || timeSinceLast > 50) {
-                        state.dblTap.last = { time: now, x: touch.clientX, y: touch.clientY, ended: false };
+                        state.dblTap.last = { time: now, x: touchPoint.clientX, y: touchPoint.clientY, ended: false };
                     }
                 }
 
@@ -501,7 +484,7 @@
                 const link = getValidLink(event);
                 if (!link) return;
 
-                state.lp = { timer: null, active: true, x: touch.clientX, y: touch.clientY };
+                state.lp = { timer: null, active: true, x: touchPoint.clientX, y: touchPoint.clientY };
                 state.lp.timer = setTimeout(() => {
                     if (!state.lp.active) return;
                     state.lp.active = false;
@@ -511,21 +494,21 @@
             }, { capture: true, passive: false });
 
             addListener(window, 'touchmove', (event) => {
-                if (isExtensionUiTarget(event)) {
+                if (touch.isExtensionUiTarget(event)) {
                     cancelLongPress();
                     state.edge.active = false;
                     return;
                 }
                 if (state.lp.active && event.touches.length === 1) {
-                    const touch = event.touches[0];
-                    if (dist(touch.clientX, touch.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {
+                    const touchPoint = event.touches[0];
+                    if (dist(touchPoint.clientX, touchPoint.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {
                         cancelLongPress();
                     }
                 }
 
                 if (state.dblTap.last && event.touches.length === 1) {
-                    const touch = event.touches[0];
-                    if (dist(touch.clientX, touch.clientY, state.dblTap.last.x, state.dblTap.last.y) > TOLERANCE.tap) {
+                    const touchPoint = event.touches[0];
+                    if (dist(touchPoint.clientX, touchPoint.clientY, state.dblTap.last.x, state.dblTap.last.y) > TOLERANCE.tap) {
                         state.dblTap.last = null;
                     }
                 }
@@ -536,15 +519,15 @@
                 }
 
                 const cfg = getConfig();
-                const touch = event.touches[0];
+                const touchPoint = event.touches[0];
                 const now = Date.now();
-                const deltaY = state.edge.lastY - touch.clientY;
+                const deltaY = state.edge.lastY - touchPoint.clientY;
                 const deltaTime = now - state.edge.lastTime;
                 if (deltaTime > 0) {
                     state.edge.velocity = ((deltaY * cfg.edge.speed) / deltaTime) * 16;
                 }
 
-                state.edge.lastY = touch.clientY;
+                state.edge.lastY = touchPoint.clientY;
                 state.edge.lastTime = now;
                 (document.scrollingElement || document.documentElement).scrollTop += deltaY * cfg.edge.speed;
                 event.preventDefault();

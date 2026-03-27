@@ -1,10 +1,11 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const viewport = ext.shared.viewportCore;
     ext.shared.floatingCore = {
-        clamp: (value, min, max) => Math.min(max, Math.max(min, value)),
-        clampFixedPosition: ({ left = 0, top = 0, width = 0, height = 0, margin = 8 }) => ({
-            left: Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - width - margin)),
-            top: Math.min(Math.max(margin, top), Math.max(margin, window.innerHeight - height - margin))
+        clamp: (value, min, max) => viewport?.clamp?.(value, min, max) ?? Math.min(max, Math.max(min, value)),
+        clampFixedPosition: (rect) => viewport?.clampFixedPosition?.(rect) ?? ({
+            left: Math.min(Math.max(rect?.margin ?? 8, rect?.left ?? 0), Math.max(rect?.margin ?? 8, window.innerWidth - (rect?.width ?? 0) - (rect?.margin ?? 8))),
+            top: Math.min(Math.max(rect?.margin ?? 8, rect?.top ?? 0), Math.max(rect?.margin ?? 8, window.innerHeight - (rect?.height ?? 0) - (rect?.margin ?? 8)))
         }),
         stopFloatingEvent: (event) => {
             event.preventDefault();

@@ -1,6 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const { createMemoryCache, translate: coreTranslate } = ext.shared.translateCore;
+    const touch = ext.shared.touchCore;
 
     const cache = createMemoryCache({ maxSize: 200 });
     const JUNK = /[\s\d\p{P}\p{S}\p{M}\p{C}\u200B-\u200D\uFEFF]/gu;
@@ -13,7 +14,17 @@
         '[slot="text-body"] div',
         '[slot="text-body"]'
     ];
+    const REDDIT_TITLE_SELECTORS = [
+        '[slot="title"]',
+        'a[slot="title"]',
+        'h1',
+        'h2',
+        'h3'
+    ];
     const VALID_TAGS = /^(P|LI|H[1-6]|BLOCKQUOTE|TD|TH|PRE|FIGCAPTION|DIV|SPAN|A|ARTICLE|LABEL|SECTION|ASIDE|FIGURE|DETAILS|SUMMARY|CODE|NAV|HEADER|FOOTER|MAIN|MARK)$/;
+    const PARAGRAPH_TAGS = /^(P|LI|BLOCKQUOTE|TD|TH|PRE|FIGCAPTION|SUMMARY)$/;
+    const HEADING_TAGS = /^(H[1-6])$/;
+    const CONTAINER_FALLBACK_TAGS = /^(DIV|ARTICLE|SECTION|ASIDE|FIGURE|DETAILS|MAIN)$/;
 
     let settings;
     let lastPointer = { x: 0, y: 0 };
@@ -26,6 +37,73 @@
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
+    const normalizeBlockText = (text) => String(text || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const getTextKey = (text) => normalizeBlockText(text).slice(0, 240);
+
+    const getElementText = (element) => normalizeBlockText(element?.innerText || '');
+    const pointInElement = (element, x, y) => {
+        if (!(element instanceof Element)) return false;
+        const rect = element.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
+
+    const getMeaningfulChildBlocks = (element) => [...(element?.children || [])].filter((child) => {
+        if (!(child instanceof HTMLElement) || child.classList.contains('gesture-inline-translate-box')) {
+            return false;
+        }
+        const text = getElementText(child);
+        return hasMeaningfulText(text) && text.length >= 24;
+    });
+
+    const isParagraphLikeCandidate = (element, text) => {
+        if (!(element instanceof HTMLElement) || !VALID_TAGS.test(element.tagName)) return false;
+        if (!hasMeaningfulText(text) || text.length > 2200) return false;
+        if (PARAGRAPH_TAGS.test(element.tagName)) return text.length >= 20;
+        if (HEADING_TAGS.test(element.tagName)) return text.length >= 60;
+        if (!CONTAINER_FALLBACK_TAGS.test(element.tagName)) return false;
+
+        const childBlocks = getMeaningfulChildBlocks(element);
+        const childCount = childBlocks.length;
+        const textNodes = [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE && normalizeBlockText(node.textContent || '').length >= 20);
+        const ownParagraphChildren = childBlocks.filter((child) => PARAGRAPH_TAGS.test(child.tagName) || HEADING_TAGS.test(child.tagName));
+
+        if (childCount === 0) return text.length >= 30;
+        if (childCount === 1) return getElementText(childBlocks[0]) === text;
+        if (textNodes.length > 0 && childCount <= 2) return text.length >= 40;
+        if (ownParagraphChildren.length === 1 && childCount <= 2 && text.length <= 700) return true;
+        return false;
+    };
+
+    const pickBetterBlock = (currentBest, candidate, candidateText, depth) => {
+        const normalizedText = candidateText.slice(0, 2000);
+        if (!currentBest) {
+            return { text: normalizedText, node: candidate, depth };
+        }
+
+        const bestIsParagraph = PARAGRAPH_TAGS.test(currentBest.node.tagName) || HEADING_TAGS.test(currentBest.node.tagName);
+        const nextIsParagraph = PARAGRAPH_TAGS.test(candidate.tagName) || HEADING_TAGS.test(candidate.tagName);
+
+        if (nextIsParagraph && !bestIsParagraph) {
+            return { text: normalizedText, node: candidate, depth };
+        }
+
+        if (nextIsParagraph === bestIsParagraph) {
+            const depthDelta = currentBest.depth - depth;
+            if (Math.abs(depthDelta) <= 1) {
+                if (Math.abs(normalizedText.length - 280) < Math.abs(currentBest.text.length - 280)) {
+                    return { text: normalizedText, node: candidate, depth };
+                }
+            } else if (depth < currentBest.depth) {
+                return { text: normalizedText, node: candidate, depth };
+            }
+        }
+
+        return currentBest;
+    };
+
 
 
     const applyInlineTranslateCssVars = (nextSettings) => {
@@ -37,6 +115,7 @@
     const createTranslationBox = (text = '', targetNode = null) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'gesture-inline-translate-box';
+        wrapper.dataset.textKey = text ? getTextKey(text) : '';
 
         if (IS_REDDIT) {
             const slot = targetNode?.getAttribute('slot') || 'text-body';
@@ -104,6 +183,7 @@
 
     const insertTranslationBox = (node, box) => {
         const anchor = getSafeTranslationAnchor(node);
+        box.__gestureSourceNode = node;
         if (anchor.mode === 'afterend') {
             anchor.host.insertAdjacentElement('afterend', box);
             return;
@@ -114,12 +194,41 @@
     const findTranslationBox = (node) => node.querySelector(':scope > .gesture-inline-translate-box')
         || (node.nextElementSibling?.classList.contains('gesture-inline-translate-box') ? node.nextElementSibling : null);
 
-    const getTextBlock = (element) => {
+    const findRelatedTranslationBox = (node, textKey) => {
+        const direct = findTranslationBox(node);
+        if (direct) return direct;
+        if (!textKey) return null;
+
+        for (const box of document.querySelectorAll(`.gesture-inline-translate-box[data-text-key="${CSS.escape(textKey)}"]`)) {
+            const sourceNode = box.__gestureSourceNode;
+            if (!(sourceNode instanceof Node) || !(node instanceof Node)) continue;
+            if (sourceNode === node || sourceNode.contains(node) || node.contains(sourceNode)) {
+                return box;
+            }
+        }
+
+        return null;
+    };
+
+    const getTextBlock = (element, x = 0, y = 0) => {
         if (!element || element === document.body) {
             return null;
         }
 
         if (IS_REDDIT) {
+            const post = element.closest('shreddit-post');
+            if (post) {
+                for (const selector of REDDIT_TITLE_SELECTORS) {
+                    for (const candidate of post.querySelectorAll(selector)) {
+                        if (!pointInElement(candidate, x, y)) continue;
+                        const titleText = candidate.innerText?.trim() || '';
+                        if (hasMeaningfulText(titleText)) {
+                            return { text: titleText, node: candidate };
+                        }
+                    }
+                }
+            }
+
             const comment = element.closest('shreddit-comment');
             if (comment) {
                 const candidate = comment.querySelector('.md, [slot="comment"], [id$="-rtjson-content"], [id$="-post-rtjson-content"]');
@@ -127,8 +236,6 @@
                     return { text: candidate.innerText.trim(), node: candidate };
                 }
             }
-
-            const post = element.closest('shreddit-post');
             if (post) {
                 const body = post.querySelector('shreddit-post-text-body');
                 if (body) {
@@ -143,38 +250,27 @@
         }
 
         let current = element;
+        let best = null;
+        let depth = 0;
         while (current && current !== document.body) {
             if (window.getComputedStyle(current).display === 'none') {
                 current = current.parentElement;
                 continue;
             }
 
-            const text = current.innerText?.trim() || '';
-            if (VALID_TAGS.test(current.tagName) && text.length > 0 && text.length < 5000) {
-                if (current.tagName === 'DIV' && text.length > 500 && current.children.length > 5) {
-                    const child = [...current.children].find((candidate) => {
-                        const childText = candidate.innerText?.trim() || '';
-                        return VALID_TAGS.test(candidate.tagName) && childText.length > 0 && childText.length < 500;
-                    });
-
-                    if (child) {
-                        return {
-                            text: child.innerText.trim(),
-                            node: child
-                        };
-                    }
+            const text = getElementText(current);
+            if (isParagraphLikeCandidate(current, text)) {
+                best = pickBetterBlock(best, current, text, depth);
+                if (PARAGRAPH_TAGS.test(current.tagName)) {
+                    break;
                 }
-
-                return {
-                    text: text.slice(0, 2000),
-                    node: current
-                };
             }
 
+            depth += 1;
             current = current.parentElement;
         }
 
-        return null;
+        return best ? { text: best.text, node: best.node } : null;
     };
 
     const hitTestTextBlock = (x, y) => {
@@ -182,7 +278,7 @@
             if (element.closest('.gesture-inline-translate-box')) {
                 continue;
             }
-            const block = getTextBlock(element);
+            const block = getTextBlock(element, x, y);
             if (block) {
                 return block;
             }
@@ -285,13 +381,14 @@
             return;
         }
 
-        const existing = findTranslationBox(hit.node);
+        const textKey = getTextKey(hit.text);
+        const existing = findRelatedTranslationBox(hit.node, textKey);
         if (existing) {
             existing.remove();
             return;
         }
 
-        const box = createTranslationBox('', hit.node);
+        const box = createTranslationBox(hit.text, hit.node);
         insertTranslationBox(hit.node, box);
 
         try {
@@ -343,7 +440,7 @@
             }
 
             const onMouseMove = (event) => {
-                lastPointer = { x: event.clientX, y: event.clientY };
+                lastPointer = touch.getPrimaryPoint(event);
             };
 
             const onKeyDown = (event) => {
@@ -378,8 +475,9 @@
                 if (!settings.swipeEnabled || event.touches.length !== 1) {
                     return;
                 }
-                startX = event.touches[0].clientX;
-                startY = event.touches[0].clientY;
+                const point = touch.getPrimaryPoint(event);
+                startX = point.x;
+                startY = point.y;
                 startTime = Date.now();
                 startedInVideo = isInVideoZone(startX, startY);
             };
@@ -390,8 +488,9 @@
                     return;
                 }
 
-                const endX = event.changedTouches[0].clientX;
-                const endY = event.changedTouches[0].clientY;
+                const point = touch.getPrimaryPoint(event);
+                const endX = point.x;
+                const endY = point.y;
 
                 if (startedInVideo || isInVideoZone(endX, endY)) {
                     startX = 0;
