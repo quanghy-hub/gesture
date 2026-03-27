@@ -1,37 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-
-    const createMemoryCache = ({ maxSize = 200 } = {}) => {
-        const store = new Map();
-        const trim = () => {
-            if (store.size <= maxSize) {
-                return;
-            }
-            const oldestKeys = [...store.entries()]
-                .sort((a, b) => (a[1]?.ts ?? 0) - (b[1]?.ts ?? 0))
-                .slice(0, store.size - maxSize)
-                .map(([key]) => key);
-            oldestKeys.forEach((key) => store.delete(key));
-        };
-        return {
-            get(key) {
-                return store.get(key);
-            },
-            set(key, value) {
-                store.set(key, {
-                    ...value,
-                    ts: value?.ts ?? Date.now()
-                });
-                trim();
-            },
-            delete(key) {
-                store.delete(key);
-            },
-            clear() {
-                store.clear();
-            }
-        };
-    };
+    const { createMemoryCache, translate: coreTranslate } = ext.shared.translateCore;
 
     const cache = createMemoryCache({ maxSize: 200 });
     const JUNK = /[\s\d\p{P}\p{S}\p{M}\p{C}\u200B-\u200D\uFEFF]/gu;
@@ -57,23 +26,7 @@
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
-    const sendRuntimeMessage = (type, payload = {}) => new Promise((resolve, reject) => {
-        try {
-            chrome.runtime.sendMessage({ type, payload }, (response) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                }
-                if (response?.ok === false) {
-                    reject(new Error(response.error || 'Unknown runtime messaging error'));
-                    return;
-                }
-                resolve(response?.result ?? response);
-            });
-        } catch (error) {
-            reject(error);
-        }
-    });
+
 
     const applyInlineTranslateCssVars = (nextSettings) => {
         const rootStyle = document.documentElement.style;
@@ -311,20 +264,17 @@
 
         cache.set(text, { result: null, ts: now });
 
-        const payload = await sendRuntimeMessage('gesture-ext/translate-text', {
-            text,
-            provider: settings.provider
+        const translatedText = await coreTranslate(text, {
+            cache: null,
+            provider: settings.provider,
+            cleanResult: true
         });
 
-        const translatedText = cleanTranslatedText(payload?.translatedText);
         if (!translatedText) {
             throw new Error('Không có nội dung dịch trả về');
         }
 
-        cache.set(text, {
-            result: translatedText,
-            ts: Date.now()
-        });
+        cache.set(text, { result: translatedText, ts: Date.now() });
 
         return translatedText;
     };

@@ -1,5 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const { createMemoryCache, translate: coreTranslate } = ext.shared.translateCore;
 
     const SELECTORS = {
         player: '#movie_player, .html5-video-player',
@@ -19,52 +20,7 @@
     const MIN_VISIBLE_CAPTION_WORDS = 6;
     const MAX_VISIBLE_CAPTION_WORDS = 12;
 
-    const createMemoryCache = ({ maxSize = 500 } = {}) => {
-        const store = new Map();
-        const trim = () => {
-            if (store.size <= maxSize) {
-                return;
-            }
-            const oldestKeys = [...store.entries()]
-                .sort((a, b) => (a[1]?.ts ?? 0) - (b[1]?.ts ?? 0))
-                .slice(0, store.size - maxSize)
-                .map(([key]) => key);
-            oldestKeys.forEach((key) => store.delete(key));
-        };
-        return {
-            get(key) {
-                return store.get(key);
-            },
-            set(key, value) {
-                store.set(key, { ...value, ts: value?.ts ?? Date.now() });
-                trim();
-            },
-            clear() {
-                store.clear();
-            }
-        };
-    };
-
     const cache = createMemoryCache({ maxSize: 500 });
-
-    const sendRuntimeMessage = (type, payload = {}) => new Promise((resolve, reject) => {
-        try {
-            chrome.runtime.sendMessage({ type, payload }, (response) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                }
-                if (response?.ok === false) {
-                    reject(new Error(response.error || 'Unknown runtime messaging error'));
-                    return;
-                }
-                resolve(response?.result ?? response);
-            });
-        } catch (error) {
-            reject(error);
-        }
-    });
-
     const isWatchPage = () => /\/watch|[?&]v=/.test(window.location.href);
     const getControlsContainer = () => document.querySelector(SELECTORS.controls);
 
@@ -250,22 +206,15 @@
 
     const translateCaption = async (text, settings) => {
         const key = text.trim();
-        if (!key) {
-            return '';
-        }
+        if (!key) return '';
         const cached = cache.get(key);
-        if (cached?.result) {
-            return cached.result;
-        }
+        if (cached?.result) return cached.result;
         try {
-            const payload = await sendRuntimeMessage('gesture-ext/translate-text', {
-                text: key,
+            return await coreTranslate(key, {
+                cache,
                 provider: 'google',
                 targetLanguage: settings.targetLang
             });
-            const translatedText = payload?.translatedText ?? '';
-            cache.set(key, { result: translatedText, ts: Date.now() });
-            return translatedText;
         } catch {
             return '';
         }
