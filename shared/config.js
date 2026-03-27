@@ -222,7 +222,7 @@
         config.gestures.desktop.dblRight.enabled = !!config.gestures.desktop.dblRight.enabled;
         config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
-        config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 3);
+        config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 5);
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
 
         config.gestures.mobile.enabled = !!config.gestures.mobile.enabled;

@@ -2,8 +2,8 @@
     const ext = globalThis.GestureExtension;
 
     const CONFIG = {
-        maxProviders: 6,
-        columns: 4,
+        maxProviders: 8,
+        columns: 5,
         selectionDelay: 300,
         textBubbleOffsetY: 36,
         imageBubbleOffsetY: 8,
@@ -193,8 +193,11 @@
                 color: #fff;
                 box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
                 font-size: 12px;
-                line-height: 1.2;
+                line-height: 1.4;
                 pointer-events: none;
+                max-width: 320px;
+                word-break: break-word;
+                white-space: pre-wrap;
             }
         `;
 
@@ -465,6 +468,34 @@
                 return imageBubble;
             };
 
+            const translateSelectedText = async (context) => {
+                const { translate } = ext.shared.translateCore;
+                const text = context.text;
+                if (!text) return;
+
+                const selection = window.getSelection();
+                const anchorNode = selection?.anchorNode;
+                const targetNode = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+                if (!targetNode) return;
+
+                try {
+                    const result = await translate(text, { provider: 'google', cleanResult: true });
+                    if (!result || result === text) return;
+
+                    const existing = targetNode.querySelector('.gesture-inline-translate-box')
+                        || (targetNode.nextElementSibling?.classList.contains('gesture-inline-translate-box') ? targetNode.nextElementSibling : null);
+                    if (existing) existing.remove();
+
+                    const box = document.createElement('div');
+                    box.className = 'gesture-inline-translate-box';
+                    const content = document.createElement('div');
+                    content.className = 'gesture-inline-translate-text';
+                    content.textContent = result;
+                    box.appendChild(content);
+                    targetNode.insertAdjacentElement('afterend', box);
+                } catch { }
+            };
+
             const showTextActions = (context) => {
                 const providers = settings.providers.slice(0, CONFIG.maxProviders);
                 const items = [
@@ -494,7 +525,16 @@
                             openTab(buildProviderUrl(provider.url, { text: context.text }));
                             hideTextBubble();
                         }
-                    }))
+                    })),
+                    {
+                        label: 'Dịch',
+                        title: 'Dịch văn bản đã chọn',
+                        glyph: '🌐',
+                        onClick: () => {
+                            translateSelectedText(context);
+                            hideTextBubble();
+                        }
+                    }
                 ];
                 ensureTextBubble().show(items, context.x, context.y, CONFIG.columns);
             };

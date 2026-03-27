@@ -514,6 +514,7 @@ const rect = activeTarget.getBoundingClientRect();
                     if (pinButton) {
                         const text = decodeAttribute(pinButton.getAttribute('data-pin') || '');
                         suppressNextFocusReset = true;
+                        focusActiveTarget();
                         storage.togglePinItem(text).then((nextConfig) => {
                             config = nextConfig || config;
                             renderPanel();
@@ -526,6 +527,7 @@ const rect = activeTarget.getBoundingClientRect();
                     if (removeButton) {
                         const text = decodeAttribute(removeButton.getAttribute('data-remove') || '');
                         suppressNextFocusReset = true;
+                        focusActiveTarget();
                         storage.removeClipboardItem(text).then((nextConfig) => {
                             config = nextConfig || config;
                             renderPanel();

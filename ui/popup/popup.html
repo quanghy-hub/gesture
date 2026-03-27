@@ -21,15 +21,10 @@
       </div>
     </header>
 
+    <!-- Gestures -->
     <section class="card">
+      <h2 class="card-title">Gestures</h2>
       <div class="table">
-        <div class="item item-single">
-          <span class="label-main">Gestures</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="gestures-enabled" type="checkbox"></span>
-        </div>
-
         <div class="item">
           <span class="label-main">Long press</span>
           <span class="label-sub">Mode</span>
@@ -57,7 +52,7 @@
           <span class="toggle"><input id="g-rc-enabled" type="checkbox"></span>
         </div>
 
-        <div class="item item-single">
+        <div class="item">
           <span class="label-main">Double right</span>
           <span class="label-sub">Delay</span>
           <span class="param"><span class="param-name">Ms</span><input id="g-dbl-right" class="num small" type="number"
@@ -102,56 +97,40 @@
           <span class="label-main">Pager</span>
           <span class="label-sub">Hops</span>
           <span class="param"><span class="param-name">Max</span><input id="g-pager-hops" class="num xs" type="number"
-              min="1" max="3"></span>
+              min="1" max="5"></span>
           <span class="toggle"><input id="g-pager-enabled" type="checkbox"></span>
         </div>
+      </div>
+    </section>
 
+    <!-- Clipboard -->
+    <section class="card">
+      <h2 class="card-title">Clipboard</h2>
+      <div class="table">
         <div class="item">
-          <span class="label-main">Clipboard</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="clipboard-enabled" type="checkbox"></span>
-        </div>
-
-        <div class="item">
-          <span class="label-main">Google search</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="google-search-enabled" type="checkbox"></span>
-        </div>
-
-        <div class="item">
-          <span class="label-main">Quick search</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="quick-search-enabled" type="checkbox"></span>
-        </div>
-
-        <div class="item item-single">
-          <span class="label-main">Clipboard data</span>
+          <span class="label-main">History</span>
           <span class="label-sub">Panels</span>
           <span class="param"><span class="param-name">Count</span><input id="clipboard-max-history" class="num xs"
               type="number" min="1" max="20" step="1"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-
-        <div class="item item-single">
-          <span class="label-main">Clipboard data</span>
-          <span class="label-sub">History</span>
+        <div class="item">
+          <span class="label-main">History</span>
+          <span class="label-sub">Clear</span>
           <span class="param"><span class="param-name">Clear</span><button id="clipboard-clear"
               class="secondary inline-button" type="button">Xóa</button></span>
           <span class="toggle toggle-empty"></span>
         </div>
+      </div>
+    </section>
 
+    <!-- Inline Translate -->
+    <section class="card">
+      <h2 class="card-title">Inline Translate</h2>
+      <div class="table">
         <div class="item">
-          <span class="label-main">Inline translate</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="inline-translate-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Hotkey</span>
+          <span class="label-main">Hotkey</span>
+          <span class="label-sub">Key</span>
           <span class="param"><span class="param-name">Key</span><select id="inline-translate-hotkey">
               <option value="f2">F2</option>
               <option value="f4">F4</option>
@@ -159,9 +138,9 @@
             </select></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Swipe</span>
+        <div class="item">
+          <span class="label-main">Swipe</span>
+          <span class="label-sub">State</span>
           <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
           <span class="toggle"><input id="inline-translate-swipe-enabled" type="checkbox"></span>
         </div>
@@ -182,99 +161,98 @@
               min="20" max="240" step="5"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Font</span>
+        <div class="item">
+          <span class="label-main">Font</span>
+          <span class="label-sub">Scale</span>
           <span class="param"><span class="param-name">Scale</span><input id="inline-translate-font-scale" class="num xs" type="number"
               min="0.5" max="2" step="0.05"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Color</span>
+        <div class="item">
+          <span class="label-main">Color</span>
+          <span class="label-sub">Muted</span>
           <span class="param"><span class="param-name">Muted</span><input id="inline-translate-muted-color" type="color"></span>
           <span class="toggle toggle-empty"></span>
         </div>
+      </div>
+    </section>
 
+    <!-- YouTube Subtitles -->
+    <section class="card">
+      <h2 class="card-title">YouTube Subtitles</h2>
+      <div class="table">
         <div class="item">
-          <span class="label-main">YouTube subtitles</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="youtube-subtitles-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Target</span>
+          <span class="label-main">Target</span>
+          <span class="label-sub">Lang</span>
           <span class="param"><span class="param-name">Lang</span><input id="youtube-subtitles-target-lang" class="num small" type="text"
               maxlength="8"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Original</span>
+        <div class="item">
+          <span class="label-main">Original</span>
+          <span class="label-sub">Font</span>
           <span class="param"><span class="param-name">Font</span><input id="youtube-subtitles-font-size" class="num xs" type="number"
               min="12" max="32"></span>
           <span class="toggle"><input id="youtube-subtitles-show-original" type="checkbox"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Translated</span>
+        <div class="item">
+          <span class="label-main">Translated</span>
+          <span class="label-sub">Font</span>
           <span class="param"><span class="param-name">Font</span><input id="youtube-subtitles-translated-font-size" class="num xs" type="number"
               min="12" max="32"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Original color</span>
+        <div class="item">
+          <span class="label-main">Original</span>
+          <span class="label-sub">Color</span>
           <span class="param"><span class="param-name">Color</span><input id="youtube-subtitles-original-color" type="color"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Translated color</span>
+        <div class="item">
+          <span class="label-main">Translated</span>
+          <span class="label-sub">Color</span>
           <span class="param"><span class="param-name">Color</span><input id="youtube-subtitles-translated-color" type="color"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Display</span>
+        <div class="item">
+          <span class="label-main">Display</span>
+          <span class="label-sub">Mode</span>
           <span class="param"><span class="param-name">Mode</span><select id="youtube-subtitles-display-mode">
               <option value="compact">Compact</option>
               <option value="full">Full</option>
             </select></span>
           <span class="toggle toggle-empty"></span>
         </div>
+      </div>
+    </section>
 
+    <!-- Trusted Types -->
+    <section class="card">
+      <h2 class="card-title">Trusted Types</h2>
+      <div class="table">
         <div class="item">
-          <span class="label-main">Trusted Types</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="trusted-types-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Domains</span>
+          <span class="label-main">Domains</span>
+          <span class="label-sub">Allow</span>
           <span class="param"><span class="param-name">Allow</span><input id="trusted-types-allow-domains" class="num small" type="text"></span>
           <span class="toggle toggle-empty"></span>
         </div>
+      </div>
+    </section>
 
+    <!-- Forum -->
+    <section class="card">
+      <h2 class="card-title">Forum</h2>
+      <div class="table">
         <div class="item">
-          <span class="label-main">Forum</span>
-          <span class="label-sub">Enabled</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="forum-enabled" type="checkbox"></span>
-        </div>
-
-        <div class="item">
-          <span class="label-main">Forum split</span>
-          <span class="label-sub">Layout</span>
+          <span class="label-main">Layout</span>
+          <span class="label-sub">Wide</span>
           <span class="param"><span class="param-name">Wide</span><span class="param-value">On/Off</span></span>
           <span class="toggle"><input id="forum-wide" type="checkbox"></span>
         </div>
 
         <div class="item host-only">
-          <span class="label-main">Forum size</span>
-          <span class="label-sub">Min width</span>
+          <span class="label-main">Min width</span>
+          <span class="label-sub">Px</span>
           <span class="param"><span class="param-name">Px</span><input id="forum-min-width" class="num" type="number"
               min="0" max="4000" step="50"></span>
           <span class="toggle toggle-empty"></span>
