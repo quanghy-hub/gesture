@@ -239,17 +239,34 @@
             bubble,
             show(items, x, y, columns = 4) {
                 grid.replaceChildren();
-                grid.style.gridTemplateColumns = `repeat(${columns}, 28px)`;
+                const columnCount = Math.max(1, Math.min(columns, Math.ceil(items.length / 2)));
+                grid.style.gridTemplateColumns = `repeat(${columnCount}, 28px)`;
                 items.forEach((item) => {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'gesture-quick-search-item';
                     button.title = item.title || '';
                     button.appendChild(createIconElement(item));
-                    button.addEventListener('click', (event) => {
+
+                    let handledPointerDown = false;
+                    const runAction = (event) => {
                         event.preventDefault();
                         event.stopPropagation();
                         item.onClick();
+                    };
+
+                    button.addEventListener('pointerdown', (event) => {
+                        handledPointerDown = true;
+                        runAction(event);
+                    });
+                    button.addEventListener('click', (event) => {
+                        if (handledPointerDown) {
+                            handledPointerDown = false;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            return;
+                        }
+                        runAction(event);
                     });
                     grid.appendChild(button);
                 });

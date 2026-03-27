@@ -86,6 +86,20 @@
         });
     };
 
+    const saveClipboardTriggerPosition = async (position) => {
+        if (!position || typeof position !== 'object') return;
+        const x = Number(position.x);
+        const y = Number(position.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        return updateConfig((draft) => {
+            draft.clipboard.triggerPosition = {
+                x: Math.max(0, Math.round(x)),
+                y: Math.max(0, Math.round(y))
+            };
+            return draft;
+        });
+    };
+
     ext.shared.storage = {
         getConfig,
         saveConfig,
@@ -93,6 +107,7 @@
         saveClipboardHistory,
         togglePinItem,
         removeClipboardItem,
-        clearClipboardHistory
+        clearClipboardHistory,
+        saveClipboardTriggerPosition
     };
 })();

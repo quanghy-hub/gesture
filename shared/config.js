@@ -9,7 +9,8 @@
             enabled: true,
             maxHistory: 5,
             history: [],
-            pinned: []
+            pinned: [],
+            triggerPosition: null
         },
         googleSearch: {
             enabled: true
@@ -125,6 +126,13 @@
         config.clipboard.pinned = Array.isArray(config.clipboard.pinned)
             ? config.clipboard.pinned.filter((s) => typeof s === 'string' && s.length > 0)
             : [];
+        config.clipboard.triggerPosition = config.clipboard.triggerPosition && typeof config.clipboard.triggerPosition === 'object'
+            ? config.clipboard.triggerPosition
+            : null;
+        if (config.clipboard.triggerPosition) {
+            config.clipboard.triggerPosition.x = clampNumber(config.clipboard.triggerPosition.x, 0, 0, 100000);
+            config.clipboard.triggerPosition.y = clampNumber(config.clipboard.triggerPosition.y, 0, 0, 100000);
+        }
 
         config.googleSearch = config.googleSearch && typeof config.googleSearch === 'object' ? config.googleSearch : {};
         config.googleSearch.enabled = config.googleSearch.enabled !== false;

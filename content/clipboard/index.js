@@ -270,10 +270,30 @@
             let mutationObserver = null;
             let removeDragBinding = () => { };
             let removeOutsideClick = () => { };
+            let isDraggingTrigger = false;
+
+            const hasSavedTriggerOffset = () => Number.isFinite(triggerOffset.x) && Number.isFinite(triggerOffset.y);
+
+            const saveTriggerOffset = async () => {
+                if (!hasSavedTriggerOffset()) {
+                    return;
+                }
+                try {
+                    const nextConfig = await storage.saveClipboardTriggerPosition({
+                        x: triggerOffset.x,
+                        y: triggerOffset.y
+                    });
+                    config = nextConfig || config;
+                } catch (error) {
+                    if (isExtensionContextInvalidated(error)) {
+                        return;
+                    }
+                    console.error('[GestureExtension] save trigger position failed', error);
+                }
+            };
 
             const ensureTriggerOffsetInBounds = () => {
-                const hasCustomOffset = triggerOffset.x !== 0 || triggerOffset.y !== 0;
-                if (!hasCustomOffset) {
+                if (!hasSavedTriggerOffset()) {
                     return;
                 }
                 const next = floating.clampFixedPosition({
@@ -353,13 +373,12 @@
                     if (!triggerRef || !panelRef) {
                         return;
                     }
-                    if (!activeTarget || !activeTarget.isConnected || !isEditableTarget(activeTarget)) {
-                        triggerRef.hide();
-                        panelRef.hide();
-                        return;
-                    }
-
-                    const rect = activeTarget.getBoundingClientRect();
+                     if (!config?.clipboard?.enabled || !activeTarget || !activeTarget.isConnected || !isEditableTarget(activeTarget) || (!isDraggingTrigger && document.activeElement !== activeTarget)) {
+                         triggerRef.hide();
+                         panelRef.hide();
+                         return;
+                     }
+const rect = activeTarget.getBoundingClientRect();
                     const buttonSize = 32;
                     const defaultTop = floating.clamp(rect.top + ((rect.height - buttonSize) / 2), 8, Math.max(8, window.innerHeight - 36));
                     const iconGap = 2;
@@ -372,7 +391,7 @@
                         top: defaultTop,
                         left: defaultLeft
                     };
-                    const hasCustomOffset = triggerOffset.x !== 0 || triggerOffset.y !== 0;
+                    const hasCustomOffset = hasSavedTriggerOffset();
                     const nextTop = hasCustomOffset ? triggerOffset.y : defaultTop;
                     const nextLeft = hasCustomOffset ? triggerOffset.x : defaultLeft;
                     const triggerPosition = floating.clampFixedPosition({
@@ -404,6 +423,11 @@
 
             const syncConfigFromStorage = async () => {
                 config = await storage.getConfig();
+                const savedPosition = config?.clipboard?.triggerPosition;
+                triggerOffset = savedPosition && Number.isFinite(savedPosition.x) && Number.isFinite(savedPosition.y)
+                    ? { x: savedPosition.x, y: savedPosition.y }
+                    : { x: Number.NaN, y: Number.NaN };
+                ensureTriggerOffsetInBounds();
                 return config;
             };
 
@@ -531,6 +555,7 @@
                         top: triggerOffset.y || triggerAnchor.top || triggerRef.element.offsetTop
                     }),
                     onMove: ({ event, deltaX, deltaY, origin }) => {
+                        isDraggingTrigger = true;
                         suppressNextFocusReset = true;
                         floating.stopFloatingEvent(event);
                         triggerRef.element.dataset.dragMoved = 'true';
@@ -545,11 +570,14 @@
                         positionUI();
                     },
                     onClick: () => {
+                        isDraggingTrigger = false;
                         triggerRef.element.dataset.dragMoved = 'false';
                     },
                     onDragEnd: () => {
+                        isDraggingTrigger = false;
                         suppressNextFocusReset = true;
                         focusActiveTarget();
+                        void saveTriggerOffset();
                         positionUI();
                     }
                 });
@@ -578,7 +606,6 @@
                     positionUI();
                     return;
                 }
-                triggerOffset = { x: 0, y: 0 };
                 panelOpen = false;
                 renderPanel();
                 positionUI();
@@ -587,6 +614,9 @@
             const onPointerDown = (event) => {
                 if (panelRef?.element.contains(event.target) || triggerRef?.element.contains(event.target)) {
                     suppressNextFocusReset = true;
+                    if (triggerRef?.element.contains(event.target)) {
+                        isDraggingTrigger = true;
+                    }
                     return;
                 }
                 const target = getEditableTarget(event.target);
@@ -595,6 +625,9 @@
                     panelOpen = false;
                     renderPanel();
                     positionUI();
+                    return;
+                }
+                if (isDraggingTrigger) {
                     return;
                 }
                 activeTarget = null;
@@ -649,9 +682,10 @@
                 positionUI();
             };
 
-            bindFloatingUi();
-            document.addEventListener('focusin', onFocusIn, true);
-            document.addEventListener('pointerdown', onPointerDown, true);
+             void syncConfigFromStorage();
+             bindFloatingUi();
+             document.addEventListener('focusin', onFocusIn, true);
+document.addEventListener('pointerdown', onPointerDown, true);
             document.addEventListener('copy', onCopy, true);
             document.addEventListener('keyup', onKeyUp, true);
             document.addEventListener('selectionchange', onSelectionChange, true);
@@ -677,10 +711,14 @@
             return {
                 onConfigChange(nextConfig) {
                     config = nextConfig;
+                    const savedPosition = config?.clipboard?.triggerPosition;
+                    triggerOffset = savedPosition && Number.isFinite(savedPosition.x) && Number.isFinite(savedPosition.y)
+                        ? { x: savedPosition.x, y: savedPosition.y }
+                        : { x: Number.NaN, y: Number.NaN };
+                    ensureTriggerOffsetInBounds();
                     if (!config?.clipboard?.enabled) {
                         activeTarget = null;
                         panelOpen = false;
-                        triggerOffset = { x: 0, y: 0 };
                     }
                     renderPanel();
                     positionUI();
