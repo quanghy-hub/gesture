@@ -15,6 +15,20 @@
         googleSearch: {
             enabled: true
         },
+        videoFloating: {
+            enabled: true,
+            swipeLong: 0.3, swipeShort: 0.15, shortThreshold: 200,
+            minSwipeDistance: 30, verticalTolerance: 80, diagonalThreshold: 1.5,
+            realtimePreview: true, throttle: 15,
+            forwardStep: 5, hotkeys: true,
+            boost: true, boostLevel: 1, maxBoost: 5,
+            noticeFontSize: 14,
+            layout: null,
+            iconPos: null
+        },
+        cookieBypass: {
+            enabled: true
+        },
         quickSearch: {
             enabled: true
         },
@@ -139,6 +153,30 @@
 
         config.quickSearch = config.quickSearch && typeof config.quickSearch === 'object' ? config.quickSearch : {};
         config.quickSearch.enabled = config.quickSearch.enabled !== false;
+
+        // videoFloating
+        config.videoFloating = config.videoFloating && typeof config.videoFloating === 'object' ? config.videoFloating : {};
+        config.videoFloating.enabled = config.videoFloating.enabled !== false;
+        config.videoFloating.swipeLong = clampNumber(config.videoFloating.swipeLong, 0.3, 0.05, 1);
+        config.videoFloating.swipeShort = clampNumber(config.videoFloating.swipeShort, 0.15, 0.05, 1);
+        config.videoFloating.shortThreshold = clampNumber(config.videoFloating.shortThreshold, 200, 50, 1000);
+        config.videoFloating.minSwipeDistance = clampNumber(config.videoFloating.minSwipeDistance, 30, 10, 200);
+        config.videoFloating.verticalTolerance = clampNumber(config.videoFloating.verticalTolerance, 80, 20, 300);
+        config.videoFloating.diagonalThreshold = clampNumber(config.videoFloating.diagonalThreshold, 1.5, 0.5, 5);
+        config.videoFloating.realtimePreview = config.videoFloating.realtimePreview !== false;
+        config.videoFloating.throttle = clampNumber(config.videoFloating.throttle, 15, 0, 100);
+        config.videoFloating.forwardStep = clampNumber(config.videoFloating.forwardStep, 5, 1, 60);
+        config.videoFloating.hotkeys = config.videoFloating.hotkeys !== false;
+        config.videoFloating.boost = config.videoFloating.boost !== false;
+        config.videoFloating.boostLevel = clampNumber(config.videoFloating.boostLevel, 1, 1, 10);
+        config.videoFloating.maxBoost = clampNumber(config.videoFloating.maxBoost, 5, 1, 20);
+        config.videoFloating.noticeFontSize = clampNumber(config.videoFloating.noticeFontSize, 14, 8, 48);
+        config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
+        config.videoFloating.iconPos = config.videoFloating.iconPos && typeof config.videoFloating.iconPos === 'object' ? config.videoFloating.iconPos : null;
+
+        // cookieBypass
+        config.cookieBypass = config.cookieBypass && typeof config.cookieBypass === 'object' ? config.cookieBypass : {};
+        config.cookieBypass.enabled = config.cookieBypass.enabled !== false;
 
         config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
         config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;

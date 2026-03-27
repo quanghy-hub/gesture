@@ -34,6 +34,12 @@
             "matches": [
                 "<all_urls>"
             ],
+            "css": [
+                "content/cookie-bypass/styles.css",
+                "content/video-floating/styles.css",
+                "content/google-search/styles.css",
+                "content/clipboard/styles.css"
+            ],
             "js": [
                 "shared/namespace.js",
                 "shared/config.js",
@@ -50,7 +56,6 @@
                 "content/forum/layout.js",
                 "content/forum/index.js",
                 "content/gestures/index.js",
-                "content/clipboard/styles.js",
                 "content/clipboard/index.js",
                 "content/google-search/index.js",
                 "content/quick-search/index.js",
@@ -59,9 +64,17 @@
                 "content/video-screenshot/index.js",
                 "content/trusted-types/index.js",
                 "content/youtube-subtitles/index.js",
+                "content/cookie-bypass/index.js",
+                "content/video-floating/index.js",
                 "content/bootstrap.js"
             ],
             "run_at": "document_start"
+        },
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content/video-floating/page-api.js"],
+            "run_at": "document_start",
+            "world": "MAIN"
         }
     ]
 }

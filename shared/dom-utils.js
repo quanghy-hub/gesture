@@ -30,6 +30,25 @@
                 textarea.remove();
                 return true;
             }
+        },
+        isVisible: (element) => {
+            if (!(element instanceof HTMLElement)) return false;
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return (
+                style.display !== 'none' &&
+                style.visibility !== 'hidden' &&
+                style.pointerEvents !== 'none' &&
+                rect.width > 0 &&
+                rect.height > 0
+            );
+        },
+        hasVisibleSize: (node) => {
+            if (!node) return false;
+            const rect = node.getBoundingClientRect?.() || { width: 0, height: 0 };
+            const width = Math.max(node.offsetWidth || 0, node.clientWidth || 0, rect.width || 0);
+            const height = Math.max(node.offsetHeight || 0, node.clientHeight || 0, rect.height || 0);
+            return width > 0 && height > 0;
         }
     };
 })();

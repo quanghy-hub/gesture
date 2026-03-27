@@ -15,22 +15,56 @@
         },
         createFloatingElementApi: (element) => ({
             element,
-            show() { element.hidden = false; },
-            hide() { element.hidden = true; },
+            show(display) {
+                element.hidden = false;
+                if (display) {
+                    element.style.display = display;
+                } else {
+                    // Fallback to a sensible default if it was hidden via inline style
+                    if (element.style.display === 'none') {
+                        const isPanel = element.tagName === 'DIV' || element.classList.contains('gesture-panel') || element.className.includes('panel');
+                        if (isPanel) {
+                            element.style.display = 'flex';
+                            element.style.flexDirection = 'column';
+                        } else {
+                            element.style.display = 'block';
+                        }
+                    }
+                }
+            },
+            hide() { 
+                element.hidden = true; 
+                element.style.display = 'none'; 
+            },
             setPosition(left, top) {
-                element.style.left = `${left}px`;
-                element.style.top = `${top}px`;
+                element.style.left = typeof left === 'number' ? `${left}px` : left;
+                element.style.top = typeof top === 'number' ? `${top}px` : top;
+            },
+            setOpacity(value) {
+                element.style.opacity = value;
+            },
+            setBadge(text) {
+                let badge = element.querySelector('.gesture-floating-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'gesture-floating-badge';
+                    element.appendChild(badge);
+                }
+                badge.textContent = text;
+                badge.style.display = text ? 'flex' : 'none';
             },
             destroy() { element.remove(); }
         }),
-        createTriggerElement: ({ className, textContent, hidden = false }) => {
+        createTriggerElement: ({ className, textContent, htmlContent, hidden = false }) => {
             const element = document.createElement('button');
             element.type = 'button';
             element.className = className;
-            element.textContent = textContent;
+            if (htmlContent) element.innerHTML = htmlContent;
+            else if (textContent) element.textContent = textContent;
             element.hidden = hidden;
-            element.style.left = '0px';
-            element.style.top = '0px';
+            if (hidden) element.style.display = 'none';
+            element.style.position = 'fixed';
+            element.style.zIndex = '2147483646';
             document.documentElement.appendChild(element);
             return ext.shared.floatingCore.createFloatingElementApi(element);
         },
@@ -38,8 +72,9 @@
             const element = document.createElement('div');
             element.className = className;
             element.hidden = hidden;
-            element.style.left = '0px';
-            element.style.top = '0px';
+            if (hidden) element.style.display = 'none';
+            element.style.position = 'fixed';
+            element.style.zIndex = '2147483645';
             document.documentElement.appendChild(element);
             return ext.shared.floatingCore.createFloatingElementApi(element);
         },
@@ -110,6 +145,15 @@
             };
             document.addEventListener(eventName, handler, capture);
             return () => document.removeEventListener(eventName, handler, capture);
-        }
+        },
+        createPositionStorage: (storageKey, defaultPos = { left: 20, top: 20 }) => ({
+            load: () => new Promise((resolve) => {
+                chrome.storage.local.get([storageKey], (result) => {
+                    const v = result?.[storageKey];
+                    resolve(v && typeof v === 'object' ? v : defaultPos);
+                });
+            }),
+            save: (left, top) => chrome.storage.local.set({ [storageKey]: { left, top } })
+        })
     };
 })();

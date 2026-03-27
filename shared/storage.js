@@ -105,6 +105,33 @@
         });
     };
 
+    const saveVideoLayout = async (layout) => {
+        if (!layout || typeof layout !== 'object') return;
+        return updateConfig((draft) => {
+            draft.videoFloating = draft.videoFloating || {};
+            draft.videoFloating.layout = {
+                top: layout.top,
+                left: layout.left,
+                width: layout.width,
+                height: layout.height,
+                borderRadius: layout.borderRadius
+            };
+            return draft;
+        });
+    };
+
+    const saveVideoIconPos = async (pos) => {
+        if (!pos || typeof pos !== 'object') return;
+        return updateConfig((draft) => {
+            draft.videoFloating = draft.videoFloating || {};
+            draft.videoFloating.iconPos = {
+                top: pos.top,
+                left: pos.left
+            };
+            return draft;
+        });
+    };
+
     ext.shared.storage = {
         getConfig,
         saveConfig,
@@ -113,6 +140,8 @@
         togglePinItem,
         removeClipboardItem,
         clearClipboardHistory,
-        saveClipboardTriggerPosition
+        saveClipboardTriggerPosition,
+        saveVideoLayout,
+        saveVideoIconPos
     };
 })();

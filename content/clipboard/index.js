@@ -3,7 +3,7 @@
 
     const floating = ext.shared.floatingCore;
     const { getEditableTarget, isEditableTarget, getActiveSelectionText, getSelectionTextFromTarget, insertTextAtCaret } = ext.shared.selectionCore;
-    const { escapeHtml, encodeAttribute, decodeAttribute, previewText } = ext.shared.domUtils;
+    const { escapeHtml, encodeAttribute, decodeAttribute } = ext.shared.domUtils;
 
     ext.features.clipboard = {
         shouldRun: ({ getConfig }) => !!getConfig()?.clipboard?.enabled,
@@ -13,61 +13,23 @@
             let triggerRef = null;
             let panelRef = null;
             let panelOpen = false;
-            let rafId = 0;
-            let suppressNextFocusReset = false;
-            let triggerOffset = { x: 0, y: 0 };
-            let triggerAnchor = { top: 0, left: 0 };
             let copiedTextCache = '';
-            let mutationObserver = null;
             let removeDragBinding = () => { };
             let removeOutsideClick = () => { };
-            let isDraggingTrigger = false;
+            let suppressNextFocusReset = false;
 
-            const hasSavedTriggerOffset = () => Number.isFinite(triggerOffset.x) && Number.isFinite(triggerOffset.y);
+            const posStorage = floating.createPositionStorage('gesture_clipboard_icon_pos', { left: 20, top: 200 });
 
-            const saveTriggerOffset = async () => {
-                if (!hasSavedTriggerOffset()) {
-                    return;
-                }
-                try {
-                    const nextConfig = await storage.saveClipboardTriggerPosition({
-                        x: triggerOffset.x,
-                        y: triggerOffset.y
-                    });
-                    config = nextConfig || config;
-                } catch (error) {
-                    if (isExtensionContextInvalidated(error)) {
-                        return;
-                    }
-                    console.error('[GestureExtension] save trigger position failed', error);
-                }
-            };
+            const UI = { triggerSize: 36, panelOffset: 8 };
 
-            const ensureTriggerOffsetInBounds = () => {
-                if (!hasSavedTriggerOffset()) {
-                    return;
-                }
-                const next = floating.clampFixedPosition({
-                    left: triggerOffset.x,
-                    top: triggerOffset.y,
-                    width: 32,
-                    height: 32,
-                    margin: 8
-                });
-                triggerOffset.x = next.left;
-                triggerOffset.y = next.top;
-            };
+            // ─── Focus tracking (for paste target) ───────────────────────
 
             const focusActiveTarget = () => {
-                if (!activeTarget?.isConnected || !isEditableTarget(activeTarget)) {
-                    return;
-                }
-                try {
-                    activeTarget.focus({ preventScroll: true });
-                } catch {
-                    activeTarget.focus();
-                }
+                if (!activeTarget?.isConnected || !isEditableTarget(activeTarget)) return;
+                try { activeTarget.focus({ preventScroll: true }); } catch { activeTarget.focus(); }
             };
+
+            // ─── Panel data ───────────────────────────────────────────────
 
             const getPanelData = () => {
                 const clipboard = config?.clipboard || { history: [], pinned: [] };
@@ -103,98 +65,60 @@
             };
 
             const renderPanel = () => {
-                if (!panelRef) {
-                    return;
-                }
-                const { pinned, recent } = getPanelData();
-                panelRef.element.hidden = !panelOpen || !activeTarget;
-                if (panelRef.element.hidden) return;
+                if (!panelRef) return;
                 panelRef.element.innerHTML = `
-                    <div class="gesture-clipboard-panel-header">
-                        <span>Clipboard</span>
-                        <span>${(config?.clipboard?.history || []).length} mục</span>
-                    </div>
-                    ${createGroupMarkup('Đã ghim', pinned, 'Chưa có mục nào được ghim')}
-                    ${createGroupMarkup('Gần đây', recent, 'Chưa có nội dung nào được lưu')}
+                    ${createGroupMarkup('Đã ghim', getPanelData().pinned, 'Chưa có mục nào được ghim')}
+                    ${createGroupMarkup('Gần đây', getPanelData().recent, 'Chưa có nội dung nào được lưu')}
                 `;
             };
 
-            const positionUI = () => {
-                cancelAnimationFrame(rafId);
-                rafId = requestAnimationFrame(() => {
-                    if (!triggerRef || !panelRef) {
-                        return;
-                    }
-                     if (!config?.clipboard?.enabled || !activeTarget || !activeTarget.isConnected || !isEditableTarget(activeTarget)) {
-                         triggerRef.hide();
-                         panelRef.hide();
-                         return;
-                     }
-                     if (!isDraggingTrigger && !panelOpen && document.activeElement !== activeTarget) {
-                         triggerRef.hide();
-                         panelRef.hide();
-                         return;
-                     }
-const rect = activeTarget.getBoundingClientRect();
-                    const buttonSize = 32;
-                    const defaultTop = floating.clamp(rect.top + ((rect.height - buttonSize) / 2), 8, Math.max(8, window.innerHeight - 36));
-                    const iconGap = 2;
-                    const preferredLeft = rect.left - buttonSize - iconGap;
-                    const fallbackRight = rect.right + iconGap;
-                    const defaultLeft = preferredLeft >= 8
-                        ? preferredLeft
-                        : floating.clamp(fallbackRight, 8, Math.max(8, window.innerWidth - 36));
-                    triggerAnchor = {
-                        top: defaultTop,
-                        left: defaultLeft
-                    };
-                    const hasCustomOffset = hasSavedTriggerOffset();
-                    const nextTop = hasCustomOffset ? triggerOffset.y : defaultTop;
-                    const nextLeft = hasCustomOffset ? triggerOffset.x : defaultLeft;
-                    const triggerPosition = floating.clampFixedPosition({
-                        left: nextLeft,
-                        top: nextTop,
-                        width: 32,
-                        height: 32,
-                        margin: 8
-                    });
-                    triggerRef.setPosition(triggerPosition.left, triggerPosition.top);
-                    triggerRef.show();
+            // ─── UI position (fixed, like google-search) ─────────────────
 
-                    if (!panelOpen) {
-                        panelRef.hide();
-                        return;
-                    }
+            const hasClipboardData = () => {
+                const clipboard = config?.clipboard || {};
+                return (Array.isArray(clipboard.pinned) && clipboard.pinned.length > 0) ||
+                    (Array.isArray(clipboard.history) && clipboard.history.length > 0);
+            };
 
-                    const panelPosition = floating.clampFixedPosition({
-                        left: Math.max(8, triggerPosition.left - 280),
-                        top: Math.min(window.innerHeight - 220, triggerPosition.top + 34),
-                        width: Math.min(360, window.innerWidth - 24),
-                        height: 220,
-                        margin: 8
-                    });
-                    panelRef.setPosition(panelPosition.left, panelPosition.top);
-                    panelRef.show();
+            const updateTriggerVisibility = () => {
+                if (!triggerRef) return;
+                // Chỉ hiện khi CÓ DỮ LIỆU và ĐANG FOCUS vào input
+                const isVisible = hasClipboardData() && !!activeTarget;
+                if (isVisible) triggerRef.show();
+                else triggerRef.hide();
+            };
+
+            const updateUI = () => {
+                updateTriggerVisibility();
+                if (!panelOpen) {
+                    panelRef.hide();
+                    return;
+                }
+                renderPanel();
+                panelRef.show('flex');
+                const rect = triggerRef.element.getBoundingClientRect();
+                const pPos = floating.clampFixedPosition({
+                    left: rect.right + UI.panelOffset,
+                    top: rect.top,
+                    width: panelRef.element.offsetWidth || 320,
+                    height: panelRef.element.offsetHeight || 300
                 });
+                panelRef.setPosition(pPos.left, pPos.top);
             };
 
-            const syncConfigFromStorage = async () => {
-                config = await storage.getConfig();
-                const savedPosition = config?.clipboard?.triggerPosition;
-                triggerOffset = savedPosition && Number.isFinite(savedPosition.x) && Number.isFinite(savedPosition.y)
-                    ? { x: savedPosition.x, y: savedPosition.y }
-                    : { x: Number.NaN, y: Number.NaN };
-                ensureTriggerOffsetInBounds();
-                return config;
-            };
-
-            const updateCopiedTextCache = (text) => {
-                copiedTextCache = typeof text === 'string' ? text.trim() : '';
-            };
+            // ─── Storage ──────────────────────────────────────────────────
 
             const isExtensionContextInvalidated = (error) => {
                 const message = String(error?.message || error || '').toLowerCase();
                 return message.includes('extension context invalidated');
+            };
+
+            const syncConfig = async () => {
+                config = await storage.getConfig();
+            };
+
+            const updateCopiedTextCache = (text) => {
+                copiedTextCache = typeof text === 'string' ? text.trim() : '';
             };
 
             const saveCopiedText = async (text) => {
@@ -204,38 +128,27 @@ const rect = activeTarget.getBoundingClientRect();
                 try {
                     config = await storage.saveClipboardHistory(trimmed) || config;
                     if (!config?.clipboard?.history?.length || config.clipboard.history[0] !== trimmed) {
-                        await syncConfigFromStorage();
+                        await syncConfig();
                     }
-                    if (panelOpen) {
-                        renderPanel();
-                        positionUI();
-                    }
+                    if (panelOpen) updateUI();
                 } catch (error) {
-                    if (isExtensionContextInvalidated(error)) {
-                        return;
-                    }
+                    if (isExtensionContextInvalidated(error)) return;
                     console.error('[GestureExtension] save clipboard failed', error);
                 }
             };
 
+            // ─── Panel open/close ─────────────────────────────────────────
+
             const setPanelOpen = async (nextOpen) => {
                 panelOpen = !!nextOpen;
+                updateUI(); // show/hide immediately
                 if (panelOpen) {
-                    await syncConfigFromStorage();
+                    await syncConfig();
+                    updateUI(); // re-render with fresh data
                 }
-                renderPanel();
-                positionUI();
             };
 
-            const handleTriggerActivation = async (event) => {
-                floating.stopFloatingEvent(event);
-                if (!activeTarget) {
-                    return;
-                }
-                suppressNextFocusReset = true;
-                focusActiveTarget();
-                await setPanelOpen(!panelOpen);
-            };
+            // ─── Floating UI setup ────────────────────────────────────────
 
             const bindFloatingUi = () => {
                 triggerRef = floating.createTriggerElement({
@@ -258,141 +171,129 @@ const rect = activeTarget.getBoundingClientRect();
                     const insertButton = event.target.closest('[data-paste]');
                     const pinButton = event.target.closest('[data-pin]');
                     const removeButton = event.target.closest('[data-remove]');
+
                     if (insertButton) {
                         const text = decodeAttribute(insertButton.getAttribute('data-paste') || '');
                         suppressNextFocusReset = true;
                         focusActiveTarget();
                         insertTextAtCaret(activeTarget, text);
-                        // Không đóng panel theo yêu cầu mới
                         renderPanel();
-                        positionUI();
                         return;
                     }
                     if (pinButton) {
                         const text = decodeAttribute(pinButton.getAttribute('data-pin') || '');
                         suppressNextFocusReset = true;
-                        focusActiveTarget();
                         storage.togglePinItem(text).then((nextConfig) => {
                             config = nextConfig || config;
-                            renderPanel();
-                            positionUI();
-                        }).catch((error) => {
-                            console.error('[GestureExtension] toggle pin failed', error);
-                        });
+                            updateUI();
+                        }).catch((error) => console.error('[GestureExtension] toggle pin failed', error));
                         return;
                     }
                     if (removeButton) {
                         const text = decodeAttribute(removeButton.getAttribute('data-remove') || '');
                         suppressNextFocusReset = true;
-                        focusActiveTarget();
                         storage.removeClipboardItem(text).then((nextConfig) => {
                             config = nextConfig || config;
-                            renderPanel();
-                            positionUI();
-                        }).catch((error) => {
-                            console.error('[GestureExtension] remove clipboard item failed', error);
-                        });
+                            updateUI();
+                        }).catch((error) => console.error('[GestureExtension] remove clipboard item failed', error));
                     }
                 });
-
-                triggerRef.element.addEventListener('click', (event) => {
-                    if (triggerRef.element.dataset.dragMoved === 'true') {
-                        triggerRef.element.dataset.dragMoved = 'false';
-                        floating.stopFloatingEvent(event);
-                        return;
-                    }
-                    handleTriggerActivation(event).catch((error) => {
-                        console.error('[GestureExtension] trigger activation failed', error);
-                    });
-                }, true);
 
                 removeDragBinding = floating.bindDragBehavior({
                     target: triggerRef.element,
                     threshold: 6,
                     getInitialPosition: () => ({
-                        left: triggerOffset.x || triggerAnchor.left || triggerRef.element.offsetLeft,
-                        top: triggerOffset.y || triggerAnchor.top || triggerRef.element.offsetTop
+                        left: triggerRef.element.offsetLeft,
+                        top: triggerRef.element.offsetTop
                     }),
-                    onMove: ({ event, deltaX, deltaY, origin }) => {
-                        isDraggingTrigger = true;
-                        suppressNextFocusReset = true;
-                        floating.stopFloatingEvent(event);
-                        triggerRef.element.dataset.dragMoved = 'true';
+                    onMove: ({ deltaX, deltaY, origin }) => {
                         const next = floating.clampFixedPosition({
                             left: origin.left + deltaX,
                             top: origin.top + deltaY,
-                            width: 32,
-                            height: 32,
+                            width: UI.triggerSize,
+                            height: UI.triggerSize,
                             margin: 8
                         });
-                        triggerOffset = { x: next.left, y: next.top };
-                        positionUI();
-                    },
-                    onClick: () => {
-                        isDraggingTrigger = false;
-                        triggerRef.element.dataset.dragMoved = 'false';
+                        triggerRef.setPosition(next.left, next.top);
+                        triggerRef.element.classList.add('is-dragging');
+                        if (panelOpen) updateUI();
                     },
                     onDragEnd: () => {
-                        isDraggingTrigger = false;
-                        suppressNextFocusReset = true;
-                        focusActiveTarget();
-                        void saveTriggerOffset();
-                        positionUI();
+                        triggerRef.element.classList.remove('is-dragging');
+                        posStorage.save(triggerRef.element.offsetLeft, triggerRef.element.offsetTop);
+                    },
+                    onClick: () => {
+                        setPanelOpen(!panelOpen).catch((error) => {
+                            console.error('[GestureExtension] toggle panel failed', error);
+                        });
                     }
                 });
 
                 removeOutsideClick = floating.bindOutsideClickGuard({
                     isOpen: () => panelOpen,
-                    containsTarget: (target) => target instanceof Node && (panelRef.element.contains(target) || triggerRef.element.contains(target)),
+                    containsTarget: (target) =>
+                        target instanceof Node &&
+                        (panelRef.element.contains(target) || triggerRef.element.contains(target)),
                     onOutside: () => {
                         panelOpen = false;
-                        renderPanel();
-                        positionUI();
+                        updateUI();
                     },
                     eventName: 'pointerdown',
                     capture: true
                 });
+
+                // Chống mất focus (native dom focus)
+                triggerRef.element.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, true);
+                triggerRef.element.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+
+                // Chặn nổi bọt từ nội bộ clipboard để các floating panel khác không xử lý
+                // click ở pha bubble, nhưng không chặn event click tại target của panel.
+                panelRef.element.addEventListener('mousedown', (e) => e.stopPropagation(), true);
+                triggerRef.element.addEventListener('click', (e) => e.stopPropagation(), true);
+
+                posStorage.load().then(({ left, top }) => {
+                    const pos = floating.clampFixedPosition({ left, top, width: UI.triggerSize, height: UI.triggerSize, margin: 8 });
+                    triggerRef.setPosition(pos.left, pos.top);
+                    updateUI(); // gọi update để set visibility dựa trên focus
+                });
             };
 
-            const onFocusIn = (event) => {
-                const target = getEditableTarget(event.target);
-                if (!target) {
-                    return;
-                }
-                activeTarget = target;
-                if (suppressNextFocusReset) {
-                    suppressNextFocusReset = false;
-                    positionUI();
-                    return;
-                }
-                panelOpen = false;
-                renderPanel();
-                positionUI();
-            };
+            // ─── Event listeners ──────────────────────────────────────────
 
             const onPointerDown = (event) => {
+                // Nếu click vào nội bộ clipboard thì bỏ qua
                 if (panelRef?.element.contains(event.target) || triggerRef?.element.contains(event.target)) {
                     suppressNextFocusReset = true;
-                    if (triggerRef?.element.contains(event.target)) {
-                        isDraggingTrigger = true;
-                    }
                     return;
                 }
                 const target = getEditableTarget(event.target);
                 if (target) {
                     activeTarget = target;
                     panelOpen = false;
-                    renderPanel();
-                    positionUI();
+                    updateUI();
                     return;
                 }
-                if (isDraggingTrigger) {
-                    return;
-                }
+                // Click ra ngoài input và ngoài clipboard -> xóa focus, ẩn icon
                 activeTarget = null;
                 panelOpen = false;
-                renderPanel();
-                positionUI();
+                updateUI();
+            };
+
+            const onFocusIn = (event) => {
+                const target = getEditableTarget(event.target);
+                if (!target) return;
+                if (suppressNextFocusReset) {
+                    suppressNextFocusReset = false;
+                    return;
+                }
+                activeTarget = target;
+                updateUI();
             };
 
             const onCopy = async (event) => {
@@ -410,77 +311,42 @@ const rect = activeTarget.getBoundingClientRect();
 
             const onKeyUp = () => {
                 const selectionText = getActiveSelectionText();
-                if (selectionText) {
-                    updateCopiedTextCache(selectionText);
-                }
+                if (selectionText) updateCopiedTextCache(selectionText);
+            };
+
+            const onSelectionChange = () => {
+                const selectionText = getActiveSelectionText();
+                if (selectionText) updateCopiedTextCache(selectionText);
             };
 
             const onClipboardChange = async () => {
-                if (!navigator.clipboard?.readText) {
-                    return;
-                }
+                if (!navigator.clipboard?.readText) return;
                 try {
                     const text = await navigator.clipboard.readText();
                     if (text && text.trim() && text.trim() !== copiedTextCache) {
                         await saveCopiedText(text);
                     }
                 } catch {
-                    // Ignore permissions errors from sites that block async clipboard reads.
+                    // Ignore permissions errors
                 }
             };
 
-            const onSelectionChange = () => {
-                const selectionText = getActiveSelectionText();
-                if (selectionText) {
-                    updateCopiedTextCache(selectionText);
-                }
-            };
+            // ─── Init ─────────────────────────────────────────────────────
 
-            const onScrollOrResize = () => {
-                ensureTriggerOffsetInBounds();
-                positionUI();
-            };
-
-             void syncConfigFromStorage();
-             bindFloatingUi();
-             document.addEventListener('focusin', onFocusIn, true);
-document.addEventListener('pointerdown', onPointerDown, true);
+            bindFloatingUi();
+            document.addEventListener('focusin', onFocusIn, true);
+            document.addEventListener('pointerdown', onPointerDown, true);
             document.addEventListener('copy', onCopy, true);
             document.addEventListener('keyup', onKeyUp, true);
             document.addEventListener('selectionchange', onSelectionChange, true);
-            window.addEventListener('scroll', onScrollOrResize, true);
-            window.addEventListener('resize', onScrollOrResize, true);
             if (window.location.protocol === 'chrome:' || window.location.protocol === 'chrome-extension:') {
                 window.addEventListener('focus', onClipboardChange, true);
             }
-            if (typeof MutationObserver === 'function') {
-                mutationObserver = new MutationObserver(() => {
-                    if (panelOpen && activeTarget?.isConnected) {
-                        positionUI();
-                    }
-                });
-                mutationObserver.observe(document.documentElement, {
-                    childList: true,
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ['style', 'class']
-                });
-            }
-
             return {
                 onConfigChange(nextConfig) {
                     config = nextConfig;
-                    const savedPosition = config?.clipboard?.triggerPosition;
-                    triggerOffset = savedPosition && Number.isFinite(savedPosition.x) && Number.isFinite(savedPosition.y)
-                        ? { x: savedPosition.x, y: savedPosition.y }
-                        : { x: Number.NaN, y: Number.NaN };
-                    ensureTriggerOffsetInBounds();
-                    if (!config?.clipboard?.enabled) {
-                        activeTarget = null;
-                        panelOpen = false;
-                    }
-                    renderPanel();
-                    positionUI();
+                    if (!config?.clipboard?.enabled) panelOpen = false;
+                    if (panelOpen) updateUI();
                 },
                 destroy() {
                     document.removeEventListener('focusin', onFocusIn, true);
@@ -488,10 +354,8 @@ document.addEventListener('pointerdown', onPointerDown, true);
                     document.removeEventListener('copy', onCopy, true);
                     document.removeEventListener('keyup', onKeyUp, true);
                     document.removeEventListener('selectionchange', onSelectionChange, true);
-                    window.removeEventListener('scroll', onScrollOrResize, true);
-                    window.removeEventListener('resize', onScrollOrResize, true);
                     window.removeEventListener('focus', onClipboardChange, true);
-                    mutationObserver?.disconnect();
+
                     removeDragBinding();
                     removeOutsideClick();
                     triggerRef?.destroy();

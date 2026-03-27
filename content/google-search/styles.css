@@ -1,0 +1,83 @@
+.gesture-google-search-trigger {
+    position: fixed;
+    z-index: 2147483646;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: #4285f4;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    cursor: grab;
+    font-size: 16px;
+    line-height: 1;
+    user-select: none;
+    touch-action: none;
+    transition: background 0.2s, transform 0.2s, opacity 0.2s;
+}
+
+.gesture-google-search-trigger.is-active {
+    background: #1a73e8;
+}
+
+.gesture-google-search-trigger.is-dragging {
+    cursor: grabbing;
+    opacity: 0.75;
+}
+
+.gesture-google-search-panel {
+    position: fixed;
+    z-index: 2147483645;
+    padding: 10px;
+    border-radius: 12px;
+    background: #1a1a1a;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    color: #e8eaed;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+.gesture-google-search-panel[hidden],
+.gesture-google-search-trigger[hidden] {
+    display: none !important;
+}
+
+.gesture-google-search-panel.is-visible {
+    display: block;
+}
+
+.gesture-google-search-panel .grid {
+    display: grid;
+    grid-template-columns: repeat(6, 32px);
+    gap: 4px;
+}
+
+.gesture-google-search-panel .header {
+    grid-column: 1 / -1;
+    padding: 4px 2px 2px;
+    color: #9aa0a6;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.gesture-google-search-panel .cell {
+    width: 32px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: #2a2a2a;
+    color: #e8eaed;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.gesture-google-search-panel .cell:hover {
+    background: #4285f4;
+    color: #fff;
+}

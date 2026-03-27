@@ -9,6 +9,12 @@
     position: fixed;
 }
 
+#fvp-master-icon[hidden],
+#fvp-menu[hidden],
+#fvp-container[hidden] {
+    display: none !important;
+}
+
 #fvp-master-icon {
     z-index: 2147483646;
     width: 42px;
@@ -38,7 +44,7 @@
     background: rgba(0, 0, 255, 0.7);
 }
 
-#fvp-badge {
+.gesture-floating-badge {
     position: absolute;
     top: -2px;
     right: -2px;
@@ -48,15 +54,16 @@
     font-weight: 700;
     min-width: 18px;
     height: 18px;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
+    pointer-events: none;
+    z-index: 10;
 }
 
 #fvp-menu {
     z-index: 2147483646;
-    display: none;
     flex-direction: column;
     background: rgba(20, 20, 20, 0.95);
     backdrop-filter: blur(20px);
