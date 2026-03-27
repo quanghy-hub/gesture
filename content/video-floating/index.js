@@ -32,6 +32,7 @@
     const formatTime = s => `${Math.floor(s / 60)}.${(Math.floor(s) % 60).toString().padStart(2, '0')}`;
     const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
     const onPointer = (el, fn) => { el?.addEventListener('touchstart', fn, { passive: false }); el?.addEventListener('mousedown', fn); };
+    const isTouchEvent = e => e?.type?.startsWith('touch');
     const getRect = node => node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
 
     const isDetectableVideo = video => {
@@ -546,6 +547,13 @@
         document.body.appendChild(box);
 
         // Bind Behaviors
+        let isTouchIconDrag = false;
+        let iconTouchMoved = false;
+        let iconTouchStartX = 0;
+        let iconTouchStartY = 0;
+        let iconTouchOriginLeft = 0;
+        let iconTouchOriginTop = 0;
+
         floating.bindDragBehavior({
             target: iconRef.element,
             getInitialPosition: () => ({ left: iconRef.element.offsetLeft, top: iconRef.element.offsetTop }),
@@ -558,6 +566,45 @@
             onClick: toggleMenu
         });
 
+        iconRef.element.addEventListener('touchstart', e => {
+            const t = e.touches?.length === 1 ? e.touches[0] : null;
+            if (!t) return;
+            isTouchIconDrag = true;
+            iconTouchMoved = false;
+            iconTouchStartX = t.clientX;
+            iconTouchStartY = t.clientY;
+            iconTouchOriginLeft = iconRef.element.offsetLeft;
+            iconTouchOriginTop = iconRef.element.offsetTop;
+        }, { passive: true });
+
+        iconRef.element.addEventListener('touchmove', e => {
+            if (!isTouchIconDrag) return;
+            const t = e.touches?.length === 1 ? e.touches[0] : null;
+            if (!t) return;
+            const deltaX = t.clientX - iconTouchStartX;
+            const deltaY = t.clientY - iconTouchStartY;
+            if (!iconTouchMoved && Math.hypot(deltaX, deltaY) >= 8) iconTouchMoved = true;
+            if (!iconTouchMoved) return;
+            if (e.cancelable) e.preventDefault();
+            const next = floating.clampFixedPosition({ left: iconTouchOriginLeft + deltaX, top: iconTouchOriginTop + deltaY, width: 42, height: 42, margin: 10 });
+            iconRef.setPosition(next.left, next.top);
+            resetIdle();
+        }, { passive: false });
+
+        iconRef.element.addEventListener('touchend', e => {
+            if (!isTouchIconDrag) return;
+            if (iconTouchMoved) {
+                iconPosStorage.save(iconRef.element.style.left, iconRef.element.style.top);
+            } else {
+                toggleMenu();
+            }
+            isTouchIconDrag = false;
+        }, { passive: false });
+
+        iconRef.element.addEventListener('touchcancel', () => {
+            isTouchIconDrag = false;
+        }, { passive: true });
+
         floating.bindOutsideClickGuard({
             isOpen: () => menuRef.element.style.display !== 'none',
             containsTarget: t => iconRef.element.contains(t) || menuRef.element.contains(t),
@@ -565,13 +612,18 @@
         });
 
         // Player Events
-        onPointer($('fvp-left-drag'), e => { const c = getCoord(e); state.isDrag = true; state.startX = c.x; state.startY = c.y; state.initX = box.offsetLeft; state.initY = box.offsetTop; });
+        onPointer($('fvp-left-drag'), e => {
+            if (isTouchEvent(e) && e.cancelable) e.preventDefault();
+            const c = getCoord(e); state.isDrag = true; state.startX = c.x; state.startY = c.y; state.initX = box.offsetLeft; state.initY = box.offsetTop;
+        });
         box.querySelectorAll('.fvp-resize-handle').forEach(h => onPointer(h, e => {
+            if (isTouchEvent(e) && e.cancelable) e.preventDefault();
             state.isResize = true; state.resizeDir = h.className.includes('bl') ? 'bl' : 'br';
             const c = getCoord(e); state.startX = c.x; state.startY = c.y; state.initW = box.offsetWidth; state.initH = box.offsetHeight; state.initX = box.offsetLeft;
         }));
-        document.addEventListener('mousemove', e => {
+        const movePlayerBox = e => {
             if (!state.isDrag && !state.isResize) return;
+            if (isTouchEvent(e) && e.cancelable) e.preventDefault();
             const c = getCoord(e), dx = c.x - state.startX, dy = c.y - state.startY;
             if (state.isDrag) { box.style.left = `${state.initX + dx}px`; box.style.top = `${state.initY + dy}px`; }
             else if (state.isResize) {
@@ -579,11 +631,16 @@
                 box.style.width = `${Math.max(200, nw)}px`; box.style.height = `${Math.max(120, state.initH + dy)}px`;
                 if (state.resizeDir === 'bl') box.style.left = `${state.initX + (state.initW - box.offsetWidth)}px`;
             }
-        });
-        document.addEventListener('mouseup', () => {
+        };
+        const endPlayerBoxMove = () => {
             if (state.isDrag || state.isResize) saveLayout({ top: box.style.top, left: box.style.left, width: box.style.width, height: box.style.height, borderRadius: box.style.borderRadius });
             state.isDrag = state.isResize = false;
-        });
+        };
+        document.addEventListener('mousemove', movePlayerBox);
+        document.addEventListener('mouseup', endPlayerBoxMove);
+        box.addEventListener('touchmove', movePlayerBox, { capture: true, passive: false });
+        box.addEventListener('touchend', endPlayerBoxMove, { passive: true });
+        box.addEventListener('touchcancel', endPlayerBoxMove, { passive: true });
 
         // UI Controls
         $('fvp-close').onclick = restore;
