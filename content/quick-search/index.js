@@ -297,6 +297,15 @@
         .replaceAll('{{q}}', encodeQuery(text || ''))
         .replaceAll('{{img}}', encodeURIComponent(imageUrl || ''));
 
+    const QUICK_GLYPHS = Object.freeze({
+        copy: '⧉',
+        selectAll: '⊞',
+        translate: '文',
+        saveImage: '↓',
+        ocr: 'T',
+        copyUrl: '⧉'
+    });
+
     ext.features.quickSearch = {
         shouldRun: ({ runtime, getConfig }) => runtime.isHttpPage() && getConfig()?.quickSearch?.enabled !== false,
         init: ({ tabActions }) => {
@@ -307,6 +316,8 @@
             let imageContext = null;
             let hoverImage = null;
             let touchCandidate = null;
+            let selectionGeneration = 0;
+            let handledSelectionGeneration = 0;
 
             const timers = {
                 selection: 0,
@@ -315,7 +326,28 @@
                 longPress: 0
             };
 
+            const markSelectionHandled = () => {
+                handledSelectionGeneration = selectionGeneration;
+            };
+
+            const clearActiveSelection = () => {
+                try {
+                    const activeElement = document.activeElement;
+                    if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) {
+                        const hasRange = typeof activeElement.selectionStart === 'number' && typeof activeElement.selectionEnd === 'number';
+                        if (hasRange && activeElement.selectionStart !== activeElement.selectionEnd) {
+                            activeElement.setSelectionRange(activeElement.selectionEnd, activeElement.selectionEnd);
+                        }
+                    }
+                    window.getSelection?.()?.removeAllRanges();
+                } catch {
+                    // Ignore selection cleanup failures on restrictive pages.
+                }
+                markSelectionHandled();
+            };
+
             const hideTextBubble = () => {
+                window.clearTimeout(timers.selection);
                 textBubble?.hide();
                 textContext = null;
             };
@@ -410,6 +442,8 @@
                 if (!url) {
                     return;
                 }
+                clearActiveSelection();
+                hideTextBubble();
                 const result = await tabActions.openTab(url, 'fg');
                 if (!result?.ok) {
                     window.open(url, '_blank', 'noopener');
@@ -489,7 +523,7 @@
                     {
                         label: 'Copy',
                         title: 'Copy',
-                        glyph: '⧉',
+                        glyph: QUICK_GLYPHS.copy,
                         onClick: () => {
                             ext.shared.domUtils.copyText(context.text).then(async () => {
                                 if (ext.shared.storage?.saveClipboardHistory) {
@@ -503,9 +537,10 @@
                     {
                         label: 'Select All',
                         title: 'Select All',
-                        glyph: '⤢',
+                        glyph: QUICK_GLYPHS.selectAll,
                         onClick: () => {
                             selectAllPageText();
+                            selectionGeneration += 1;
                             ext.shared.toastCore.createToast('Đã chọn hết', context.x, context.y, 1200);
                         }
                     },
@@ -521,7 +556,7 @@
                     {
                         label: 'Dịch',
                         title: 'Dịch văn bản đã chọn',
-                        glyph: '🌐',
+                        glyph: QUICK_GLYPHS.translate,
                         onClick: () => {
                             translateSelectedText(context);
                             hideTextBubble();
@@ -529,6 +564,7 @@
                     }
                 ];
                 ensureTextBubble().show(items, context.x, context.y, CONFIG.columns);
+                markSelectionHandled();
             };
 
             const syncTextBubbleToSelection = () => {
@@ -556,7 +592,7 @@
                     {
                         label: 'Save',
                         title: 'Save image',
-                        glyph: '︾',
+                        glyph: QUICK_GLYPHS.saveImage,
                         onClick: () => {
                             downloadImage(context.url, context.x, context.y);
                             hideImageBubble();
@@ -565,7 +601,7 @@
                     {
                         label: 'OCR',
                         title: 'Trích xuất văn bản từ ảnh',
-                        glyph: '[T]',
+                        glyph: QUICK_GLYPHS.ocr,
                         onClick: () => {
                             ext.shared.ocrCore.extractText(context.url, context.x, context.y);
                             hideImageBubble();
@@ -574,7 +610,7 @@
                     {
                         label: 'Copy',
                         title: 'Copy image URL',
-                        glyph: '⧉',
+                        glyph: QUICK_GLYPHS.copyUrl,
                         onClick: () => {
                             ext.shared.domUtils.copyText(context.url).then(() => ext.shared.toastCore.createToast('Đã chép URL', context.x, context.y, 1200));
                             hideImageBubble();
@@ -600,6 +636,9 @@
                     const text = getSelectionText();
                     if (!selection || selection.isCollapsed || !text) {
                         hideTextBubble();
+                        return;
+                    }
+                    if (selectionGeneration === handledSelectionGeneration && textContext?.text !== text) {
                         return;
                     }
                     const anchor = getSelectionAnchor(selection);
@@ -767,7 +806,14 @@
                     hideTextBubble();
                     return;
                 }
+                selectionGeneration += 1;
                 scheduleSelectionBubbleSoon(120);
+            };
+
+            const onPageShow = () => {
+                clearTouchLongPress();
+                hideAllBubbles();
+                clearActiveSelection();
             };
 
             document.addEventListener('pointerup', onPointerUp, true);
@@ -779,6 +825,7 @@
             document.addEventListener('touchcancel', clearTouchLongPress, true);
             document.addEventListener('selectionchange', onSelectionChange, true);
             document.addEventListener('keydown', onKeyDown, true);
+            window.addEventListener('pageshow', onPageShow, true);
             window.addEventListener('scroll', onScrollOrResize, true);
             window.addEventListener('resize', onScrollOrResize, true);
 
@@ -798,6 +845,7 @@
                     document.removeEventListener('touchcancel', clearTouchLongPress, true);
                     document.removeEventListener('selectionchange', onSelectionChange, true);
                     document.removeEventListener('keydown', onKeyDown, true);
+                    window.removeEventListener('pageshow', onPageShow, true);
                     window.removeEventListener('scroll', onScrollOrResize, true);
                     window.removeEventListener('resize', onScrollOrResize, true);
                     uiHost?.remove();

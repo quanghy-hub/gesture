@@ -37,6 +37,7 @@
     const clamp = (v, min, max) => viewport?.clamp?.(v, min, max) ?? Math.max(min, Math.min(max, v));
     const onPointer = (el, fn) => { el?.addEventListener('touchstart', fn, { passive: false }); el?.addEventListener('mousedown', fn); };
     const getRect = node => node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
+    const VIDEO_IFRAME_PATTERN = /youtube\.com|youtu\.be|youtube-nocookie\.com|player\.vimeo\.com|vimeo\.com|dailymotion\.com|twitch\.tv|tiktok\.com|facebook\.com|jwplayer|brightcove|wistia|embed|player|video/i;
 
     const isDetectableVideo = video => {
         if (!video || !video.isConnected) return false;
@@ -44,6 +45,42 @@
         const r = getRect(video);
         return r.width > 0 && r.height > 0;
     };
+
+    const isVisibleIframe = iframe => {
+        if (!iframe?.isConnected || iframe.closest('#fvp-wrapper')) return false;
+        const rect = getRect(iframe);
+        return rect.width >= 160 && rect.height >= 90;
+    };
+
+    const getIframeSrc = iframe => {
+        const raw = iframe?.src || iframe?.getAttribute?.('src') || '';
+        if (!raw) return '';
+        try {
+            return new URL(raw, location.href).href;
+        } catch {
+            return raw;
+        }
+    };
+
+    const isLikelyVideoIframe = (iframe) => {
+        if (!isVisibleIframe(iframe)) return false;
+        const src = getIframeSrc(iframe);
+        if (!src || src === 'about:blank') return false;
+        const attrs = [
+            src,
+            iframe.title || '',
+            iframe.getAttribute?.('aria-label') || '',
+            iframe.getAttribute?.('name') || '',
+            iframe.id || '',
+            iframe.className || ''
+        ].join(' ');
+        return VIDEO_IFRAME_PATTERN.test(attrs);
+    };
+
+    const getTrackedIframeEntries = (map) => [...map.entries()].filter(([iframe, count]) => {
+        if (!iframe?.isConnected || !(count > 0)) return false;
+        return isLikelyVideoIframe(iframe);
+    });
 
     // ============================================
     // PERSISTENCE
@@ -376,7 +413,7 @@
             return;
         }
         for (const f of [...iframeVideoMap.keys()]) if (!f?.isConnected) iframeVideoMap.delete(f);
-        const count = getVideos().length + iframeVideoMap.size + (curVid || floatedIframe ? 1 : 0);
+        const count = getVideos().length + getTrackedIframeEntries(iframeVideoMap).length + (curVid || floatedIframe ? 1 : 0);
         if (count > 0) {
             iconRef.show();
             iconRef.setBadge(count);
@@ -668,7 +705,7 @@
 
     const renderMenu = () => {
         const list = getOrderedVideoSequence();
-        const iframeList = [...iframeVideoMap.entries()].filter(([f]) => f.isConnected);
+        const iframeList = getTrackedIframeEntries(iframeVideoMap);
         const total = list.length + iframeList.length;
         const m = menuRef.element;
         m.innerHTML = `<div style="padding:10px 16px;font-size:12px;color:#888;font-weight:600">VIDEOS (${total})</div>`;
@@ -699,14 +736,16 @@
             iconRef.setPosition(pos.left, pos.top);
         });
         ensureLayoutReady();
-        chrome.storage.onChanged.addListener((changes, areaName) => {
-            if (areaName !== 'local' || !changes?.[CONFIG_STORAGE_KEY]) return;
-            try {
-                _cfgCache = configUtils?.normalizeConfig?.(changes[CONFIG_STORAGE_KEY].newValue) || _cfgCache;
-            } catch { }
-            if (!isFeatureEnabled()) restore();
-            updateVideoDetectionUI();
-        });
+        if (globalThis.chrome?.storage?.onChanged?.addListener) {
+            chrome.storage.onChanged.addListener((changes, areaName) => {
+                if (areaName !== 'local' || !changes?.[CONFIG_STORAGE_KEY]) return;
+                try {
+                    _cfgCache = configUtils?.normalizeConfig?.(changes[CONFIG_STORAGE_KEY].newValue) || _cfgCache;
+                } catch { }
+                if (!isFeatureEnabled()) restore();
+                updateVideoDetectionUI();
+            });
+        }
 
         // Menu (Panel)
         menuRef = floating.createPanelRoot({ className: 'fvp-menu', hidden: true });
@@ -870,7 +909,11 @@
             if (e.data?.type === 'fvp-iframe-videos') {
                 const iframes = document.querySelectorAll('iframe');
                 const matched = Array.from(iframes).find(i => i.contentWindow === e.source);
-                if (matched) { if (e.data.count > 0) iframeVideoMap.set(matched, e.data.count); else iframeVideoMap.delete(matched); updateVideoDetectionUI(); }
+                if (matched) {
+                    if (e.data.count > 0 && isLikelyVideoIframe(matched)) iframeVideoMap.set(matched, e.data.count);
+                    else iframeVideoMap.delete(matched);
+                    updateVideoDetectionUI();
+                }
             }
             if (e.data?.type === 'fvp-iframe-state' && floatedIframe?.contentWindow === e.source) { Object.assign(iframePlaybackState, e.data.state || {}); syncFloatedIframeUI(); }
             if (e.data?.type === 'fvp-page-quality-result' || (e.data?.type === 'fvp-iframe-quality-result' && floatedIframe?.contentWindow === e.source)) {

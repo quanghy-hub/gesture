@@ -1,6 +1,8 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const viewport = ext.shared.viewportCore;
+    const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
+    const positionMemoryStore = {};
     ext.shared.floatingCore = {
         clamp: (value, min, max) => viewport?.clamp?.(value, min, max) ?? Math.min(max, Math.max(min, value)),
         clampFixedPosition: (rect) => viewport?.clampFixedPosition?.(rect) ?? ({
@@ -149,12 +151,23 @@
         },
         createPositionStorage: (storageKey, defaultPos = { left: 20, top: 20 }) => ({
             load: () => new Promise((resolve) => {
+                if (!hasStorageApi()) {
+                    const v = positionMemoryStore[storageKey];
+                    resolve(v && typeof v === 'object' ? v : defaultPos);
+                    return;
+                }
                 chrome.storage.local.get([storageKey], (result) => {
                     const v = result?.[storageKey];
                     resolve(v && typeof v === 'object' ? v : defaultPos);
                 });
             }),
-            save: (left, top) => chrome.storage.local.set({ [storageKey]: { left, top } })
+            save: (left, top) => {
+                if (!hasStorageApi()) {
+                    positionMemoryStore[storageKey] = { left, top };
+                    return Promise.resolve();
+                }
+                return chrome.storage.local.set({ [storageKey]: { left, top } });
+            }
         })
     };
 })();

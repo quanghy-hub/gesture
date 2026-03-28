@@ -7,6 +7,13 @@
     const statusLabel = document.getElementById('status');
     const saveButton = document.getElementById('save-settings');
     const closeButton = document.getElementById('close-popup');
+    const featureGesturesEnabled = document.getElementById('feature-gestures-enabled');
+    const featureClipboardEnabled = document.getElementById('feature-clipboard-enabled');
+    const featureVideoFloatingEnabled = document.getElementById('feature-video-floating-enabled');
+    const featureInlineTranslateEnabled = document.getElementById('feature-inline-translate-enabled');
+    const featureYoutubeSubtitlesEnabled = document.getElementById('feature-youtube-subtitles-enabled');
+    const featureTrustedTypesEnabled = document.getElementById('feature-trusted-types-enabled');
+    const featureForumEnabled = document.getElementById('feature-forum-enabled');
     const inlineTranslateHotkey = document.getElementById('inline-translate-hotkey');
     const inlineTranslateSwipeEnabled = document.getElementById('inline-translate-swipe-enabled');
     const inlineTranslateSwipeDir = document.getElementById('inline-translate-swipe-dir');
@@ -55,6 +62,13 @@
     const gPagerHops = document.getElementById('g-pager-hops');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
+    const gesturesCard = featureGesturesEnabled.closest('.card');
+    const clipboardCard = featureClipboardEnabled.closest('.card');
+    const videoFloatingCard = featureVideoFloatingEnabled.closest('.card');
+    const inlineTranslateCard = featureInlineTranslateEnabled.closest('.card');
+    const youtubeSubtitlesCard = featureYoutubeSubtitlesEnabled.closest('.card');
+    const trustedTypesCard = featureTrustedTypesEnabled.closest('.card');
+    const forumCard = featureForumEnabled.closest('.card');
 
     let activeHost = null;
     let config = null;
@@ -85,10 +99,34 @@
         });
     };
 
+    const setCardState = (card, enabled) => {
+        if (!card) return;
+        card.classList.toggle('is-disabled', !enabled);
+    };
+
+    const syncFeatureCards = () => {
+        const canUseForumControls = !!activeHost && featureForumEnabled.checked;
+        setCardState(gesturesCard, featureGesturesEnabled.checked);
+        setCardState(clipboardCard, featureClipboardEnabled.checked);
+        setCardState(videoFloatingCard, featureVideoFloatingEnabled.checked);
+        setCardState(inlineTranslateCard, featureInlineTranslateEnabled.checked);
+        setCardState(youtubeSubtitlesCard, featureYoutubeSubtitlesEnabled.checked);
+        setCardState(trustedTypesCard, featureTrustedTypesEnabled.checked);
+        setCardState(forumCard, featureForumEnabled.checked);
+        setHostControlsState(canUseForumControls);
+    };
+
     const render = () => {
         if (!config) return;
 
         const gestures = getGestureSettings(config);
+        featureGesturesEnabled.checked = !!gestures.enabled;
+        featureClipboardEnabled.checked = config.clipboard?.enabled !== false;
+        featureVideoFloatingEnabled.checked = config.videoFloating?.enabled !== false;
+        featureInlineTranslateEnabled.checked = config.inlineTranslate?.enabled !== false;
+        featureYoutubeSubtitlesEnabled.checked = !!config.youtubeSubtitles?.enabled;
+        featureTrustedTypesEnabled.checked = !!config.trustedTypes?.enabled;
+        featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
         inlineTranslateHotkey.value = config.inlineTranslate?.hotkey || 'f2';
         inlineTranslateSwipeEnabled.checked = config.inlineTranslate?.swipeEnabled !== false;
         inlineTranslateSwipeDir.value = config.inlineTranslate?.swipeDir || 'both';
@@ -132,25 +170,25 @@
 
         if (!activeHost) {
             hostLabel.textContent = 'Không có host hiện tại';
-            setHostControlsState(false);
+            syncFeatureCards();
             return;
         }
 
         const forumConfig = getForumConfig(config, activeHost);
         hostLabel.textContent = activeHost;
-        setHostControlsState(true);
         forumWide.checked = !!forumConfig.wide;
         forumMinWidth.value = forumConfig.minWidth;
         forumGap.value = forumConfig.gap;
         forumFade.value = forumConfig.fadeTime;
         forumDelay.value = forumConfig.initDelay;
+        syncFeatureCards();
     };
 
     const save = async () => {
         if (!config) return;
 
         const next = applyGestureSettings(ext.shared.config.deepClone(config), {
-            enabled: true,
+            enabled: featureGesturesEnabled.checked,
             longPress: {
                 enabled: gLpEnabled.checked,
                 mode: gLpMode.value,
@@ -180,9 +218,9 @@
             }
         });
 
-        next.clipboard.enabled = true;
+        next.clipboard.enabled = featureClipboardEnabled.checked;
         next.clipboard.maxHistory = Number(clipboardMaxHistory.value);
-        next.videoFloating.enabled = videoFloatingEnabled.checked;
+        next.videoFloating.enabled = featureVideoFloatingEnabled.checked && videoFloatingEnabled.checked;
         next.videoFloating.minSwipeDistance = Number(videoFloatingMinDistance.value);
         next.videoFloating.swipeShort = Number(videoFloatingSwipeShort.value);
         next.videoFloating.swipeLong = Number(videoFloatingSwipeLong.value);
@@ -194,14 +232,14 @@
         next.videoFloating.noticeFontSize = Number(videoFloatingNoticeFontSize.value);
         next.googleSearch.enabled = true;
         next.quickSearch.enabled = true;
-        next.inlineTranslate.enabled = true;
+        next.inlineTranslate.enabled = featureInlineTranslateEnabled.checked;
         next.inlineTranslate.hotkey = inlineTranslateHotkey.value;
         next.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
         next.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
         next.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
         next.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
         next.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
-        next.youtubeSubtitles.enabled = true;
+        next.youtubeSubtitles.enabled = featureYoutubeSubtitlesEnabled.checked;
         next.youtubeSubtitles.targetLang = youtubeSubtitlesTargetLang.value;
         next.youtubeSubtitles.fontSize = Number(youtubeSubtitlesFontSize.value);
         next.youtubeSubtitles.translatedFontSize = Number(youtubeSubtitlesTranslatedFontSize.value);
@@ -209,7 +247,7 @@
         next.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
         next.youtubeSubtitles.displayMode = youtubeSubtitlesDisplayMode.value;
         next.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
-        next.trustedTypes.enabled = true;
+        next.trustedTypes.enabled = featureTrustedTypesEnabled.checked;
         next.trustedTypes.allowDomains = trustedTypesAllowDomains.value
             .split(',')
             .map((value) => value.trim())
@@ -218,7 +256,7 @@
         let normalized = next;
         if (activeHost) {
             normalized = updateForumHostConfig(next, activeHost, {
-                enabled: true,
+                enabled: featureForumEnabled.checked,
                 wide: forumWide.checked,
                 minWidth: Number(forumMinWidth.value),
                 gap: Number(forumGap.value),
@@ -262,5 +300,17 @@
 
     closeButton.addEventListener('click', () => {
         window.close();
+    });
+
+    [
+        featureGesturesEnabled,
+        featureClipboardEnabled,
+        featureVideoFloatingEnabled,
+        featureInlineTranslateEnabled,
+        featureYoutubeSubtitlesEnabled,
+        featureTrustedTypesEnabled,
+        featureForumEnabled
+    ].forEach((control) => {
+        control.addEventListener('change', syncFeatureCards);
     });
 })();

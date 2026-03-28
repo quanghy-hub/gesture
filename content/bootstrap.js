@@ -65,16 +65,18 @@
         activateFeatures();
     });
 
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName !== 'local' || !changes[STORAGE_KEY]) return;
-        state.config = normalizeConfig(changes[STORAGE_KEY].newValue);
+    if (globalThis.chrome?.storage?.onChanged?.addListener) {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName !== 'local' || !changes[STORAGE_KEY]) return;
+            state.config = normalizeConfig(changes[STORAGE_KEY].newValue);
 
-        for (const controller of controllers) {
-            try {
-                controller.onConfigChange?.(state.config);
-            } catch (error) {
-                console.error('[GestureExtension] Failed to refresh feature config', error);
+            for (const controller of controllers) {
+                try {
+                    controller.onConfigChange?.(state.config);
+                } catch (error) {
+                    console.error('[GestureExtension] Failed to refresh feature config', error);
+                }
             }
-        }
-    });
+        });
+    }
 })();

@@ -64,6 +64,27 @@ body {
     color: #6b7280;
 }
 
+.card-title-with-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.card-title-with-toggle input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #22c55e;
+}
+
+.card.is-disabled {
+    opacity: 0.55;
+}
+
+.card.is-disabled .table {
+    pointer-events: none;
+}
+
 .table {
     display: grid;
     grid-template-columns: 88px 68px minmax(0, 1fr) minmax(0, 1fr) 20px;

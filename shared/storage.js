@@ -1,11 +1,29 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const { STORAGE_KEY, normalizeConfig, deepClone } = ext.shared.config;
+    let memoryStore = {};
+
+    const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
+
+    const getRuntimeErrorMessage = () => globalThis.chrome?.runtime?.lastError?.message;
 
     const getLocal = (keys) => new Promise((resolve, reject) => {
+        if (!hasStorageApi()) {
+            const list = Array.isArray(keys) ? keys : [keys];
+            const result = {};
+            list.filter((key) => typeof key === 'string').forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
+                    result[key] = memoryStore[key];
+                }
+            });
+            resolve(result);
+            return;
+        }
+
         chrome.storage.local.get(keys, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
+            const runtimeError = getRuntimeErrorMessage();
+            if (runtimeError) {
+                reject(new Error(runtimeError));
                 return;
             }
             resolve(result || {});
@@ -13,9 +31,19 @@
     });
 
     const setLocal = (payload) => new Promise((resolve, reject) => {
+        if (!hasStorageApi()) {
+            memoryStore = {
+                ...memoryStore,
+                ...(payload && typeof payload === 'object' ? payload : {})
+            };
+            resolve();
+            return;
+        }
+
         chrome.storage.local.set(payload, () => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
+            const runtimeError = getRuntimeErrorMessage();
+            if (runtimeError) {
+                reject(new Error(runtimeError));
                 return;
             }
             resolve();
