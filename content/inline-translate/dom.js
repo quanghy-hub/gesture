@@ -16,6 +16,67 @@
     const normalizeBlockText = (text) => String(text || '').replace(/\s+/g, ' ').trim();
     const getTextKey = (text) => normalizeBlockText(text).slice(0, 240);
     const getElementText = (element) => normalizeBlockText(element?.innerText || '');
+    const collectTextTypography = (element, bucket) => {
+        if (!(element instanceof Element)) {
+            return;
+        }
+
+        const style = window.getComputedStyle(element);
+        const fontSize = parseFloat(style.fontSize);
+        const lineHeight = parseFloat(style.lineHeight);
+        const text = normalizeBlockText(element.textContent || '');
+
+        if (text) {
+            bucket.push({
+                element,
+                textLength: text.length,
+                fontSize: Number.isFinite(fontSize) ? fontSize : null,
+                lineHeight: Number.isFinite(lineHeight) ? lineHeight : null
+            });
+        }
+
+        for (const child of element.children) {
+            collectTextTypography(child, bucket);
+        }
+    };
+
+    const getSourceTypography = (element) => {
+        if (!(element instanceof Element)) {
+            return null;
+        }
+
+        const preferred = element.matches?.(
+            '#content-text, yt-formatted-string, [id="content-text"], [class*="comment"], [class*="content"]'
+        )
+            ? element
+            : element.querySelector?.('#content-text, yt-formatted-string');
+
+        const candidates = [];
+        collectTextTypography(preferred || element, candidates);
+
+        if (candidates.length === 0) {
+            const style = window.getComputedStyle(element);
+            const fontSize = parseFloat(style.fontSize);
+            const lineHeight = parseFloat(style.lineHeight);
+            return {
+                fontSize: Number.isFinite(fontSize) ? fontSize : null,
+                lineHeight: Number.isFinite(lineHeight) ? lineHeight : null
+            };
+        }
+
+        candidates.sort((left, right) => {
+            if ((right.fontSize || 0) !== (left.fontSize || 0)) {
+                return (right.fontSize || 0) - (left.fontSize || 0);
+            }
+            return right.textLength - left.textLength;
+        });
+
+        const best = candidates[0];
+        return {
+            fontSize: best.fontSize,
+            lineHeight: best.lineHeight
+        };
+    };
     const pointInElement = (element, x, y) => {
         if (!(element instanceof Element)) {
             return false;
@@ -179,6 +240,13 @@
             }
             const content = document.createElement('div');
             content.className = 'gesture-inline-translate-text';
+            const typography = getSourceTypography(targetNode);
+            if (typography?.fontSize) {
+                content.style.fontSize = `${Math.max(typography.fontSize * 0.95, 12)}px`;
+            }
+            if (typography?.lineHeight) {
+                content.style.lineHeight = `${Math.max(typography.lineHeight * 0.98, typography.fontSize || 0)}px`;
+            }
             if (text) {
                 content.textContent = text;
             } else {

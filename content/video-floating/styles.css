@@ -17,22 +17,34 @@
 
 #fvp-master-icon {
     z-index: 2147483646;
-    width: 42px;
-    height: 42px;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(10px);
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    line-height: 0;
+    background: transparent;
+    backdrop-filter: none;
     border: none;
     outline: none;
-    border-radius: 50%;
+    border-radius: 0;
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: move;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    transition: transform .2s, opacity .3s, background .2s;
+    overflow: visible;
+    box-shadow: none;
+    transition: transform .2s, opacity .3s, color .2s;
     touch-action: none;
     will-change: transform, opacity;
+}
+
+#fvp-master-icon .fvp-master-icon-svg {
+    width: 34px;
+    height: 34px;
+    display: block;
+    fill: currentColor;
+    flex: 0 0 auto;
+    transform: translate(0.5px, -0.5px);
 }
 
 #fvp-master-icon.fvp-idle {
@@ -43,25 +55,29 @@
 #fvp-master-icon:active {
     opacity: 1;
     transform: scale(1.05);
-    background: rgba(0, 0, 255, 0.7);
+    color: #7dd3fc;
 }
 
 .gesture-floating-badge {
     position: absolute;
-    top: -2px;
-    right: -2px;
+    top: 1px;
+    right: 1px;
+    transform: translate(35%, -35%);
     background: #ff3b30;
     color: #fff;
     font-size: 10px;
     font-weight: 700;
-    min-width: 18px;
-    height: 18px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
     display: none;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 999px;
+    border: none;
     pointer-events: none;
     z-index: 10;
+    box-sizing: border-box;
 }
 
 #fvp-menu {

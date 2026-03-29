@@ -37,6 +37,30 @@
         node?.addEventListener('mousedown', fn);
     };
     const getRect = (node) => node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
+    const queryAllDeep = (selector, root = document) => {
+        const results = [];
+        const visited = new Set();
+        const walk = (currentRoot) => {
+            if (!currentRoot || visited.has(currentRoot)) {
+                return;
+            }
+            visited.add(currentRoot);
+
+            if (typeof currentRoot.querySelectorAll === 'function') {
+                for (const node of currentRoot.querySelectorAll(selector)) {
+                    results.push(node);
+                }
+                for (const host of currentRoot.querySelectorAll('*')) {
+                    if (host.shadowRoot) {
+                        walk(host.shadowRoot);
+                    }
+                }
+            }
+        };
+
+        walk(root);
+        return results;
+    };
 
     const isDetectableVideo = (video) => {
         if (!video || !video.isConnected) return false;
@@ -76,10 +100,80 @@
         return VIDEO_IFRAME_PATTERN.test(attrs);
     };
 
-    const getTrackedIframeEntries = (map) => [...map.entries()].filter(([iframe, count]) => {
-        if (!iframe?.isConnected || !(count > 0)) return false;
-        return isLikelyVideoIframe(iframe);
-    });
+    const getDirectVideos = () => {
+        const unique = new Map();
+        for (const video of queryAllDeep('video')) {
+            if (!video?.isConnected || video.closest('#fvp-wrapper')) continue;
+            const rect = getRect(video);
+            const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
+            const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
+            const largeEnough = rect.width >= 160 && rect.height >= 90;
+            if (!(isDetectableVideo(video) || hasMediaSource || hasPlaybackState || largeEnough)) continue;
+
+            const key = [
+                video.currentSrc || video.src || '',
+                Math.round(rect.left),
+                Math.round(rect.top),
+                Math.round(rect.width),
+                Math.round(rect.height)
+            ].join('|');
+
+            if (!unique.has(key)) {
+                unique.set(key, video);
+            }
+        }
+
+        return [...unique.values()].sort((left, right) => {
+            const leftRect = getRect(left);
+            const rightRect = getRect(right);
+            return (rightRect.width * rightRect.height) - (leftRect.width * leftRect.height);
+        });
+    };
+
+    const getOverlapRatio = (firstRect, secondRect) => {
+        const left = Math.max(firstRect.left, secondRect.left);
+        const right = Math.min(firstRect.right, secondRect.right);
+        const top = Math.max(firstRect.top, secondRect.top);
+        const bottom = Math.min(firstRect.bottom, secondRect.bottom);
+        const width = Math.max(0, right - left);
+        const height = Math.max(0, bottom - top);
+        const overlapArea = width * height;
+        const baseArea = Math.max(1, firstRect.width * firstRect.height);
+        return overlapArea / baseArea;
+    };
+
+    const isRedundantIframeCandidate = (iframe, directVideos = getDirectVideos()) => {
+        if (!iframe?.isConnected || !directVideos.length) return false;
+
+        let host = '';
+        try {
+            host = new URL(getIframeSrc(iframe)).hostname;
+        } catch { }
+
+        const iframeRect = getRect(iframe);
+        if (!iframeRect.width || !iframeRect.height) return true;
+
+        return directVideos.some((video) => {
+            const videoRect = getRect(video);
+            if (!videoRect.width || !videoRect.height) return false;
+
+            const samePlatform =
+                (/youtube\.com|youtu\.be|youtube-nocookie\.com/i.test(host) && /(^|\.)youtube\.com$/i.test(location.hostname)) ||
+                (/redditmedia\.com|v\.redd\.it|reddit\.com/i.test(host) && /(^|\.)reddit\.com$/i.test(location.hostname));
+
+            return samePlatform && getOverlapRatio(iframeRect, videoRect) >= 0.6;
+        });
+    };
+
+    const getTrackedIframeEntries = (map) => {
+        const directVideos = getDirectVideos();
+        return [...map.entries()].filter(([iframe, count]) => {
+            if (!iframe?.isConnected || !(count > 0)) return false;
+            if (!isLikelyVideoIframe(iframe)) return false;
+            if (isRedundantIframeCandidate(iframe, directVideos)) return false;
+            return true;
+        });
+    };
 
     const getFeatureConfig = () => ({ ...DEFAULT_VIDEO_FLOATING_CONFIG, ...(cfgCache?.videoFloating || {}) });
     const isFeatureEnabled = () => getFeatureConfig().enabled !== false;
@@ -160,12 +254,11 @@
             const video = wrapper.querySelector('video');
             if (video) return video;
         }
-        return [...document.querySelectorAll('video')]
-            .find((video) => isDetectableVideo(video) && !video.closest('#fvp-wrapper')) || null;
+        return getDirectVideos()[0] || null;
     };
 
     const getVideoAtPoint = (x, y) => {
-        for (const video of document.querySelectorAll('video')) {
+        for (const video of getDirectVideos()) {
             if (!isDetectableVideo(video) || video.closest('#fvp-wrapper')) continue;
             const rect = getRect(video);
             if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return video;
@@ -292,7 +385,9 @@
         clamp,
         onPointer,
         getRect,
+        queryAllDeep,
         isDetectableVideo,
+        getDirectVideos,
         isVisibleIframe,
         getIframeSrc,
         isLikelyVideoIframe,

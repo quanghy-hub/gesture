@@ -7,8 +7,7 @@
         const {
             el,
             $,
-            getRect,
-            isDetectableVideo,
+            getDirectVideos,
             getTrackedIframeEntries,
             isFeatureEnabled,
             loadLayout,
@@ -21,33 +20,43 @@
             postToFloatedIframe
         } = deps;
 
-        const getVideos = () => [...document.querySelectorAll('video')].filter((video) => {
-            if (!video?.isConnected || video.closest('#fvp-wrapper')) return false;
-            if (isDetectableVideo(video)) return true;
-            const rect = getRect(video);
-            const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
-            const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
-            return hasMediaSource || hasPlaybackState || (rect.width > 0 && rect.height > 0);
-        });
+        const getVideoKey = (video) => {
+            if (!video) return '';
+            const rect = video.getBoundingClientRect?.() || { left: 0, top: 0, width: 0, height: 0 };
+            return [
+                video.currentSrc || video.src || '',
+                Math.round(rect.left),
+                Math.round(rect.top),
+                Math.round(rect.width),
+                Math.round(rect.height)
+            ].join('|');
+        };
+
+        const getVideos = () => {
+            const liveVideos = getDirectVideos();
+            const snapshot = Array.isArray(ctx.videoSequence) ? ctx.videoSequence.filter((video) => video?.isConnected) : [];
+            const merged = [];
+            const seen = new Set();
+            for (const video of [...snapshot, ...liveVideos]) {
+                const key = getVideoKey(video);
+                if (!key || seen.has(key)) {
+                    continue;
+                }
+                seen.add(key);
+                merged.push(video);
+            }
+            if (ctx.curVid?.isConnected && !merged.includes(ctx.curVid)) {
+                merged.unshift(ctx.curVid);
+            }
+            return merged;
+        };
 
         const getOrderedVideoSequence = () => {
             const list = getVideos();
             if (!ctx.curVid) return list;
-            const withoutCurrent = list.filter((video) => video !== ctx.curVid);
-            if (!ctx.ph?.isConnected || !ctx.ph.parentNode) return [ctx.curVid, ...withoutCurrent];
-
-            const ordered = [];
-            let inserted = false;
-            for (const video of withoutCurrent) {
-                const pos = ctx.ph.compareDocumentPosition(video);
-                if (!inserted && (pos & Node.DOCUMENT_POSITION_FOLLOWING)) {
-                    ordered.push(ctx.curVid);
-                    inserted = true;
-                }
-                ordered.push(video);
-            }
-            if (!inserted) ordered.push(ctx.curVid);
-            return ordered;
+            const currentIndex = list.indexOf(ctx.curVid);
+            if (currentIndex < 0) return [ctx.curVid, ...list];
+            return [...list.slice(currentIndex), ...list.slice(0, currentIndex)];
         };
 
         const updateVideoDetectionUI = () => {
@@ -58,7 +67,7 @@
                 return;
             }
             for (const frame of [...ctx.iframeVideoMap.keys()]) if (!frame?.isConnected) ctx.iframeVideoMap.delete(frame);
-            const count = getVideos().length + getTrackedIframeEntries(ctx.iframeVideoMap).length + (ctx.curVid || ctx.floatedIframe ? 1 : 0);
+            const count = getVideos().length + getTrackedIframeEntries(ctx.iframeVideoMap).length;
             if (count > 0) {
                 ctx.iconRef.show();
                 ctx.iconRef.setBadge(count);
@@ -106,6 +115,7 @@
                 ctx.curVid = null;
             }
             if (ctx.box) ctx.box.style.display = 'none';
+            ctx.videoSequence = [];
             ctx.zoomIdx = 0;
             ctx.rotationAngle = 0;
         };
@@ -159,6 +169,7 @@
             if (ctx.curVid && ctx.curVid !== video) restore();
             if (ctx.curVid === video) return;
             deps.ensureInitialized();
+            ctx.videoSequence = getDirectVideos();
             ctx.origPar = video.parentNode;
             ctx.curVid = video;
             ctx.ph = el('div', 'fvp-ph', '<div style="font-size:20px;opacity:.5">📺</div>');

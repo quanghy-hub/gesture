@@ -3,13 +3,13 @@
     const videoFloating = ext.videoFloating = ext.videoFloating || {};
     const touch = ext?.shared?.touchCore;
     const floating = ext?.shared?.floatingCore;
-    const { FIT_MODES } = videoFloating;
     const {
         VIDEO_CHECK_INTERVAL,
         el,
         $,
         getCoord,
         onPointer,
+        queryAllDeep,
         isLikelyVideoIframe,
         loadLayout,
         saveLayout,
@@ -18,7 +18,6 @@
         ensureLayoutReady,
         bindStorageListener,
         getFullscreenEl,
-        getFeatureConfig,
         isFeatureEnabled,
         getRect
     } = videoFloating.helpers;
@@ -34,6 +33,7 @@
                 curVid: null,
                 origPar: null,
                 ph: null,
+                videoSequence: [],
                 fitIdx: 0,
                 zoomIdx: 0,
                 rotationAngle: 0
@@ -61,6 +61,7 @@
             curVid: { get() { return ctx.floating.curVid; }, set(value) { ctx.floating.curVid = value; } },
             origPar: { get() { return ctx.floating.origPar; }, set(value) { ctx.floating.origPar = value; } },
             ph: { get() { return ctx.floating.ph; }, set(value) { ctx.floating.ph = value; } },
+            videoSequence: { get() { return ctx.floating.videoSequence; }, set(value) { ctx.floating.videoSequence = value; } },
             fitIdx: { get() { return ctx.floating.fitIdx; }, set(value) { ctx.floating.fitIdx = value; } },
             zoomIdx: { get() { return ctx.floating.zoomIdx; }, set(value) { ctx.floating.zoomIdx = value; } },
             rotationAngle: { get() { return ctx.floating.rotationAngle; }, set(value) { ctx.floating.rotationAngle = value; } },
@@ -151,7 +152,7 @@
             // Build the persistent shell once, then let the session modules swap active media in and out.
             ctx.iconRef = floating.createTriggerElement({
                 className: 'fvp-idle',
-                htmlContent: `<svg viewBox="0 0 24 24" style="width:24px;fill:#fff"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"/></svg>`,
+                htmlContent: `<svg class="fvp-master-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16h-4.4l-3.3 3.1c-.65.62-1.8.16-1.8-.74V16H6.5A2.5 2.5 0 0 1 4 13.5zm6.2 1.9v3.2c0 .62.67 1 1.2.68l2.7-1.6a.8.8 0 0 0 0-1.36l-2.7-1.6a.8.8 0 0 0-1.2.68Z"/></svg>`,
                 hidden: true
             });
             ctx.iconRef.element.id = 'fvp-master-icon';
@@ -197,8 +198,7 @@
         const floatingSession = videoFloating.createFloatingSession(ctx, {
             el,
             $,
-            getRect,
-            isDetectableVideo: videoFloating.helpers.isDetectableVideo,
+            getDirectVideos: videoFloating.helpers.getDirectVideos,
             getTrackedIframeEntries: videoFloating.helpers.getTrackedIframeEntries,
             isFeatureEnabled,
             loadLayout,
@@ -374,7 +374,7 @@
 
         const onWindowMessage = (event) => {
             if (event.data?.type === 'fvp-iframe-videos') {
-                const iframes = document.querySelectorAll('iframe');
+                const iframes = queryAllDeep('iframe');
                 const matched = Array.from(iframes).find((iframe) => iframe.contentWindow === event.source);
                 if (matched) {
                     if (event.data.count > 0 && isLikelyVideoIframe(matched)) ctx.iframeVideoMap.set(matched, event.data.count);

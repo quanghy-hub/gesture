@@ -8,7 +8,7 @@
     videoFloating.ZOOM_LEVELS = Object.freeze([1, 1.5, 2, 3]);
     videoFloating.ZOOM_ICONS = Object.freeze(['+', '++', '+++', '-']);
     videoFloating.VIDEO_CHECK_INTERVAL = 2000;
-    videoFloating.VIDEO_IFRAME_PATTERN = /youtube\.com|youtu\.be|youtube-nocookie\.com|player\.vimeo\.com|vimeo\.com|dailymotion\.com|twitch\.tv|tiktok\.com|facebook\.com|jwplayer|brightcove|wistia|embed|player|video/i;
+    videoFloating.VIDEO_IFRAME_PATTERN = /youtube\.com|youtu\.be|youtube-nocookie\.com|player\.vimeo\.com|vimeo\.com|dailymotion\.com|twitch\.tv|tiktok\.com|facebook\.com|jwplayer|brightcove|wistia|v\.redd\.it|redditmedia\.com|reddit\.com\/media|embed|player|video/i;
     videoFloating.DEFAULT_VIDEO_FLOATING_CONFIG = Object.freeze({
         enabled: true,
         swipeLong: 0.3,

@@ -4,19 +4,15 @@
     const {
         FVP_IFRAME_BRIDGE,
         FIT_MODES,
-        FIT_ICONS,
         ZOOM_LEVELS,
-        ZOOM_ICONS
     } = videoFloating;
     const {
         $,
         clamp,
         getRect,
-        getTrackedIframeEntries,
+        queryAllDeep,
         isDetectableVideo,
-        isLikelyVideoIframe,
         getVideo,
-        bindStorageListener
     } = videoFloating.helpers;
 
     videoFloating.createIframeController = () => {
@@ -26,8 +22,8 @@
         let styledIframeVideo = null;
         let reportTimer = 0;
 
-        const getOwnVideoCount = () => document.querySelectorAll('video').length;
-        const getIframeVideos = () => [...document.querySelectorAll('video')].filter((video) => {
+        const getOwnVideoCount = () => queryAllDeep('video').length;
+        const getIframeVideos = () => [...queryAllDeep('video')].filter((video) => {
             if (!video?.isConnected) return false;
             if (isDetectableVideo(video)) return true;
             const rect = getRect(video);
@@ -132,7 +128,7 @@
                 return;
             }
             if (event.data?.type === 'fvp-iframe-videos') {
-                const frame = Array.from(document.querySelectorAll('iframe')).find((iframe) => iframe.contentWindow === event.source);
+                const frame = Array.from(queryAllDeep('iframe')).find((iframe) => iframe.contentWindow === event.source);
                 if (frame) {
                     if (event.data.count > 0) childFrameVideoMap.set(frame, event.data.count);
                     else childFrameVideoMap.delete(frame);

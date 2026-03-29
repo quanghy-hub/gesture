@@ -4,21 +4,100 @@ const detectTargetLanguage = (text) => /[àáảãạăằắẳẵặâầấ�
 
 const parseGoogleTranslateResponse = (data) => data?.[0]?.map((item) => item?.[0] ?? '').join('').trim() ?? '';
 
-const translateWithGoogle = async (text, targetLanguage) => {
+const GOOGLE_TRANSLATE_CHUNK_LIMIT = 1400;
+
+const normalizeTranslateText = (text) => String(text || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u0000/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+const splitTranslateText = (text, limit = GOOGLE_TRANSLATE_CHUNK_LIMIT) => {
+    const normalized = normalizeTranslateText(text);
+    if (!normalized) {
+        return [];
+    }
+
+    if (normalized.length <= limit) {
+        return [normalized];
+    }
+
+    const segments = normalized.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const chunks = [];
+    let current = '';
+
+    const pushCurrent = () => {
+        const value = current.trim();
+        if (value) {
+            chunks.push(value);
+        }
+        current = '';
+    };
+
+    const splitLongSegment = (segment) => {
+        const parts = segment.match(new RegExp(`.{1,${limit}}`, 'gu')) || [];
+        for (const part of parts) {
+            chunks.push(part.trim());
+        }
+    };
+
+    for (const segment of segments) {
+        if (segment.length > limit) {
+            pushCurrent();
+            splitLongSegment(segment);
+            continue;
+        }
+
+        const candidate = current ? `${current}\n\n${segment}` : segment;
+        if (candidate.length > limit) {
+            pushCurrent();
+            current = segment;
+        } else {
+            current = candidate;
+        }
+    }
+
+    pushCurrent();
+    return chunks.length ? chunks : [normalized];
+};
+
+const translateWithGoogleChunk = async (text, targetLanguage) => {
     const url = new URL('https://translate.googleapis.com/translate_a/single');
     url.searchParams.set('client', 'gtx');
     url.searchParams.set('sl', 'auto');
     url.searchParams.set('tl', targetLanguage);
     url.searchParams.set('dt', 't');
-    url.searchParams.set('q', text);
 
-    const response = await fetch(url.toString());
+    const body = new URLSearchParams();
+    body.set('q', text);
+
+    const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: body.toString()
+    });
     if (!response.ok) {
         throw new Error(`Google Translate HTTP ${response.status}`);
     }
 
     const data = await response.json();
     return parseGoogleTranslateResponse(data);
+};
+
+const translateWithGoogle = async (text, targetLanguage) => {
+    const chunks = splitTranslateText(text);
+    if (!chunks.length) {
+        return '';
+    }
+
+    const translated = [];
+    for (const chunk of chunks) {
+        translated.push(await translateWithGoogleChunk(chunk, targetLanguage));
+    }
+    return translated.join('\n\n').trim();
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
