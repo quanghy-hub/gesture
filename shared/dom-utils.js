@@ -1,5 +1,9 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const permissionsPolicy = document.permissionsPolicy || document.featurePolicy;
+    const allowsFeature = (feature) => typeof permissionsPolicy?.allowsFeature === 'function'
+        ? permissionsPolicy.allowsFeature(feature)
+        : true;
 
     ext.shared.domUtils = {
         escapeHtml: (text) => text
@@ -16,20 +20,23 @@
         sanitizeFilename: (input) => input.replace(/[<>:"/\\|?*]+/g, '_').replace(/\s+/g, ' ').trim(),
         copyText: async (value) => {
             try {
-                await navigator.clipboard.writeText(value);
-                return true;
+                if (allowsFeature('clipboard-write') && navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                }
             } catch {
-                const textarea = document.createElement('textarea');
-                textarea.value = value;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.focus();
-                textarea.select();
-                document.execCommand('copy');
-                textarea.remove();
-                return true;
+                // Fall through to execCommand fallback below.
             }
+            const textarea = document.createElement('textarea');
+            textarea.value = value;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
+            return true;
         },
         isVisible: (element) => {
             if (!(element instanceof HTMLElement)) return false;

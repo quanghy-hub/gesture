@@ -3,6 +3,7 @@
     const viewport = ext.shared.viewportCore;
     const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
     const positionMemoryStore = {};
+    const isNodeLike = (value) => value instanceof Node;
     ext.shared.floatingCore = {
         clamp: (value, min, max) => viewport?.clamp?.(value, min, max) ?? Math.min(max, Math.max(min, value)),
         clampFixedPosition: (rect) => viewport?.clampFixedPosition?.(rect) ?? ({
@@ -143,7 +144,7 @@
             const handler = (event) => {
                 if (!isOpen?.()) return;
                 const path = event.composedPath?.() || [event.target];
-                if (path.some((t) => containsTarget?.(t))) return;
+                if (path.some((t) => isNodeLike(t) && containsTarget?.(t))) return;
                 onOutside?.(event);
             };
             document.addEventListener(eventName, handler, capture);

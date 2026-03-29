@@ -36,6 +36,7 @@ body {
 .header-actions {
     display: flex;
     gap: 8px;
+    margin-left: auto;
 }
 
 .header h1 {
@@ -82,6 +83,10 @@ body {
 }
 
 .card.is-disabled .table {
+    pointer-events: none;
+}
+
+.card.is-disabled .provider-picker {
     pointer-events: none;
 }
 
@@ -240,11 +245,6 @@ button.inline-button {
     min-height: 30px;
 }
 
-button.primary {
-    background: #2563eb;
-    color: #fff;
-}
-
 button.secondary {
     background: #374151;
     color: #fff;
@@ -258,4 +258,46 @@ button.secondary {
     margin: 0;
     color: #9ca3af;
     font-size: 12px;
+}
+
+.provider-picker {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.provider-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 64px;
+    padding: 10px 6px 8px;
+    border-radius: 10px;
+    background: #111827;
+    color: #e5e7eb;
+    text-align: center;
+    font-size: 10px;
+}
+
+.provider-tile img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.provider-tile input[type="checkbox"] {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 14px;
+    height: 14px;
+}
+
+.provider-tile-label {
+    line-height: 1.2;
+    word-break: break-word;
 }

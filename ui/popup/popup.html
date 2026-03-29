@@ -17,7 +17,6 @@
       </div>
       <div class="header-actions">
         <button id="close-popup" class="secondary" type="button">Đóng</button>
-        <button id="save-settings" class="primary" type="button">Lưu</button>
       </div>
     </header>
 
@@ -129,12 +128,6 @@
       <h2 class="card-title card-title-with-toggle"><span>Floating Video</span><input id="feature-video-floating-enabled" type="checkbox" aria-label="Bật Floating Video"></h2>
       <div class="table">
         <div class="item">
-          <span class="label-main">Feature</span>
-          <span class="label-sub">State</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="video-floating-enabled" type="checkbox"></span>
-        </div>
-        <div class="item">
           <span class="label-main">Swipe</span>
           <span class="label-sub">Min</span>
           <span class="param"><span class="param-name">Px</span><input id="video-floating-min-distance" class="num xs" type="number"
@@ -199,6 +192,38 @@
       </div>
     </section>
 
+    <!-- Quick Search -->
+    <section class="card">
+      <h2 class="card-title card-title-with-toggle"><span>Quick Search</span><input id="feature-quick-search-enabled" type="checkbox" aria-label="Bật Quick Search"></h2>
+      <div class="table">
+        <div class="item">
+          <span class="label-main">Bubble</span>
+          <span class="label-sub">Columns</span>
+          <span class="param"><span class="param-name">Cols</span><input id="quick-search-columns" class="num xs" type="number"
+              min="3" max="8" step="1"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item">
+          <span class="label-main">Image</span>
+          <span class="label-sub">Search</span>
+          <span class="param"><span class="param-name">Show</span><span class="param-value">On/Off</span></span>
+          <span class="toggle"><input id="quick-search-image-search-enabled" type="checkbox"></span>
+        </div>
+      </div>
+      <div class="provider-picker" id="quick-search-provider-picker">
+        <label class="provider-tile"><input id="quick-search-provider-google" type="checkbox"><img src="https://www.google.com/favicon.ico" alt=""><span class="provider-tile-label">Google</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-perplexity" type="checkbox"><img src="https://www.google.com/s2/favicons?domain=perplexity.ai&sz=32" alt=""><span class="provider-tile-label">Perplexity</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-chatgpt" type="checkbox"><img src="https://www.google.com/s2/favicons?domain=chatgpt.com&sz=32" alt=""><span class="provider-tile-label">ChatGPT</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-gemini" type="checkbox"><img src="https://www.google.com/s2/favicons?domain=gemini.google.com&sz=32" alt=""><span class="provider-tile-label">Gemini</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-claude" type="checkbox"><img src="https://www.google.com/s2/favicons?domain=claude.ai&sz=32" alt=""><span class="provider-tile-label">Claude</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-copilot" type="checkbox"><img src="https://www.google.com/s2/favicons?domain=copilot.microsoft.com&sz=32" alt=""><span class="provider-tile-label">Copilot</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-bing" type="checkbox"><img src="https://www.bing.com/favicon.ico" alt=""><span class="provider-tile-label">Bing</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-duckduckgo" type="checkbox"><img src="https://duckduckgo.com/favicon.ico" alt=""><span class="provider-tile-label">DuckDuckGo</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-youtube" type="checkbox"><img src="https://www.youtube.com/favicon.ico" alt=""><span class="provider-tile-label">YouTube</span></label>
+        <label class="provider-tile"><input id="quick-search-provider-google-images" type="checkbox"><img src="https://www.google.com/favicon.ico" alt=""><span class="provider-tile-label">Google Images</span></label>
+      </div>
+    </section>
+
     <!-- Inline Translate -->
     <section class="card">
       <h2 class="card-title card-title-with-toggle"><span>Inline Translate</span><input id="feature-inline-translate-enabled" type="checkbox" aria-label="Bật Inline Translate"></h2>
@@ -211,7 +236,7 @@
               <option value="f4">F4</option>
               <option value="f8">F8</option>
             </select></span>
-          <span class="toggle toggle-empty"></span>
+          <span class="toggle"><input id="inline-translate-hotkey-enabled" type="checkbox"></span>
         </div>
         <div class="item">
           <span class="label-main">Swipe</span>
@@ -319,8 +344,8 @@
       <h2 class="card-title card-title-with-toggle"><span>Forum</span><input id="feature-forum-enabled" type="checkbox" aria-label="Bật Forum"></h2>
       <div class="table">
         <div class="item">
-          <span class="label-main">Layout</span>
-          <span class="label-sub">Wide</span>
+          <span class="label-main">Wide</span>
+          <span class="label-sub">Mode</span>
           <span class="param"><span class="param-name">Wide</span><span class="param-value">On/Off</span></span>
           <span class="toggle"><input id="forum-wide" type="checkbox"></span>
         </div>

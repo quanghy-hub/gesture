@@ -5,15 +5,16 @@
 
     const hostLabel = document.getElementById('current-host');
     const statusLabel = document.getElementById('status');
-    const saveButton = document.getElementById('save-settings');
     const closeButton = document.getElementById('close-popup');
     const featureGesturesEnabled = document.getElementById('feature-gestures-enabled');
     const featureClipboardEnabled = document.getElementById('feature-clipboard-enabled');
     const featureVideoFloatingEnabled = document.getElementById('feature-video-floating-enabled');
+    const featureQuickSearchEnabled = document.getElementById('feature-quick-search-enabled');
     const featureInlineTranslateEnabled = document.getElementById('feature-inline-translate-enabled');
     const featureYoutubeSubtitlesEnabled = document.getElementById('feature-youtube-subtitles-enabled');
     const featureTrustedTypesEnabled = document.getElementById('feature-trusted-types-enabled');
     const featureForumEnabled = document.getElementById('feature-forum-enabled');
+    const inlineTranslateHotkeyEnabled = document.getElementById('inline-translate-hotkey-enabled');
     const inlineTranslateHotkey = document.getElementById('inline-translate-hotkey');
     const inlineTranslateSwipeEnabled = document.getElementById('inline-translate-swipe-enabled');
     const inlineTranslateSwipeDir = document.getElementById('inline-translate-swipe-dir');
@@ -27,10 +28,11 @@
     const youtubeSubtitlesOriginalColor = document.getElementById('youtube-subtitles-original-color');
     const youtubeSubtitlesTranslatedColor = document.getElementById('youtube-subtitles-translated-color');
     const trustedTypesAllowDomains = document.getElementById('trusted-types-allow-domains');
+    const quickSearchColumns = document.getElementById('quick-search-columns');
+    const quickSearchImageSearchEnabled = document.getElementById('quick-search-image-search-enabled');
     const inlineTranslateSwipePx = document.getElementById('inline-translate-swipe-px');
     const clipboardMaxHistory = document.getElementById('clipboard-max-history');
     const clipboardClear = document.getElementById('clipboard-clear');
-    const videoFloatingEnabled = document.getElementById('video-floating-enabled');
     const videoFloatingMinDistance = document.getElementById('video-floating-min-distance');
     const videoFloatingSwipeShort = document.getElementById('video-floating-swipe-short');
     const videoFloatingSwipeLong = document.getElementById('video-floating-swipe-long');
@@ -65,13 +67,22 @@
     const gesturesCard = featureGesturesEnabled.closest('.card');
     const clipboardCard = featureClipboardEnabled.closest('.card');
     const videoFloatingCard = featureVideoFloatingEnabled.closest('.card');
+    const quickSearchCard = featureQuickSearchEnabled.closest('.card');
     const inlineTranslateCard = featureInlineTranslateEnabled.closest('.card');
     const youtubeSubtitlesCard = featureYoutubeSubtitlesEnabled.closest('.card');
     const trustedTypesCard = featureTrustedTypesEnabled.closest('.card');
     const forumCard = featureForumEnabled.closest('.card');
+    const quickSearchProviderIds = ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'];
+    const quickSearchProviderInputs = Object.fromEntries(
+        quickSearchProviderIds.map((providerId) => [providerId, document.getElementById(`quick-search-provider-${providerId}`)])
+    );
 
     let activeHost = null;
     let config = null;
+    let isSaving = false;
+    let isReady = false;
+    let saveTimer = 0;
+    let pendingSave = null;
 
     const setStatus = (message, isError = false) => {
         statusLabel.textContent = message;
@@ -109,6 +120,7 @@
         setCardState(gesturesCard, featureGesturesEnabled.checked);
         setCardState(clipboardCard, featureClipboardEnabled.checked);
         setCardState(videoFloatingCard, featureVideoFloatingEnabled.checked);
+        setCardState(quickSearchCard, featureQuickSearchEnabled.checked);
         setCardState(inlineTranslateCard, featureInlineTranslateEnabled.checked);
         setCardState(youtubeSubtitlesCard, featureYoutubeSubtitlesEnabled.checked);
         setCardState(trustedTypesCard, featureTrustedTypesEnabled.checked);
@@ -123,7 +135,9 @@
         featureGesturesEnabled.checked = !!gestures.enabled;
         featureClipboardEnabled.checked = config.clipboard?.enabled !== false;
         featureVideoFloatingEnabled.checked = config.videoFloating?.enabled !== false;
+        featureQuickSearchEnabled.checked = config.quickSearch?.enabled !== false;
         featureInlineTranslateEnabled.checked = config.inlineTranslate?.enabled !== false;
+        inlineTranslateHotkeyEnabled.checked = config.inlineTranslate?.hotkeyEnabled !== false;
         featureYoutubeSubtitlesEnabled.checked = !!config.youtubeSubtitles?.enabled;
         featureTrustedTypesEnabled.checked = !!config.trustedTypes?.enabled;
         featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
@@ -141,8 +155,15 @@
         youtubeSubtitlesDisplayMode.value = config.youtubeSubtitles?.displayMode || 'compact';
         youtubeSubtitlesShowOriginal.checked = config.youtubeSubtitles?.showOriginal !== false;
         trustedTypesAllowDomains.value = Array.isArray(config.trustedTypes?.allowDomains) ? config.trustedTypes.allowDomains.join(', ') : '';
+        quickSearchColumns.value = config.quickSearch?.columns || 5;
+        quickSearchImageSearchEnabled.checked = config.quickSearch?.imageSearchEnabled !== false;
+        const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds) ? config.quickSearch.enabledProviderIds : quickSearchProviderIds;
+        quickSearchProviderIds.forEach((providerId) => {
+            if (quickSearchProviderInputs[providerId]) {
+                quickSearchProviderInputs[providerId].checked = enabledProviderIds.includes(providerId);
+            }
+        });
         clipboardMaxHistory.value = config.clipboard.maxHistory || 5;
-        videoFloatingEnabled.checked = config.videoFloating?.enabled !== false;
         videoFloatingMinDistance.value = config.videoFloating?.minSwipeDistance || 30;
         videoFloatingSwipeShort.value = config.videoFloating?.swipeShort || 0.15;
         videoFloatingSwipeLong.value = config.videoFloating?.swipeLong || 0.3;
@@ -220,7 +241,7 @@
 
         next.clipboard.enabled = featureClipboardEnabled.checked;
         next.clipboard.maxHistory = Number(clipboardMaxHistory.value);
-        next.videoFloating.enabled = featureVideoFloatingEnabled.checked && videoFloatingEnabled.checked;
+        next.videoFloating.enabled = featureVideoFloatingEnabled.checked;
         next.videoFloating.minSwipeDistance = Number(videoFloatingMinDistance.value);
         next.videoFloating.swipeShort = Number(videoFloatingSwipeShort.value);
         next.videoFloating.swipeLong = Number(videoFloatingSwipeLong.value);
@@ -231,8 +252,12 @@
         next.videoFloating.throttle = Number(videoFloatingThrottle.value);
         next.videoFloating.noticeFontSize = Number(videoFloatingNoticeFontSize.value);
         next.googleSearch.enabled = true;
-        next.quickSearch.enabled = true;
+        next.quickSearch.enabled = featureQuickSearchEnabled.checked;
+        next.quickSearch.columns = Number(quickSearchColumns.value);
+        next.quickSearch.imageSearchEnabled = quickSearchImageSearchEnabled.checked;
+        next.quickSearch.enabledProviderIds = quickSearchProviderIds.filter((providerId) => quickSearchProviderInputs[providerId]?.checked);
         next.inlineTranslate.enabled = featureInlineTranslateEnabled.checked;
+        next.inlineTranslate.hotkeyEnabled = inlineTranslateHotkeyEnabled.checked;
         next.inlineTranslate.hotkey = inlineTranslateHotkey.value;
         next.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
         next.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
@@ -270,21 +295,59 @@
         setStatus('Đã lưu cấu hình.');
     };
 
+    const runSave = async () => {
+        if (pendingSave) {
+            return pendingSave;
+        }
+        isSaving = true;
+        setStatus('Đang lưu...');
+        pendingSave = save().catch((error) => {
+            console.error('[GestureExtension][popup] save failed', error);
+            setStatus(error?.message || 'Không lưu được cấu hình.', true);
+            throw error;
+        }).finally(() => {
+            isSaving = false;
+            pendingSave = null;
+        });
+        return pendingSave;
+    };
+
+    const scheduleAutoSave = () => {
+        if (!isReady || !config) {
+            return;
+        }
+        if (saveTimer) {
+            window.clearTimeout(saveTimer);
+        }
+        setStatus(isSaving ? 'Đang lưu...' : 'Đã thay đổi, đang chờ lưu...');
+        saveTimer = window.setTimeout(() => {
+            saveTimer = 0;
+            runSave().catch(() => { });
+        }, 250);
+    };
+
+    const registerAutoSave = (control, eventName = 'change', options = {}) => {
+        if (!control) return;
+        control.addEventListener(eventName, () => {
+            if (options.syncCards) {
+                syncFeatureCards();
+            }
+            if (options.renderAfter) {
+                render();
+            }
+            scheduleAutoSave();
+        });
+    };
+
     Promise.all([storage.getConfig(), getActiveTab()]).then(([loadedConfig, activeTab]) => {
         config = loadedConfig;
         activeHost = getHostFromUrl(activeTab?.url || '');
         render();
+        isReady = true;
         setStatus('Sẵn sàng.');
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
         setStatus(error?.message || 'Lỗi context/runtime.', true);
-    });
-
-    saveButton.addEventListener('click', () => {
-        save().catch((error) => {
-            console.error('[GestureExtension][popup] save failed', error);
-            setStatus(error?.message || 'Không lưu được cấu hình.', true);
-        });
     });
 
     clipboardClear.addEventListener('click', () => {
@@ -306,11 +369,74 @@
         featureGesturesEnabled,
         featureClipboardEnabled,
         featureVideoFloatingEnabled,
+        featureQuickSearchEnabled,
         featureInlineTranslateEnabled,
         featureYoutubeSubtitlesEnabled,
         featureTrustedTypesEnabled,
         featureForumEnabled
     ].forEach((control) => {
-        control.addEventListener('change', syncFeatureCards);
+        registerAutoSave(control, 'change', { syncCards: true });
+    });
+
+    [
+        inlineTranslateHotkeyEnabled,
+        inlineTranslateHotkey,
+        inlineTranslateSwipeEnabled,
+        inlineTranslateSwipeDir,
+        youtubeSubtitlesDisplayMode,
+        youtubeSubtitlesShowOriginal,
+        quickSearchImageSearchEnabled,
+        videoFloatingRealtimePreview,
+        forumWide,
+        gLpEnabled,
+        gLpMode,
+        gRcEnabled,
+        gRcMode,
+        gDblRightEnabled,
+        gDblTapEnabled,
+        gEdgeEnabled,
+        gEdgeSide,
+        gPagerEnabled
+    ].forEach((control) => {
+        registerAutoSave(control, 'change');
+    });
+
+    [
+        inlineTranslateSwipePx,
+        inlineTranslateFontScale,
+        inlineTranslateMutedColor,
+        youtubeSubtitlesTargetLang,
+        youtubeSubtitlesFontSize,
+        youtubeSubtitlesTranslatedFontSize,
+        youtubeSubtitlesOriginalColor,
+        youtubeSubtitlesTranslatedColor,
+        trustedTypesAllowDomains,
+        quickSearchColumns,
+        clipboardMaxHistory,
+        videoFloatingMinDistance,
+        videoFloatingSwipeShort,
+        videoFloatingSwipeLong,
+        videoFloatingShortThreshold,
+        videoFloatingVerticalTolerance,
+        videoFloatingDiagonalThreshold,
+        videoFloatingThrottle,
+        videoFloatingNoticeFontSize,
+        forumMinWidth,
+        forumGap,
+        forumFade,
+        forumDelay,
+        gLpMs,
+        gDblRight,
+        gDblTapMs,
+        gEdgeWidth,
+        gEdgeSpeed,
+        gPagerHops
+    ].forEach((control) => {
+        registerAutoSave(control, 'input');
+        registerAutoSave(control, 'change');
+    });
+
+    Object.values(quickSearchProviderInputs).forEach((control) => {
+        registerAutoSave(control, 'change');
     });
 })();

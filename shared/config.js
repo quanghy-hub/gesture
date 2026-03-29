@@ -27,11 +27,17 @@
             iconPos: null
         },
         quickSearch: {
-            enabled: true
+            enabled: true,
+            enabledProviderIds: ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'],
+            columns: 5,
+            imageSearchEnabled: true,
+            selectionDelay: 300,
+            imageLongPressMs: 320
         },
         inlineTranslate: {
             enabled: true,
             provider: 'google',
+            hotkeyEnabled: true,
             hotkey: 'f2',
             swipeEnabled: true,
             swipeDir: 'both',
@@ -150,6 +156,13 @@
 
         config.quickSearch = config.quickSearch && typeof config.quickSearch === 'object' ? config.quickSearch : {};
         config.quickSearch.enabled = config.quickSearch.enabled !== false;
+        config.quickSearch.enabledProviderIds = Array.isArray(config.quickSearch.enabledProviderIds)
+            ? config.quickSearch.enabledProviderIds.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
+            : ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'];
+        config.quickSearch.selectionDelay = clampNumber(config.quickSearch.selectionDelay, 300, 100, 1000);
+        config.quickSearch.columns = clampNumber(config.quickSearch.columns, 5, 3, 8);
+        config.quickSearch.imageSearchEnabled = config.quickSearch.imageSearchEnabled !== false;
+        config.quickSearch.imageLongPressMs = clampNumber(config.quickSearch.imageLongPressMs, 320, 150, 1000);
 
         // videoFloating
         config.videoFloating = config.videoFloating && typeof config.videoFloating === 'object' ? config.videoFloating : {};
@@ -174,6 +187,7 @@
         config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
         config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;
         config.inlineTranslate.provider = config.inlineTranslate.provider === 'google' ? 'google' : 'google';
+        config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
         config.inlineTranslate.hotkey = ['f2', 'f4', 'f8'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
             ? String(config.inlineTranslate.hotkey).toLowerCase()
             : 'f2';
