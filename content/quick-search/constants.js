@@ -10,6 +10,9 @@
         imageBubbleOffsetY: 8,
         hoverDelay: 120,
         hideDelay: 220,
+        minImageSidePx: 72,
+        minImageAreaPx: 9000,
+        minNaturalImageSidePx: 96,
         suppressSelectionMs: 900,
         selectionCleanupDelayMs: 32,
         selectionCleanupRetryMs: 180

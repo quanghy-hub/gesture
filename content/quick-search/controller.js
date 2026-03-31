@@ -329,6 +329,10 @@
                 hideImageBubble();
                 return;
             }
+            if (!imageSessionApi.isSearchableImage(image)) {
+                hideImageBubble();
+                return;
+            }
             const url = imageSessionApi.resolveImageUrl(image);
             const anchor = imageSessionApi.getImageAnchor(image, event);
             if (!url || !anchor) {
@@ -403,7 +407,7 @@
             const point = touch.getPrimaryPoint(event);
             const image = imageSessionApi.getImageElement(event.target);
             state.touchCandidate = { x: point.x, y: point.y, image };
-            if (featureConfig.imageSearchEnabled === false || !(image instanceof HTMLImageElement)) {
+            if (featureConfig.imageSearchEnabled === false || !(image instanceof HTMLImageElement) || !imageSessionApi.isSearchableImage(image)) {
                 return;
             }
             timers.longPress = window.setTimeout(() => {

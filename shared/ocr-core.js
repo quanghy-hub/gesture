@@ -1,5 +1,22 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const sendRuntimeMessage = (type, payload = {}) => new Promise((resolve, reject) => {
+        try {
+            chrome.runtime.sendMessage({ type, payload }, (response) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                if (response?.ok === false) {
+                    reject(new Error(response.error || 'Unknown runtime messaging error'));
+                    return;
+                }
+                resolve(response);
+            });
+        } catch (error) {
+            reject(error);
+        }
+    });
 
     ext.shared.ocrCore = {
         /**
@@ -13,10 +30,7 @@
             toast.createToast('Đang nhận diện chữ...', x, y, 3000);
 
             try {
-                const response = await chrome.runtime.sendMessage({
-                    type: 'gesture-ext/perform-ocr',
-                    payload: { imageUrl }
-                });
+                const response = await sendRuntimeMessage('gesture-ext/perform-ocr', { imageUrl });
 
                 if (response && response.ok) {
                     const text = response.text.trim();
@@ -28,14 +42,11 @@
                         }
                         toast.createToast('Đã chép văn bản vào clipboard', x, y, 2000);
                     } else {
-                        toast.createToast('Không tìm thấy chữ trong ảnh', x, y, 2000);
+                        toast.createToast('Không nhận diện được chữ', x, y, 1800);
                     }
-                } else {
-                    throw new Error(response?.error || 'Lỗi OCR');
                 }
-            } catch (error) {
-                console.error('OCR Error:', error);
-                toast.createToast('Lỗi: ' + error.message, x, y, 2000);
+            } catch {
+                toast.createToast('OCR không khả dụng cho ảnh này', x, y, 1800);
             }
         }
     };
