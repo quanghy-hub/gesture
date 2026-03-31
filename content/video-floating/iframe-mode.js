@@ -13,6 +13,7 @@
         queryAllDeep,
         isDetectableVideo,
         getVideo,
+        TOUCH_SWITCH_VIDEO_EVENT,
     } = videoFloating.helpers;
 
     videoFloating.createIframeController = () => {
@@ -156,6 +157,13 @@
         };
 
         window.addEventListener('message', onMessage);
+        const onTouchSwitchVideo = (event) => {
+            const dir = Number(event.detail?.dir) || 0;
+            if (!dir) return;
+            switchIframeVideo(dir > 0 ? 1 : -1);
+            postIframeState();
+        };
+        window.addEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
         reportTimer = window.setInterval(reportVideos, videoFloating.VIDEO_CHECK_INTERVAL);
         reportVideos();
 
@@ -163,6 +171,7 @@
             onConfigChange() { },
             destroy() {
                 window.removeEventListener('message', onMessage);
+                window.removeEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
                 window.clearInterval(reportTimer);
             }
         };

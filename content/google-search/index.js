@@ -60,8 +60,19 @@
     };
 
     ext.features.googleSearch = {
-        shouldRun: () => isGoogleSearchPage(),
-        init: () => {
+        shouldRun: ({ getConfig }) => {
+            const config = getConfig();
+            return isGoogleSearchPage() && config?.googleSearch?.enabled !== false;
+        },
+        init: ({ getConfig }) => {
+            const configState = getConfig();
+            if (configState?.googleSearch?.enabled === false) {
+                return {
+                    onConfigChange() { },
+                    destroy() { }
+                };
+            }
+
             let config = { left: 0, top: 0, open: false };
             
             const triggerRef = floating.createTriggerElement({

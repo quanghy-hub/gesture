@@ -19,10 +19,12 @@
         bindStorageListener,
         getFullscreenEl,
         isFeatureEnabled,
-        getRect
+        getRect,
+        TOUCH_SWITCH_VIDEO_EVENT
     } = videoFloating.helpers;
 
     videoFloating.createTopFrameController = () => {
+        const menuVideoIcon = '<svg class="fvp-menu-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16h-4.4l-3.3 3.1c-.65.62-1.8.16-1.8-.74V16H6.5A2.5 2.5 0 0 1 4 13.5zm6.2 1.9v3.2c0 .62.67 1 1.2.68l2.7-1.6a.8.8 0 0 0 0-1.36l-2.7-1.6a.8.8 0 0 0-1.2.68Z"/></svg>';
         const ctx = {
             ui: {
                 box: null,
@@ -152,7 +154,7 @@
             // Build the persistent shell once, then let the session modules swap active media in and out.
             ctx.iconRef = floating.createTriggerElement({
                 className: 'fvp-idle',
-                htmlContent: `<svg class="fvp-master-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16h-4.4l-3.3 3.1c-.65.62-1.8.16-1.8-.74V16H6.5A2.5 2.5 0 0 1 4 13.5zm6.2 1.9v3.2c0 .62.67 1 1.2.68l2.7-1.6a.8.8 0 0 0 0-1.36l-2.7-1.6a.8.8 0 0 0-1.2.68Z"/></svg>`,
+                htmlContent: menuVideoIcon.replace('fvp-menu-icon-svg', 'fvp-master-icon-svg'),
                 hidden: true
             });
             ctx.iconRef.element.id = 'fvp-master-icon';
@@ -166,6 +168,7 @@
                 <div id="fvp-wrapper"></div>
                 <div id="fvp-left-drag"></div>
                 <div id="fvp-left-panel">
+                    <div id="fvp-video-order" class="fvp-side-badge" hidden>1/1</div>
                     <button id="fvp-vol-btn" class="fvp-btn">🔊</button>
                     <button id="fvp-res" class="fvp-btn" style="font-size:11px;font-weight:700">HD</button>
                     <div id="fvp-res-popup"></div>
@@ -207,7 +210,6 @@
             applyBoxLayout,
             updateVolUI: () => uiControls.updateVolUI(),
             updatePlayPauseUI: () => uiControls.updatePlayPauseUI(),
-            getFullscreenEl,
             postToFloatedIframe,
             ensureInitialized
         });
@@ -243,7 +245,7 @@
             const isHidden = ctx.menuRef.element.hidden || getComputedStyle(ctx.menuRef.element).display === 'none';
             if (isHidden) {
                 const rect = ctx.iconRef.element.getBoundingClientRect();
-                ctx.menuRef.setPosition(videoFloating.helpers.clamp(rect.left, 10, innerWidth - 290), innerHeight - rect.bottom < 300 ? 'auto' : rect.bottom + 10);
+                ctx.menuRef.setPosition(videoFloating.helpers.clamp(rect.left, 10, innerWidth - 206), innerHeight - rect.bottom < 300 ? 'auto' : rect.bottom + 10);
                 if (innerHeight - rect.bottom < 300) ctx.menuRef.element.style.bottom = `${innerHeight - rect.top + 10}px`;
                 else ctx.menuRef.element.style.bottom = 'auto';
                 renderMenu();
@@ -258,19 +260,19 @@
             const iframeList = videoFloating.helpers.getTrackedIframeEntries(ctx.iframeVideoMap);
             const total = list.length + iframeList.length;
             const menu = ctx.menuRef.element;
-            menu.innerHTML = `<div style="padding:10px 16px;font-size:12px;color:#888;font-weight:600">VIDEOS (${total})</div>`;
+            menu.innerHTML = '';
             if (!total) {
-                menu.innerHTML += '<div class="fvp-menu-item" style="opacity:0.5">No videos found</div>';
+                menu.innerHTML = '<div class="fvp-menu-item" style="opacity:0.5">No videos found</div>';
                 return;
             }
             list.forEach((video, index) => {
-                const item = el('div', 'fvp-menu-item', `<span>🎬</span><span style="flex:1">Video ${index + 1}</span>`);
+                const item = el('div', 'fvp-menu-item', `<span class="fvp-menu-icon">${menuVideoIcon}</span><span>Video ${index + 1}</span>`);
                 item.onclick = () => floatingSession.float(video);
                 menu.appendChild(item);
             });
             iframeList.forEach(([iframe]) => {
                 const domain = (() => { try { return new URL(iframe.src).hostname; } catch { return 'iframe'; } })();
-                const item = el('div', 'fvp-menu-item', `<span>🖼️</span><span style="flex:1">iFrame: ${domain}</span>`);
+                const item = el('div', 'fvp-menu-item', `<span class="fvp-menu-icon">${menuVideoIcon}</span><span>iFrame: ${domain}</span>`);
                 item.onclick = () => floatingSession.floatIframe(iframe);
                 menu.appendChild(item);
             });
@@ -282,6 +284,21 @@
             if (!isFeatureEnabled()) floatingSession.restore();
             floatingSession.updateVideoDetectionUI();
         }));
+
+        const onTouchSwitchVideo = (event) => {
+            if (!isFeatureEnabled()) return;
+            const dir = Number(event.detail?.dir) || 0;
+            if (!dir) return;
+            if (ctx.floatedIframe) {
+                postToFloatedIframe({ command: dir > 0 ? 'next-video' : 'prev-video' });
+                return;
+            }
+            if (ctx.curVid && ctx.box?.style.display !== 'none') {
+                floatingSession.switchVid(dir > 0 ? 1 : -1);
+            }
+        };
+        window.addEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
+        ctx.cleanup.push(() => window.removeEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo));
 
         const removeIconDrag = floating.bindDragBehavior({
             target: ctx.iconRef.element,

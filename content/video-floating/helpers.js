@@ -21,6 +21,7 @@
     let layoutReadyPromise = null;
     let noticeEl;
     let hideTimer;
+    const TOUCH_SWITCH_VIDEO_EVENT = 'fvp-touch-switch-video';
 
     const el = (tag, cls, html) => {
         const element = document.createElement(tag);
@@ -266,8 +267,8 @@
         return null;
     };
 
-    const showSeekNotice = (video, delta) => {
-        if (!video) return;
+    const ensureNotice = (video) => {
+        if (!video) return null;
         const fs = getFullscreenEl();
         const container = (fs && (fs === video || fs.contains(video))) ? fs : (video.parentElement || document.body);
         if (!noticeEl || !container.contains(noticeEl)) {
@@ -278,19 +279,51 @@
             container.appendChild(noticeEl);
         }
         noticeEl.style.fontSize = `${getFeatureConfig().noticeFontSize}px`;
-        noticeEl.textContent = `${delta >= 0 ? '▶ +' : '◀ '}${delta}s`;
-        noticeEl.classList.add('show');
+        return noticeEl;
+    };
+
+    const showSeekNotice = (video, delta) => {
+        const notice = ensureNotice(video);
+        if (!notice) return;
+        notice.textContent = `${delta >= 0 ? '▶ +' : '◀ '}${delta}s`;
+        notice.classList.add('show');
         clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => noticeEl.classList.remove('show'), 700);
+        hideTimer = setTimeout(() => notice.classList.remove('show'), 700);
+    };
+
+    const emitTouchSwitchVideo = (dir) => {
+        if (!dir) return;
+        window.dispatchEvent(new CustomEvent(TOUCH_SWITCH_VIDEO_EVENT, { detail: { dir } }));
+    };
+
+    const isFloatingGestureBlockedTarget = (target) => {
+        const node = target instanceof Element ? target : null;
+        if (!node) return false;
+        return Boolean(node.closest('#fvp-left-panel, #fvp-ctrl, #fvp-res-popup, button, input, select, textarea, a, label'));
     };
 
     const installTouchSwipeSeek = () => {
-        const swipe = { active: false, video: null, startX: 0, startY: 0, startTime: 0, lastUpdate: 0, lastDelta: 0, cancelled: false };
+        const swipe = {
+            active: false,
+            video: null,
+            startX: 0,
+            startY: 0,
+            startTime: 0,
+            lastUpdate: 0,
+            lastDelta: 0,
+            cancelled: false,
+            gesture: '',
+            allowVerticalSwitch: false,
+            pendingSwitchDir: 0
+        };
         const resetSwipe = () => {
             swipe.active = false;
             swipe.cancelled = false;
             swipe.video = null;
             swipe.lastDelta = 0;
+            swipe.gesture = '';
+            swipe.allowVerticalSwitch = false;
+            swipe.pendingSwitchDir = 0;
         };
 
         const onTouchStart = (event) => {
@@ -299,26 +332,37 @@
             const point = event.touches?.length === 1 ? event.touches[0] : null;
             if (!point) return;
             try {
+                const floatingBox = $('fvp-container');
+                const isFloatingBoxVisible = !!(floatingBox && floatingBox.style.display !== 'none');
+                const floatingBoxRect = isFloatingBoxVisible ? getRect(floatingBox) : null;
+                const startedInsideFloatingBox = !!(floatingBoxRect
+                    && point.clientX >= floatingBoxRect.left
+                    && point.clientX <= floatingBoxRect.right
+                    && point.clientY >= floatingBoxRect.top
+                    && point.clientY <= floatingBoxRect.bottom);
+                if (startedInsideFloatingBox && isFloatingGestureBlockedTarget(event.target)) return;
+
+                const wrapper = startedInsideFloatingBox ? $('fvp-wrapper') : null;
+                const wrapperRect = wrapper ? getRect(wrapper) : null;
                 let video = getVideoAtPoint(point.clientX, point.clientY);
                 if (!video) {
-                    const box = $('fvp-container');
-                    if (box && box.style.display !== 'none') {
-                        const rect = getRect(box);
-                        if (point.clientX >= rect.left && point.clientX <= rect.right && point.clientY >= rect.top && point.clientY <= rect.bottom) {
-                            video = $('fvp-wrapper')?.querySelector('video');
-                        }
+                    if (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height) {
+                        video = wrapper?.querySelector('video');
                     }
                 }
                 if (!video?.isConnected || !Number.isFinite(video.duration) || video.duration <= 0) return;
-                const rect = getRect(video);
-                if (!rect.width || !rect.height || point.clientY > rect.bottom - rect.height * 0.08) return;
+                const rect = (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height) ? wrapperRect : getRect(video);
+                if (!rect.width || !rect.height) return;
+                const bottomGuard = Math.min(44, Math.max(18, rect.height * 0.1));
+                if (point.clientY > rect.bottom - bottomGuard) return;
                 Object.assign(swipe, {
                     video,
                     active: true,
                     startX: point.clientX,
                     startY: point.clientY,
                     startTime: video.currentTime,
-                    lastUpdate: performance.now()
+                    lastUpdate: performance.now(),
+                    allowVerticalSwitch: startedInsideFloatingBox || window !== window.top
                 });
             } catch {
                 resetSwipe();
@@ -338,14 +382,38 @@
             const absDx = Math.abs(dx);
             const absDy = Math.abs(dy);
             if (absDx < 5 && absDy < 5) return;
-            if (absDy > vfConfig.verticalTolerance || (absDx > 0 && absDx / (absDy + 1) < vfConfig.diagonalThreshold)) {
-                swipe.cancelled = true;
+            const lockDistance = Math.max(12, Math.round(vfConfig.minSwipeDistance * 0.55));
+            const commitDistance = Math.max(18, Math.round(vfConfig.minSwipeDistance * 0.7));
+            const diagonalRatio = Math.max(1.12, vfConfig.diagonalThreshold * 0.78);
+            const horizontalSlack = Math.max(vfConfig.verticalTolerance, 120);
+            if (!swipe.gesture) {
+                const verticalDominant = absDy >= lockDistance
+                    && absDy > absDx
+                    && absDy / (absDx + 1) >= diagonalRatio;
+                const horizontalDominant = absDx >= lockDistance
+                    && absDx > absDy
+                    && absDx / (absDy + 1) >= diagonalRatio;
+                if (swipe.allowVerticalSwitch && verticalDominant) {
+                    swipe.gesture = 'switch';
+                } else if (horizontalDominant) {
+                    swipe.gesture = 'seek';
+                } else if (absDx >= commitDistance && absDy > horizontalSlack) {
+                    swipe.cancelled = true;
+                    return;
+                }
+            }
+            if (swipe.gesture === 'switch') {
+                if (absDy < commitDistance) return;
+                swipe.pendingSwitchDir = dy < 0 ? 1 : -1;
+                if (event.cancelable) event.preventDefault();
                 return;
             }
-            if (absDx < vfConfig.minSwipeDistance) return;
+            if (swipe.gesture !== 'seek') return;
+            if (absDx < commitDistance) return;
             if (absDx > absDy && event.cancelable) event.preventDefault();
             const scale = absDx < vfConfig.shortThreshold ? vfConfig.swipeShort : vfConfig.swipeLong;
-            const delta = Math.round((dx > 0 ? dx - vfConfig.minSwipeDistance : dx + vfConfig.minSwipeDistance) * scale);
+            const effectiveMinDistance = Math.max(12, Math.round(vfConfig.minSwipeDistance * 0.45));
+            const delta = Math.round((dx > 0 ? dx - effectiveMinDistance : dx + effectiveMinDistance) * scale);
             swipe.lastDelta = delta;
             showSeekNotice(swipe.video, delta);
             const now = performance.now();
@@ -358,7 +426,9 @@
         const onTouchEnd = () => {
             if (!swipe.active || !swipe.video) return;
             const vfConfig = getFeatureConfig();
-            if (!swipe.cancelled && !vfConfig.realtimePreview && swipe.video.isConnected) {
+            if (!swipe.cancelled && swipe.gesture === 'switch' && swipe.pendingSwitchDir) {
+                emitTouchSwitchVideo(swipe.pendingSwitchDir);
+            } else if (!swipe.cancelled && !vfConfig.realtimePreview && swipe.video.isConnected) {
                 swipe.video.currentTime = clamp(swipe.startTime + (swipe.lastDelta || 0), 0, swipe.video.duration);
             }
             resetSwipe();
@@ -404,6 +474,7 @@
         getVideo,
         getVideoAtPoint,
         showSeekNotice,
+        TOUCH_SWITCH_VIDEO_EVENT,
         installTouchSwipeSeek
     };
 })();

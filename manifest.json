@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "Gesture Suite",
-    "version": "1.0.0",
+    "name": "Gesture Suite DEV",
+    "version": "1.0.1",
     "description": "Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.",
     "icons": {
         "16": "icons/icon16.png",
@@ -85,7 +85,6 @@
                 "content/inline-translate/controller.js",
                 "content/inline-translate/index.js",
                 "content/video-screenshot/index.js",
-                "content/trusted-types/index.js",
                 "content/video-floating/constants.js",
                 "content/video-floating/helpers.js",
                 "content/video-floating/iframe-mode.js",

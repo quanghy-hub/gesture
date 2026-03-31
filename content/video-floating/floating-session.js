@@ -16,7 +16,6 @@
             applyBoxLayout,
             updateVolUI,
             updatePlayPauseUI,
-            getFullscreenEl,
             postToFloatedIframe
         } = deps;
 
@@ -49,6 +48,30 @@
                 merged.unshift(ctx.curVid);
             }
             return merged;
+        };
+
+        const getVideoOrderInfo = (video = ctx.curVid) => {
+            if (!video) return { index: 0, total: 0 };
+            const list = getVideos();
+            const index = list.indexOf(video);
+            return {
+                index: index >= 0 ? index + 1 : 1,
+                total: Math.max(list.length, 1)
+            };
+        };
+
+        const updateVideoOrderUI = (video = ctx.curVid) => {
+            const badge = $('fvp-video-order');
+            if (!badge) return;
+            if (ctx.floatedIframe || !video) {
+                badge.hidden = true;
+                badge.textContent = '';
+                return;
+            }
+            const order = getVideoOrderInfo(video);
+            badge.hidden = false;
+            badge.textContent = `${order.index}/${order.total}`;
+            badge.title = `Video ${order.index} / ${order.total}`;
         };
 
         const getOrderedVideoSequence = () => {
@@ -86,15 +109,111 @@
             ctx.curVid.style.objectFit = (ctx.rotationAngle === 90 || ctx.rotationAngle === 270) ? 'contain' : FIT_MODES[ctx.fitIdx];
         };
 
-        const restore = () => {
+        const stopProgressLoop = () => {
             if (ctx.state.rafId) {
                 cancelAnimationFrame(ctx.state.rafId);
                 ctx.state.rafId = null;
             }
+        };
+
+        const startProgressLoop = () => {
+            stopProgressLoop();
+            const updateLoop = () => {
+                if (!ctx.curVid) return;
+                if (!ctx.state.isSeeking && ctx.curVid.duration) {
+                    const seek = $('fvp-seek');
+                    if (seek) seek.value = (ctx.curVid.currentTime / ctx.curVid.duration) * 10000;
+                    const td = $('fvp-time-display');
+                    if (td) td.textContent = `${formatTime(ctx.curVid.currentTime)}/${formatTime(ctx.curVid.duration)}`;
+                }
+                if (ctx.curVid.buffered?.length && ctx.curVid.duration) {
+                    const buffer = $('fvp-buffer');
+                    if (buffer) buffer.style.width = `${(ctx.curVid.buffered.end(ctx.curVid.buffered.length - 1) / ctx.curVid.duration) * 100}%`;
+                }
+                ctx.state.rafId = requestAnimationFrame(updateLoop);
+            };
+            ctx.state.rafId = requestAnimationFrame(updateLoop);
+        };
+
+        const bindCurrentVideo = (video) => {
+            if (!video) return;
+            video.onplay = video.onpause = updatePlayPauseUI;
+            video.onended = () => switchVid(1);
+        };
+
+        const activateCurrentVideo = (video) => {
+            if (!video) return;
+            ctx.curVid = video;
+            ctx.zoomIdx = 0;
+            ctx.rotationAngle = 0;
+            applyTransform();
+            updateVolUI();
+            updatePlayPauseUI();
+            updateVideoOrderUI(video);
+            startProgressLoop();
+            bindCurrentVideo(video);
+            video.play().catch(() => { });
+        };
+
+        const createTransitionLayer = (video, className) => {
+            if (!video) return null;
+            const layer = el('div', `fvp-transition-layer ${className}`);
+            layer.appendChild(video);
+            return layer;
+        };
+
+        const resetVideoPresentation = (video) => {
+            if (!video) return;
+            Object.assign(video.style, {
+                width: '',
+                height: '',
+                objectFit: '',
+                objectPosition: '',
+                transform: '',
+                transition: ''
+            });
+        };
+
+        const cleanupSwitchTransition = () => {
+            const transition = ctx.state.switchTransition;
+            if (!transition) return false;
+            const {
+                currentVideo,
+                previousPlaceholder,
+                previousParent,
+                nextVideo,
+                nextPlaceholder,
+                nextParent
+            } = transition;
+            if (previousParent?.isConnected && previousPlaceholder?.parentNode === previousParent) {
+                previousParent.replaceChild(currentVideo, previousPlaceholder);
+            }
+            if (nextParent?.isConnected && nextPlaceholder?.parentNode === nextParent) {
+                nextParent.replaceChild(nextVideo, nextPlaceholder);
+            }
+            resetVideoPresentation(currentVideo);
+            resetVideoPresentation(nextVideo);
+            currentVideo.onplay = currentVideo.onpause = currentVideo.onended = null;
+            nextVideo.onplay = nextVideo.onpause = nextVideo.onended = null;
+            currentVideo.pause?.();
+            nextVideo.pause?.();
+            ctx.state.switchTransition = null;
+            ctx.curVid = null;
+            ctx.origPar = null;
+            ctx.ph = null;
+            return true;
+        };
+
+        const restore = () => {
+            stopProgressLoop();
             if (ctx.state.seekApplyRaf) {
                 cancelAnimationFrame(ctx.state.seekApplyRaf);
                 ctx.state.seekApplyRaf = 0;
             }
+            clearTimeout(ctx.state.transitionTimer);
+            ctx.state.transitionTimer = 0;
+            ctx.state.isSwitchingVideo = false;
+            const transitionRestored = cleanupSwitchTransition();
             ctx.state.pendingSeekRatio = null;
             ctx.state.seekPreviewRatio = null;
             ctx.state.isSeeking = false;
@@ -107,27 +226,104 @@
                 ctx.floatedIframe = null;
                 ctx.iframeOrigPar = null;
                 ctx.iframePh = null;
-            } else if (ctx.curVid) {
+            } else if (!transitionRestored && ctx.curVid) {
                 // Restore the original DOM position of the video node to avoid leaving detached media behind.
                 ctx.origPar?.replaceChild(ctx.curVid, ctx.ph);
-                Object.assign(ctx.curVid.style, { width: '', height: '', objectFit: '', objectPosition: '', transform: '' });
+                resetVideoPresentation(ctx.curVid);
                 ctx.curVid.onplay = ctx.curVid.onpause = ctx.curVid.onended = null;
                 ctx.curVid = null;
             }
+            $('fvp-wrapper')?.querySelectorAll('.fvp-transition-layer').forEach((node) => node.remove());
             if (ctx.box) ctx.box.style.display = 'none';
             ctx.videoSequence = [];
             ctx.zoomIdx = 0;
             ctx.rotationAngle = 0;
+            updateVideoOrderUI(null);
         };
 
         const switchVid = (dir) => {
+            if (ctx.state.isSwitchingVideo) return;
             const sequence = getOrderedVideoSequence();
             if (!sequence.length) return;
             const currentIndex = ctx.curVid && sequence.includes(ctx.curVid) ? sequence.indexOf(ctx.curVid) : 0;
             const nextIndex = (currentIndex + dir + sequence.length) % sequence.length;
             const nextVideo = sequence[nextIndex];
             if (!nextVideo || nextVideo === ctx.curVid) return;
-            float(nextVideo);
+            if (!ctx.curVid || !ctx.box || ctx.box.style.display === 'none') {
+                float(nextVideo);
+                return;
+            }
+            const wrapper = $('fvp-wrapper');
+            if (!wrapper) {
+                float(nextVideo);
+                return;
+            }
+
+            const currentVideo = ctx.curVid;
+            const previousPlaceholder = ctx.ph;
+            const previousParent = ctx.origPar;
+            const nextParent = nextVideo.parentNode;
+            if (!previousPlaceholder || !previousParent || !nextParent) {
+                float(nextVideo);
+                return;
+            }
+
+            stopProgressLoop();
+            ctx.state.isSwitchingVideo = true;
+            currentVideo.onplay = currentVideo.onpause = currentVideo.onended = null;
+            currentVideo.pause?.();
+
+            const nextPlaceholder = el('div', 'fvp-ph', '<div style="font-size:20px;opacity:.5">📺</div>');
+            nextPlaceholder.style.cssText = `width:${nextVideo.offsetWidth || 300}px;height:${nextVideo.offsetHeight || 200}px`;
+            nextParent.replaceChild(nextPlaceholder, nextVideo);
+            ctx.state.switchTransition = {
+                currentVideo,
+                previousPlaceholder,
+                previousParent,
+                nextVideo,
+                nextPlaceholder,
+                nextParent
+            };
+
+            wrapper.innerHTML = '';
+            const outgoingLayer = createTransitionLayer(currentVideo, dir > 0 ? 'is-outgoing-up' : 'is-outgoing-down');
+            const incomingLayer = createTransitionLayer(nextVideo, dir > 0 ? 'is-incoming-from-bottom' : 'is-incoming-from-top');
+            if (!outgoingLayer || !incomingLayer) {
+                ctx.state.switchTransition = null;
+                nextParent.replaceChild(nextVideo, nextPlaceholder);
+                ctx.state.isSwitchingVideo = false;
+                float(nextVideo);
+                return;
+            }
+
+            wrapper.appendChild(outgoingLayer);
+            wrapper.appendChild(incomingLayer);
+            nextVideo.style.objectFit = FIT_MODES[0];
+            nextVideo.play().catch(() => { });
+            updateVideoOrderUI(nextVideo);
+
+            requestAnimationFrame(() => {
+                outgoingLayer.classList.add('is-animating');
+                incomingLayer.classList.add('is-animating');
+            });
+
+            const finalizeSwitch = () => {
+                if (!ctx.state.isSwitchingVideo) return;
+                clearTimeout(ctx.state.transitionTimer);
+                ctx.state.transitionTimer = 0;
+                ctx.state.isSwitchingVideo = false;
+                wrapper.innerHTML = '';
+                previousParent.replaceChild(currentVideo, previousPlaceholder);
+                resetVideoPresentation(currentVideo);
+                currentVideo.pause?.();
+                ctx.state.switchTransition = null;
+                ctx.origPar = nextParent;
+                ctx.ph = nextPlaceholder;
+                wrapper.appendChild(nextVideo);
+                activateCurrentVideo(nextVideo);
+            };
+
+            ctx.state.transitionTimer = setTimeout(finalizeSwitch, 260);
         };
 
         const floatIframe = (iframe) => {
@@ -152,6 +348,7 @@
             ctx.box.style.display = 'flex';
             ctx.menuRef?.hide();
             applyBoxLayout(loadLayout());
+            updateVideoOrderUI(null);
             ensureLayoutReady().then((layout) => {
                 if (ctx.floatedIframe === iframe && layout) applyBoxLayout(layout);
             });
@@ -179,35 +376,13 @@
             wrapper.innerHTML = '';
             wrapper.appendChild(video);
             video.style.objectFit = FIT_MODES[ctx.fitIdx];
-            ctx.zoomIdx = 0;
-            ctx.rotationAngle = 0;
-            applyTransform();
-            updateVolUI();
             ctx.box.style.display = 'flex';
             ctx.menuRef?.hide();
             applyBoxLayout(loadLayout());
             ensureLayoutReady().then((layout) => {
                 if (ctx.curVid === video && layout) applyBoxLayout(layout);
             });
-            const updateLoop = () => {
-                if (!ctx.curVid) return;
-                if (!ctx.state.isSeeking && ctx.curVid.duration) {
-                    const seek = $('fvp-seek');
-                    if (seek) seek.value = (ctx.curVid.currentTime / ctx.curVid.duration) * 10000;
-                    const td = $('fvp-time-display');
-                    if (td) td.textContent = `${formatTime(ctx.curVid.currentTime)}/${formatTime(ctx.curVid.duration)}`;
-                }
-                if (ctx.curVid.buffered?.length && ctx.curVid.duration) {
-                    const buffer = $('fvp-buffer');
-                    if (buffer) buffer.style.width = `${(ctx.curVid.buffered.end(ctx.curVid.buffered.length - 1) / ctx.curVid.duration) * 100}%`;
-                }
-                ctx.state.rafId = requestAnimationFrame(updateLoop);
-            };
-            ctx.state.rafId = requestAnimationFrame(updateLoop);
-            video.onplay = video.onpause = updatePlayPauseUI;
-            video.onended = () => switchVid(1);
-            video.play().catch(() => { });
-            updatePlayPauseUI();
+            activateCurrentVideo(video);
         };
 
         return {

@@ -1,34 +1,28 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const floating = ext.shared.floatingCore;
+    const { queryAllDeep, queryDeep } = ext.shared.domUtils;
 
     const CONFIG = {
-        buttonSize: 26,
-        buttonTop: 40,
-        buttonLeft: 10,
         minVideoWidth: 200,
         minVideoHeight: 150,
-        fadeDelay: 3000,
-        hideDelay: 3000,
-        fadeOpacity: 0.4,
-        minOpacity: 0.15,
-        tapThreshold: 20,
-        shortcutKey: 's'
+        shortcutKey: 's',
+        triggerSize: 52,
+        triggerMargin: 12
     };
 
-    const ICON = `
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-        <circle cx="12" cy="13" r="4"></circle>
-      </svg>
-    `;
+    const ICON = floating.icons.camera;
 
-    const IS_MOBILE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const managedVideos = new WeakMap();
+    const getDefaultTriggerPosition = () => ({
+        left: Math.max(CONFIG.triggerMargin, window.innerWidth - CONFIG.triggerSize - 18),
+        top: Math.max(CONFIG.triggerMargin, window.innerHeight - CONFIG.triggerSize - 96)
+    });
 
     const buildFilename = () => {
         const base = ext.shared.domUtils.sanitizeFilename(document.title || 'screenshot') || 'screenshot';
         return `${base}_${Date.now()}.png`;
     };
+
     const fallbackDownload = (url, filename) => {
         const link = document.createElement('a');
         link.href = url;
@@ -41,56 +35,51 @@
 
     ext.features.videoScreenshot = {
         shouldRun: ({ runtime }) => runtime.isHttpPage(),
-        init: () => {
+        init: (context) => {
             let observer = null;
+            let removeShortcutListener = () => { };
+            let removeDragBinding = () => { };
+            let syncTimer = 0;
+            let triggerRef = null;
+            let mobilePlayerButton = null;
+
+            const isFeatureEnabled = () => context?.getConfig?.()?.videoScreenshot?.enabled !== false;
+            const isYoutubeMobileWatch = () => /(^|\.)m\.youtube\.com$/i.test(window.location.hostname) && /\/watch|[?&]v=/.test(window.location.href);
+            const getMobilePlayerHost = () => queryDeep('#player-container-id, .html5-video-player, #movie_player');
+
+            const posStorage = floating.createPositionStorage(
+                'gesture_video_screenshot_trigger_pos_v1',
+                getDefaultTriggerPosition()
+            );
 
             const ensureStyles = () => {
                 if (document.getElementById('gesture-video-screenshot-style')) {
                     return;
                 }
+                floating.ensureSharedActionButtonStyles();
                 const style = document.createElement('style');
                 style.id = 'gesture-video-screenshot-style';
                 style.textContent = `
-                    .gesture-video-screenshot-container {
+                    .gesture-video-screenshot-trigger {
+                        width: 46px;
+                        height: 46px;
+                        touch-action: none;
+                    }
+                    .gesture-video-screenshot-trigger svg {
+                        width: 28px !important;
+                        height: 28px !important;
+                    }
+                    .gesture-video-screenshot-mobile-button {
                         position: absolute;
-                        top: 40px;
-                        left: 10px;
+                        right: 12px;
+                        bottom: 12px;
                         z-index: 2147483644;
-                        opacity: 1;
-                        transition: opacity 0.5s ease;
-                        pointer-events: auto;
+                        width: 46px;
+                        height: 46px;
                     }
-                    .gesture-video-screenshot-button {
-                        width: 26px;
-                        height: 26px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 0;
-                        border: none;
-                        border-radius: 18px;
-                        background: rgba(18, 18, 18, 0.7);
-                        color: rgba(255, 255, 255, 0.45);
-                        cursor: pointer;
-                        backdrop-filter: blur(1px);
-                        transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
-                        touch-action: manipulation;
-                        -webkit-tap-highlight-color: transparent;
-                    }
-                    .gesture-video-screenshot-button:hover,
-                    .gesture-video-screenshot-button:active {
-                        background: rgba(26, 26, 26, 0.9);
-                        color: #fff;
-                    }
-                    .gesture-video-screenshot-button:hover {
-                        transform: scale(1.08);
-                    }
-                    .gesture-video-screenshot-button:active {
-                        transform: scale(0.95);
-                    }
-                    .gesture-video-screenshot-button svg {
-                        width: 20px;
-                        height: 20px;
+                    .gesture-video-screenshot-mobile-button svg {
+                        width: 28px !important;
+                        height: 28px !important;
                     }
                 `;
                 (document.head || document.documentElement).appendChild(style);
@@ -100,21 +89,25 @@
             const isEligibleVideo = (video) => Boolean(
                 video &&
                 video.isConnected &&
-                video.offsetWidth >= CONFIG.minVideoWidth &&
-                video.offsetHeight >= CONFIG.minVideoHeight
+                video.videoWidth &&
+                video.videoHeight &&
+                video.getBoundingClientRect &&
+                video.getBoundingClientRect().width >= CONFIG.minVideoWidth &&
+                video.getBoundingClientRect().height >= CONFIG.minVideoHeight
             );
 
-            const ensureRelativeParent = (video) => {
-                const parent = video.parentElement;
-                if (!parent) {
-                    return null;
-                }
-                const currentPosition = window.getComputedStyle(parent).position;
-                if (currentPosition === 'static') {
-                    parent.dataset.gestureVideoScreenshotPositionManaged = 'true';
-                    parent.style.position = 'relative';
-                }
-                return parent;
+            const findActiveVideo = () => {
+                const candidates = queryAllDeep('video')
+                    .filter((video) => isEligibleVideo(video))
+                    .map((video) => ({ video, rect: video.getBoundingClientRect() }))
+                    .filter(({ rect }) =>
+                        rect.top < window.innerHeight &&
+                        rect.bottom > 0 &&
+                        rect.left < window.innerWidth &&
+                        rect.right > 0
+                    )
+                    .sort((left, right) => (right.rect.width * right.rect.height) - (left.rect.width * left.rect.height));
+                return candidates[0]?.video || null;
             };
 
             const captureVideoFrame = async (video) => {
@@ -134,170 +127,150 @@
                 const filename = buildFilename();
 
                 try {
-                    const downloadId = await chrome.downloads.download({
-                        url,
-                        filename,
-                        saveAs: false
-                    });
-                    return !!downloadId;
+                    const response = await ext.shared.tabActions.downloadDataUrl(url, filename);
+                    if (response?.ok) {
+                        return true;
+                    }
                 } catch {
-                    fallbackDownload(url, filename);
-                    return true;
+                    // Fall through to anchor download below.
                 }
+
+                fallbackDownload(url, filename);
+                return true;
             };
 
-            const createAutoHideController = (container) => {
-                let fadeTimer = 0;
-                let hideTimer = 0;
-                const clearTimers = () => {
-                    window.clearTimeout(fadeTimer);
-                    window.clearTimeout(hideTimer);
-                };
-                const startHide = () => {
-                    clearTimers();
-                    fadeTimer = window.setTimeout(() => {
-                        container.style.opacity = String(CONFIG.fadeOpacity);
-                        hideTimer = window.setTimeout(() => {
-                            container.style.opacity = String(CONFIG.minOpacity);
-                        }, CONFIG.hideDelay);
-                    }, CONFIG.fadeDelay);
-                };
-                const show = () => {
-                    clearTimers();
-                    container.style.opacity = '1';
-                    startHide();
-                };
-                return {
-                    show,
-                    startHide,
-                    destroy: clearTimers
-                };
+            const captureActiveVideo = () => {
+                if (!isFeatureEnabled()) {
+                    return;
+                }
+                const activeVideo = findActiveVideo();
+                if (!activeVideo) {
+                    return;
+                }
+                captureVideoFrame(activeVideo).catch((error) => {
+                    console.error('[GestureExtension] Capture failed', error);
+                });
             };
 
-            const createButton = (video, showControls) => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'gesture-video-screenshot-button';
-                button.title = 'Chụp màn hình video (S)';
-                button.setAttribute('aria-label', 'Chụp màn hình video');
-                button.innerHTML = ICON;
-
-                const handleCapture = async (event) => {
+            const ensureMobilePlayerButton = () => {
+                if (mobilePlayerButton?.isConnected) {
+                    return mobilePlayerButton;
+                }
+                const host = getMobilePlayerHost();
+                if (!host) {
+                    return null;
+                }
+                if (getComputedStyle(host).position === 'static') {
+                    host.style.position = 'relative';
+                }
+                mobilePlayerButton?.remove();
+                mobilePlayerButton = floating.createActionButton({
+                    className: 'gesture-video-screenshot-mobile-button',
+                    title: 'Chụp màn hình video (S)',
+                    ariaLabel: 'Chụp màn hình video',
+                    htmlContent: ICON,
+                    hidden: false,
+                    parent: host,
+                    position: 'absolute',
+                    zIndex: '2147483644'
+                }).element;
+                mobilePlayerButton.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    showControls();
-                    try {
-                        await captureVideoFrame(video);
-                    } catch (error) {
-                        console.error('[GestureExtension] Video capture failed', error);
-                    }
-                };
+                    captureActiveVideo();
+                });
+                host.appendChild(mobilePlayerButton);
+                return mobilePlayerButton;
+            };
 
-                button.addEventListener('click', (event) => {
-                    handleCapture(event).catch((error) => {
-                        console.error('[GestureExtension] Capture click failed', error);
+            const ensureTrigger = () => {
+                if (triggerRef) {
+                    return triggerRef;
+                }
+
+                triggerRef = floating.createActionButton({
+                    className: 'gesture-video-screenshot-trigger',
+                    htmlContent: ICON,
+                    title: 'Chụp màn hình video (S)',
+                    ariaLabel: 'Chụp màn hình video',
+                    hidden: true,
+                    position: 'fixed',
+                    zIndex: '2147483646'
+                });
+
+                removeDragBinding = floating.bindDragBehavior({
+                    target: triggerRef.element,
+                    threshold: 6,
+                    getInitialPosition: () => ({
+                        left: triggerRef.element.offsetLeft,
+                        top: triggerRef.element.offsetTop
+                    }),
+                    onMove: ({ deltaX, deltaY, origin }) => {
+                        const next = floating.clampFixedPosition({
+                            left: origin.left + deltaX,
+                            top: origin.top + deltaY,
+                            width: CONFIG.triggerSize,
+                            height: CONFIG.triggerSize,
+                            margin: CONFIG.triggerMargin
+                        });
+                        triggerRef.setPosition(next.left, next.top);
+                        triggerRef.element.classList.add('is-dragging');
+                    },
+                    onDragEnd: () => {
+                        triggerRef.element.classList.remove('is-dragging');
+                        posStorage.save(triggerRef.element.offsetLeft, triggerRef.element.offsetTop);
+                    },
+                    onClick: ({ event }) => {
+                        floating.stopFloatingEvent(event);
+                        captureActiveVideo();
+                    }
+                });
+
+                triggerRef.element.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }, true);
+
+                posStorage.load().then(({ left, top }) => {
+                    const pos = floating.clampFixedPosition({
+                        left,
+                        top,
+                        width: CONFIG.triggerSize,
+                        height: CONFIG.triggerSize,
+                        margin: CONFIG.triggerMargin
                     });
+                    triggerRef?.setPosition(pos.left, pos.top);
                 });
 
-                if (IS_MOBILE) {
-                    let touchPoint = null;
-                    button.addEventListener('touchstart', (event) => {
-                        const touch = event.touches[0];
-                        touchPoint = touch ? { x: touch.clientX, y: touch.clientY } : null;
-                        event.stopPropagation();
-                    }, { passive: true });
-                    button.addEventListener('touchmove', () => {
-                        touchPoint = null;
-                    }, { passive: true });
-                    button.addEventListener('touchend', (event) => {
-                        if (!touchPoint) {
-                            return;
-                        }
-                        const touch = event.changedTouches[0];
-                        if (!touch) {
-                            return;
-                        }
-                        const deltaX = Math.abs(touch.clientX - touchPoint.x);
-                        const deltaY = Math.abs(touch.clientY - touchPoint.y);
-                        touchPoint = null;
-                        if (deltaX < CONFIG.tapThreshold && deltaY < CONFIG.tapThreshold) {
-                            handleCapture(event).catch((error) => {
-                                console.error('[GestureExtension] Capture touch failed', error);
-                            });
-                        }
-                    }, { passive: false });
-                }
-                return button;
+                return triggerRef;
             };
 
-            const attachOverlay = (video) => {
-                if (managedVideos.has(video) || !isEligibleVideo(video)) {
+            const syncTrigger = () => {
+                window.clearTimeout(syncTimer);
+                syncTimer = 0;
+                const shouldUsePlayerButton = isYoutubeMobileWatch();
+                const hasVideo = !!findActiveVideo();
+                const mobileButton = shouldUsePlayerButton ? ensureMobilePlayerButton() : null;
+                if (mobilePlayerButton) {
+                    mobilePlayerButton.hidden = !(shouldUsePlayerButton && isFeatureEnabled() && hasVideo && mobileButton);
+                }
+                const trigger = ensureTrigger();
+                if (!shouldUsePlayerButton && isFeatureEnabled() && hasVideo) {
+                    trigger.show('inline-flex');
+                } else {
+                    trigger.hide();
+                }
+            };
+
+            const queueSyncTrigger = () => {
+                if (syncTimer) {
                     return;
                 }
-                const parent = ensureRelativeParent(video);
-                if (!parent) {
-                    return;
-                }
-                const container = document.createElement('div');
-                container.className = 'gesture-video-screenshot-container';
-                const autoHide = createAutoHideController(container);
-                const button = createButton(video, autoHide.show);
-                container.appendChild(button);
-                parent.appendChild(container);
-
-                const onShow = () => autoHide.show();
-                const onLeave = () => autoHide.startHide();
-
-                video.addEventListener('click', onShow);
-                video.addEventListener('pointerenter', onShow);
-                if (IS_MOBILE) {
-                    video.addEventListener('touchstart', onShow, { passive: true });
-                }
-                container.addEventListener('mouseenter', onShow);
-                container.addEventListener('mouseleave', onLeave);
-                autoHide.show();
-
-                managedVideos.set(video, {
-                    container,
-                    cleanup: () => {
-                        autoHide.destroy();
-                        video.removeEventListener('click', onShow);
-                        video.removeEventListener('pointerenter', onShow);
-                        if (IS_MOBILE) {
-                            video.removeEventListener('touchstart', onShow);
-                        }
-                        container.removeEventListener('mouseenter', onShow);
-                        container.removeEventListener('mouseleave', onLeave);
-                        container.remove();
-                    }
-                });
-            };
-
-            const cleanupDetachedVideos = () => {
-                document.querySelectorAll('video').forEach((video) => {
-                    if (!managedVideos.has(video) && isEligibleVideo(video)) {
-                        attachOverlay(video);
-                    }
-                });
-            };
-
-            const findActiveVideo = () => {
-                for (const video of document.querySelectorAll('video')) {
-                    const rect = video.getBoundingClientRect();
-                    const isVisible =
-                        rect.top < window.innerHeight &&
-                        rect.bottom > 0 &&
-                        rect.left < window.innerWidth &&
-                        rect.right > 0;
-                    if (isVisible && video.videoWidth && video.videoHeight) {
-                        return video;
-                    }
-                }
-                return null;
+                syncTimer = window.setTimeout(syncTrigger, 80);
             };
 
             const bindKeyboardShortcut = () => {
-                document.addEventListener('keydown', (event) => {
+                const onKeyDown = (event) => {
                     const target = event.target;
                     if (
                         !(target instanceof HTMLElement) ||
@@ -313,20 +286,22 @@
                     if (event.key.toLowerCase() !== CONFIG.shortcutKey) {
                         return;
                     }
-                    const activeVideo = findActiveVideo();
-                    if (!activeVideo) {
+                    if (!isFeatureEnabled()) {
+                        return;
+                    }
+                    if (!findActiveVideo()) {
                         return;
                     }
                     event.preventDefault();
-                    captureVideoFrame(activeVideo).catch((error) => {
-                        console.error('[GestureExtension] Shortcut capture failed', error);
-                    });
-                });
+                    captureActiveVideo();
+                };
+                document.addEventListener('keydown', onKeyDown);
+                return () => document.removeEventListener('keydown', onKeyDown);
             };
 
             const startObserver = () => {
                 observer = new MutationObserver(() => {
-                    cleanupDetachedVideos();
+                    queueSyncTrigger();
                 });
                 observer.observe(document.body, {
                     childList: true,
@@ -342,25 +317,35 @@
             }
 
             ensureStyles();
-            cleanupDetachedVideos();
-            bindKeyboardShortcut();
+            ensureTrigger();
+            syncTrigger();
+            removeShortcutListener = bindKeyboardShortcut();
+            window.addEventListener('resize', queueSyncTrigger);
+            window.addEventListener('scroll', queueSyncTrigger, true);
+
             if (document.body) {
                 startObserver();
             } else {
                 window.addEventListener('DOMContentLoaded', () => {
-                    cleanupDetachedVideos();
+                    syncTrigger();
                     startObserver();
                 }, { once: true });
             }
 
             return {
-                onConfigChange() { },
+                onConfigChange() {
+                    queueSyncTrigger();
+                },
                 destroy() {
                     observer?.disconnect();
-                    managedVideos.forEach?.(() => { });
-                    document.querySelectorAll('video').forEach((video) => {
-                        managedVideos.get(video)?.cleanup();
-                    });
+                    removeShortcutListener();
+                    removeDragBinding();
+                    window.removeEventListener('resize', queueSyncTrigger);
+                    window.removeEventListener('scroll', queueSyncTrigger, true);
+                    window.clearTimeout(syncTimer);
+                    mobilePlayerButton?.remove();
+                    mobilePlayerButton = null;
+                    triggerRef?.destroy();
                 }
             };
         }

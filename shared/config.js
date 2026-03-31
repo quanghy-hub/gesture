@@ -26,6 +26,9 @@
             layout: null,
             iconPos: null
         },
+        videoScreenshot: {
+            enabled: true
+        },
         quickSearch: {
             enabled: true,
             enabledProviderIds: ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'],
@@ -46,10 +49,6 @@
             fontScale: 0.95,
             mutedColor: '#00bfff',
             dedupeSeconds: 0.7
-        },
-        trustedTypes: {
-            enabled: false,
-            allowDomains: []
         },
         youtubeSubtitles: {
             targetLang: 'vi',
@@ -184,6 +183,9 @@
         config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
         config.videoFloating.iconPos = config.videoFloating.iconPos && typeof config.videoFloating.iconPos === 'object' ? config.videoFloating.iconPos : null;
 
+        config.videoScreenshot = config.videoScreenshot && typeof config.videoScreenshot === 'object' ? config.videoScreenshot : {};
+        config.videoScreenshot.enabled = config.videoScreenshot.enabled !== false;
+
         config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
         config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;
         config.inlineTranslate.provider = config.inlineTranslate.provider === 'google' ? 'google' : 'google';
@@ -200,12 +202,6 @@
             ? config.inlineTranslate.mutedColor.trim()
             : '#00bfff';
         config.inlineTranslate.dedupeSeconds = clampNumber(config.inlineTranslate.dedupeSeconds, 0.7, 0.1, 10);
-
-        config.trustedTypes = config.trustedTypes && typeof config.trustedTypes === 'object' ? config.trustedTypes : {};
-        config.trustedTypes.enabled = !!config.trustedTypes.enabled;
-        config.trustedTypes.allowDomains = Array.isArray(config.trustedTypes.allowDomains)
-            ? config.trustedTypes.allowDomains.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
-            : [];
 
         config.youtubeSubtitles = config.youtubeSubtitles && typeof config.youtubeSubtitles === 'object' ? config.youtubeSubtitles : {};
         config.youtubeSubtitles.targetLang = typeof config.youtubeSubtitles.targetLang === 'string' && config.youtubeSubtitles.targetLang.trim()

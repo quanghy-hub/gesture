@@ -30,7 +30,6 @@
             ext.features.quickSearch,
             ext.features.inlineTranslate,
             ext.features.videoScreenshot,
-            ext.features.trustedTypes,
             ext.features.youtubeSubtitles,
             ext.features.forum,
             ext.features.gesturesDesktop,

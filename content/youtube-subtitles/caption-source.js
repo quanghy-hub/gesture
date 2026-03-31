@@ -1,6 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const { queryAllDeep } = ext.shared.domUtils;
     const {
         EARLY_VISIBLE_CAPTION_WORDS,
         MIN_VISIBLE_CAPTION_WORDS,
@@ -35,24 +36,35 @@
     };
 
     const extractCaptionTextFromDom = () => {
-        const captionWindows = document.querySelectorAll('.caption-window');
-        if (!captionWindows.length) {
-            return '';
-        }
-        const lastWindow = captionWindows[captionWindows.length - 1];
-        const lines = lastWindow.querySelectorAll('.caption-visual-line');
-        if (lines.length) {
-            return Array.from(lines)
-                .map((line) => Array.from(line.querySelectorAll('.ytp-caption-segment')).map((segment) => segment.textContent.trim()).filter(Boolean).join(' '))
+        const captionRoots = queryAllDeep('.caption-window, .ytp-caption-window-container, .captions-text');
+        for (const root of [...captionRoots].reverse()) {
+            const lineNodes = root.querySelectorAll?.('.caption-visual-line') || [];
+            if (lineNodes.length) {
+                const lineText = Array.from(lineNodes)
+                    .map((line) => Array.from(line.querySelectorAll('.ytp-caption-segment, .captions-text span')).map((segment) => segment.textContent.trim()).filter(Boolean).join(' '))
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim();
+                if (lineText) {
+                    return lineText;
+                }
+            }
+
+            const segmentText = Array.from(root.querySelectorAll?.('.ytp-caption-segment, .captions-text, .captions-text span') || [])
+                .map((segment) => segment.textContent.trim())
                 .filter(Boolean)
                 .join(' ')
                 .trim();
+            if (segmentText) {
+                return segmentText;
+            }
+
+            const ownText = normalizeCueText(root.textContent);
+            if (ownText) {
+                return ownText;
+            }
         }
-        return Array.from(lastWindow.querySelectorAll('.ytp-caption-segment'))
-            .map((segment) => segment.textContent.trim())
-            .filter(Boolean)
-            .join(' ')
-            .trim();
+        return '';
     };
 
     youtubeSubtitles.captionSource = {

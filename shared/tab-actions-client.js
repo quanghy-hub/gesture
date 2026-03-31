@@ -21,6 +21,9 @@
         },
         closeCurrentTab() {
             return send('gesture-ext/close-current-tab');
+        },
+        downloadDataUrl(url, filename) {
+            return send('gesture-ext/download-data-url', { url, filename });
         }
     };
 })();

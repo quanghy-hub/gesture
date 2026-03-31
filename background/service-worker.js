@@ -1,10 +1,25 @@
 const detectTargetLanguage = (text) => /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text)
     ? 'en'
     : 'vi';
+const detectSourceLanguage = (text, targetLanguage = '') => {
+    const normalizedTarget = String(targetLanguage || '').trim().toLowerCase();
+    if (normalizedTarget === 'vi') {
+        return 'en';
+    }
+    if (normalizedTarget === 'en') {
+        return 'vi';
+    }
+    return /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text)
+        ? 'vi'
+        : 'en';
+};
 
 const parseGoogleTranslateResponse = (data) => data?.[0]?.map((item) => item?.[0] ?? '').join('').trim() ?? '';
+const parseMyMemoryResponse = (data) => String(data?.responseData?.translatedText || '').trim();
 
 const GOOGLE_TRANSLATE_CHUNK_LIMIT = 1400;
+const GOOGLE_RETRY_COOLDOWN_MS = 2 * 60 * 1000;
+let googleCooldownUntil = 0;
 
 const normalizeTranslateText = (text) => String(text || '')
     .replace(/\r\n?/g, '\n')
@@ -62,7 +77,42 @@ const splitTranslateText = (text, limit = GOOGLE_TRANSLATE_CHUNK_LIMIT) => {
     return chunks.length ? chunks : [normalized];
 };
 
+const isGoogleCooldownActive = () => Date.now() < googleCooldownUntil;
+const setGoogleCooldown = () => {
+    googleCooldownUntil = Date.now() + GOOGLE_RETRY_COOLDOWN_MS;
+};
+const getGoogleCooldownError = () => {
+    const remainingMs = Math.max(0, googleCooldownUntil - Date.now());
+    const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+    return new Error(`Google Translate dang tam khoa, thu lai sau ${remainingSeconds}s`);
+};
+const isGoogleRateLimitError = (error) => {
+    const message = String(error?.message || error || '').toLowerCase();
+    return (
+        message.includes('google translate http 429') ||
+        message.includes('sorry') ||
+        message.includes('unexpected content-type') ||
+        message.includes('tam khoa')
+    );
+};
+const getFriendlyTranslateError = (primaryError, fallbackError) => {
+    if (isGoogleRateLimitError(primaryError)) {
+        return `Google Translate dang bi gioi han. Fallback cung that bai: ${String(fallbackError?.message || fallbackError || 'Unknown error')}`;
+    }
+    return String(
+        fallbackError?.message ||
+        primaryError?.message ||
+        fallbackError ||
+        primaryError ||
+        'Loi dich tam thoi. Thu lai sau.'
+    );
+};
+
 const translateWithGoogleChunk = async (text, targetLanguage) => {
+    if (isGoogleCooldownActive()) {
+        throw getGoogleCooldownError();
+    }
+
     const url = new URL('https://translate.googleapis.com/translate_a/single');
     url.searchParams.set('client', 'gtx');
     url.searchParams.set('sl', 'auto');
@@ -77,14 +127,46 @@ const translateWithGoogleChunk = async (text, targetLanguage) => {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
         },
+        redirect: 'follow',
         body: body.toString()
     });
     if (!response.ok) {
+        if (response.status === 429) {
+            setGoogleCooldown();
+        }
         throw new Error(`Google Translate HTTP ${response.status}`);
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        setGoogleCooldown();
+        throw new Error(`Google Translate unexpected content-type: ${contentType || 'unknown'}`);
     }
 
     const data = await response.json();
-    return parseGoogleTranslateResponse(data);
+    const translated = parseGoogleTranslateResponse(data);
+    if (!translated) {
+        throw new Error('Google Translate returned empty translation');
+    }
+    return translated;
+};
+
+const translateWithMyMemoryChunk = async (text, sourceLanguage, targetLanguage) => {
+    const url = new URL('https://api.mymemory.translated.net/get');
+    url.searchParams.set('q', text);
+    url.searchParams.set('langpair', `${sourceLanguage}|${targetLanguage}`);
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        redirect: 'follow'
+    });
+    if (!response.ok) {
+        throw new Error(`MyMemory HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    const translated = parseMyMemoryResponse(data);
+    if (!translated) {
+        throw new Error('MyMemory returned empty translation');
+    }
+    return translated;
 };
 
 const translateWithGoogle = async (text, targetLanguage) => {
@@ -98,6 +180,28 @@ const translateWithGoogle = async (text, targetLanguage) => {
         translated.push(await translateWithGoogleChunk(chunk, targetLanguage));
     }
     return translated.join('\n\n').trim();
+};
+
+const translateText = async (text, targetLanguage) => {
+    try {
+        return {
+            provider: 'google',
+            translatedText: await translateWithGoogle(text, targetLanguage)
+        };
+    } catch (googleError) {
+        const sourceLanguage = detectSourceLanguage(text, targetLanguage);
+        try {
+            const translatedText = await translateWithMyMemoryChunk(text, sourceLanguage, targetLanguage);
+            return {
+                provider: 'mymemory',
+                translatedText,
+                fallbackReason: googleError?.message || String(googleError),
+                sourceLanguage
+            };
+        } catch (fallbackError) {
+            throw new Error(getFriendlyTranslateError(googleError, fallbackError));
+        }
+    }
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -147,20 +251,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
-                const provider = 'google';
                 const targetLanguage = message.payload?.targetLanguage ?? detectTargetLanguage(text);
-                const translatedText = await translateWithGoogle(text, targetLanguage);
+                const result = await translateText(text, targetLanguage);
 
                 sendResponse({
                     ok: true,
                     result: {
-                        provider,
+                        provider: result.provider,
                         text,
-                        translatedText,
-                        sourceLanguage: message.payload?.sourceLanguage ?? 'auto',
-                        targetLanguage
+                        translatedText: result.translatedText,
+                        sourceLanguage: result.sourceLanguage || message.payload?.sourceLanguage || 'auto',
+                        targetLanguage,
+                        fallbackReason: result.fallbackReason || ''
                     }
                 });
+                return;
+            }
+
+            case 'gesture-ext/download-data-url': {
+                const url = String(message.payload?.url ?? '').trim();
+                const filename = String(message.payload?.filename ?? '').trim();
+                if (!url) {
+                    sendResponse({ ok: false, error: 'Missing url for download' });
+                    return;
+                }
+
+                const downloadId = await chrome.downloads.download({
+                    url,
+                    filename: filename || undefined,
+                    saveAs: false
+                });
+                sendResponse({ ok: true, downloadId });
                 return;
             }
 

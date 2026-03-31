@@ -1,42 +1,88 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
-    const { SELECTORS, ICONS } = youtubeSubtitles;
+    const floating = ext.shared.floatingCore;
+    const { SELECTORS } = youtubeSubtitles;
+    const ICONS = floating.icons;
 
-    const getControlsContainer = () => document.querySelector(SELECTORS.controls);
-
-    const createPlayerButton = (className, title, icon, onClick) => {
-        const button = document.createElement('button');
-        button.className = `ytp-button ${className}`;
-        button.title = title;
-        button.innerHTML = icon;
-        button.addEventListener('click', (event) => {
-            event.stopPropagation();
-            onClick();
-        });
-        return button;
-    };
+    const getToggleButton = () => document.querySelector(SELECTORS.translateButton);
+    const getDefaultTogglePosition = () => ({
+        left: Math.max(12, window.innerWidth - 66),
+        top: Math.max(12, window.innerHeight - 158)
+    });
+    const togglePosStorage = floating.createPositionStorage(
+        'gesture_youtube_subtitles_toggle_pos_v1',
+        getDefaultTogglePosition()
+    );
 
     youtubeSubtitles.dom = {
         mountControlButtons({ onToggleTranslate }) {
-            const controls = getControlsContainer();
-            if (!controls) {
-                return;
-            }
-            document.querySelector(SELECTORS.translateButton)?.remove();
-            controls.insertBefore(
-                createPlayerButton('ytp-translate-button', 'Dịch phụ đề (T)', ICONS.translate, onToggleTranslate),
-                controls.firstChild
-            );
+            floating.ensureSharedActionButtonStyles();
+            getToggleButton()?.remove();
+            const buttonRef = floating.createActionButton({
+                id: 'gesture-youtube-subtitles-toggle',
+                className: 'gesture-youtube-subtitles-toggle',
+                title: 'Dịch phụ đề',
+                ariaLabel: 'Dịch phụ đề',
+                htmlContent: ICONS.translate,
+                hidden: false,
+                parent: document.documentElement,
+                position: 'fixed',
+                zIndex: '2147483644'
+            });
+
+            togglePosStorage.load().then(({ left, top }) => {
+                const pos = floating.clampFixedPosition({
+                    left,
+                    top,
+                    width: 46,
+                    height: 46,
+                    margin: 12
+                });
+                buttonRef.setPosition(pos.left, pos.top);
+            });
+
+            floating.bindDragBehavior({
+                target: buttonRef.element,
+                threshold: 4,
+                getInitialPosition: () => ({
+                    left: buttonRef.element.offsetLeft,
+                    top: buttonRef.element.offsetTop
+                }),
+                onMove: ({ event, deltaX, deltaY, origin }) => {
+                    floating.stopFloatingEvent(event);
+                    const next = floating.clampFixedPosition({
+                        left: origin.left + deltaX,
+                        top: origin.top + deltaY,
+                        width: 46,
+                        height: 46,
+                        margin: 12
+                    });
+                    buttonRef.setPosition(next.left, next.top);
+                    buttonRef.element.classList.add('is-dragging');
+                },
+                onDragEnd: () => {
+                    buttonRef.element.classList.remove('is-dragging');
+                    togglePosStorage.save(buttonRef.element.offsetLeft, buttonRef.element.offsetTop);
+                },
+                onClick: ({ event }) => {
+                    floating.stopFloatingEvent(event);
+                    onToggleTranslate();
+                }
+            });
         },
         setTranslateButtonState(enabled) {
-            const button = document.querySelector(SELECTORS.translateButton);
+            const button = getToggleButton();
             if (!button) {
                 return;
             }
-            button.classList.toggle('active', enabled);
+            button.classList.toggle('is-active', enabled);
             button.innerHTML = enabled ? ICONS.translateActive : ICONS.translate;
             button.title = enabled ? 'Tắt dịch (T)' : 'Dịch phụ đề (T)';
+            button.setAttribute('aria-label', enabled ? 'Tắt dịch phụ đề' : 'Dịch phụ đề');
+        },
+        removeTranslateButtons() {
+            getToggleButton()?.remove();
         },
         ensureSubtitleContainer() {
             let container = document.querySelector(SELECTORS.container);
@@ -73,22 +119,13 @@
                     --ext-yt-original-color: #ffffff;
                     --ext-yt-translated-color: #0e8cecff;
                 }
-                .ytp-translate-button {
-                    position: relative;
-                    width: 48px;
-                    height: 100%;
-                    display: inline-flex !important;
-                    align-items: center;
-                    justify-content: center;
-                    opacity: 0.9;
-                    transition: opacity 0.1s ease;
+                #gesture-youtube-subtitles-toggle {
+                    z-index: 2147483644;
                 }
-                .ytp-translate-button:hover,
-                .ytp-translate-button.active {
-                    opacity: 1;
-                }
-                .ytp-translate-button.active {
-                    color: #1c87eb;
+                #gesture-youtube-subtitles-toggle svg,
+                #gesture-youtube-subtitles-toggle > * {
+                    width: 28px !important;
+                    height: 28px !important;
                 }
                 .yt-translating .ytp-caption-window-container,
                 .yt-translating .caption-window,
@@ -118,6 +155,8 @@
                     backdrop-filter: blur(4px) !important;
                     cursor: move !important;
                     user-select: none !important;
+                    touch-action: none !important;
+                    -webkit-user-select: none !important;
                 }
                 #yt-bilingual-subtitles:hover {
                     background: rgba(15, 15, 15, 0.9) !important;
@@ -142,6 +181,9 @@
                     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9) !important;
                     white-space: normal !important;
                     word-wrap: break-word !important;
+                }
+                #yt-bilingual-subtitles .sub-translated.sub-error {
+                    color: #ffb347 !important;
                 }
             `;
             (document.head || document.documentElement).appendChild(style);
@@ -169,31 +211,27 @@
                 return;
             }
             container.dataset.extDragMounted = 'true';
-            let startX = 0;
-            let startY = 0;
-            let initialLeft = 0;
-            let initialTop = 0;
+            floating.bindDragBehavior({
+                target: container,
+                threshold: 3,
+                getInitialPosition: () => {
+                    const rect = container.getBoundingClientRect();
+                    return { left: rect.left, top: rect.top };
+                },
+                onMove: ({ event, deltaX, deltaY, origin }) => {
+                    if (window.getSelection()?.toString()) {
+                        return;
+                    }
+                    event.preventDefault();
+                    const nextLeft = Math.max(0, Math.min(origin.left + deltaX, window.innerWidth - container.offsetWidth));
+                    const nextTop = Math.max(0, Math.min(origin.top + deltaY, window.innerHeight - container.offsetHeight));
+                    const alignment = nextLeft > (window.innerWidth - container.offsetWidth) * 0.7
+                        ? 'right'
+                        : nextLeft < (window.innerWidth - container.offsetWidth) * 0.3
+                            ? 'left'
+                            : 'center';
 
-            container.addEventListener('pointerdown', (event) => {
-                if (window.getSelection()?.toString()) {
-                    return;
-                }
-                event.preventDefault();
-                startX = event.clientX;
-                startY = event.clientY;
-                const rect = container.getBoundingClientRect();
-                initialLeft = rect.left;
-                initialTop = rect.top;
-                container.classList.add('yt-sub-dragging');
-
-                const onMove = (moveEvent) => {
-                    moveEvent.preventDefault();
-                    const deltaX = moveEvent.clientX - startX;
-                    const deltaY = moveEvent.clientY - startY;
-                    const nextLeft = Math.max(0, Math.min(initialLeft + deltaX, window.innerWidth - container.offsetWidth));
-                    const nextTop = Math.max(0, Math.min(initialTop + deltaY, window.innerHeight - container.offsetHeight));
-                    const alignment = nextLeft > (window.innerWidth - container.offsetWidth) * 0.7 ? 'right' : nextLeft < (window.innerWidth - container.offsetWidth) * 0.3 ? 'left' : 'center';
-
+                    container.classList.add('yt-sub-dragging');
                     container.style.left = alignment === 'right' ? 'auto' : `${nextLeft}px`;
                     container.style.right = alignment === 'right' ? `${window.innerWidth - nextLeft - container.offsetWidth}px` : 'auto';
                     container.style.top = `${nextTop}px`;
@@ -202,9 +240,8 @@
                     container.dataset.dragAlignment = alignment;
                     container.dataset.dragLeft = String(nextLeft);
                     container.dataset.dragTop = String(nextTop);
-                };
-
-                const onUp = () => {
+                },
+                onDragEnd: () => {
                     container.classList.remove('yt-sub-dragging');
                     if (container.dataset.dragLeft && container.dataset.dragTop) {
                         persistSettings({
@@ -215,14 +252,7 @@
                             containerAlignment: container.dataset.dragAlignment || 'left'
                         }).catch(() => { });
                     }
-                    document.removeEventListener('pointermove', onMove);
-                    document.removeEventListener('pointerup', onUp);
-                    document.removeEventListener('pointercancel', onUp);
-                };
-
-                document.addEventListener('pointermove', onMove, { passive: false });
-                document.addEventListener('pointerup', onUp, { once: true });
-                document.addEventListener('pointercancel', onUp, { once: true });
+                }
             });
         }
     };

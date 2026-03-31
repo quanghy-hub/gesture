@@ -40,24 +40,33 @@
         }
     });
 
-    /**
-     * Translate text using the background service worker.
-     *
-     * @param {string} text - Raw text to translate.
-     * @param {object} options
-     * @param {object}   options.cache         - A cache instance from createMemoryCache() (required).
-     * @param {string}   [options.provider]    - Provider id, e.g. 'google'. Falls back to background default.
-     * @param {string}   [options.targetLanguage] - BCP-47 target language code.
-     * @param {boolean}  [options.cleanResult] - Strip leading/trailing punctuation from the result.
-     * @returns {Promise<string>} Translated text or empty string on failure.
-     */
-    const translate = async (text, { cache, provider, targetLanguage, cleanResult = false } = {}) => {
+    const translateDetailed = async (text, { cache, provider, targetLanguage, cleanResult = false } = {}) => {
         const key = String(text || '').trim();
-        if (!key) return '';
+        if (!key) {
+            return {
+                text: '',
+                translatedText: '',
+                provider: provider || '',
+                sourceLanguage: 'auto',
+                targetLanguage: targetLanguage || '',
+                fallbackReason: '',
+                error: ''
+            };
+        }
 
         if (cache) {
             const cached = cache.get(key);
-            if (cached?.result) return cached.result;
+            if (cached?.result) {
+                return {
+                    text: key,
+                    translatedText: cached.result,
+                    provider: cached.provider || provider || '',
+                    sourceLanguage: cached.sourceLanguage || 'auto',
+                    targetLanguage: cached.targetLanguage || targetLanguage || '',
+                    fallbackReason: cached.fallbackReason || '',
+                    error: ''
+                };
+            }
         }
 
         const payload = await sendRuntimeMessage('gesture-ext/translate-text', {
@@ -76,11 +85,31 @@
         }
 
         if (cache && result) {
-            cache.set(key, { result, ts: Date.now() });
+            cache.set(key, {
+                result,
+                provider: payload?.provider || provider || '',
+                sourceLanguage: payload?.sourceLanguage || 'auto',
+                targetLanguage: payload?.targetLanguage || targetLanguage || '',
+                fallbackReason: payload?.fallbackReason || '',
+                ts: Date.now()
+            });
         }
 
-        return result;
+        return {
+            text: key,
+            translatedText: result,
+            provider: payload?.provider || provider || '',
+            sourceLanguage: payload?.sourceLanguage || 'auto',
+            targetLanguage: payload?.targetLanguage || targetLanguage || '',
+            fallbackReason: payload?.fallbackReason || '',
+            error: result ? '' : 'Khong co noi dung dich tra ve'
+        };
     };
 
-    ext.shared.translateCore = { createMemoryCache, sendRuntimeMessage, translate };
+    const translate = async (text, options = {}) => {
+        const result = await translateDetailed(text, options);
+        return result.translatedText || '';
+    };
+
+    ext.shared.translateCore = { createMemoryCache, sendRuntimeMessage, translate, translateDetailed };
 })();

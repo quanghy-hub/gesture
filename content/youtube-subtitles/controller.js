@@ -6,6 +6,7 @@
         let settings = getConfig().youtubeSubtitles;
         let observer;
         let pageEventCleanup = null;
+        let locationHref = window.location.href;
         const state = {
             enabled: false,
             lastSource: '',
@@ -16,7 +17,8 @@
             video: null,
             detachTrackListener: null,
             videoSyncHandler: null,
-            navigateTimer: 0
+            navigateTimer: 0,
+            locationPollTimer: 0
         };
 
         const createCaptionObserver = (onChange) => {
@@ -65,7 +67,7 @@
         };
 
         const renderCurrentCaption = async () => {
-            const video = state.video || document.querySelector('video');
+            const video = state.video || ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
             if (!video) {
                 youtubeSubtitles.dom.removeSubtitleContainer();
                 youtubeSubtitles.dom.setPlayerTranslating(false);
@@ -97,16 +99,22 @@
                 return;
             }
 
-            const translated = await youtubeSubtitles.translator.translateCaption(displaySource, settings);
-            if (!translated || translated === displaySource) {
+            const translation = await youtubeSubtitles.translator.translateCaption(displaySource, settings);
+            const translated = translation?.text || '';
+            const errorMessage = translation?.error || '';
+            if ((!translated || translated === displaySource) && !errorMessage) {
                 return;
             }
 
             const container = youtubeSubtitles.dom.ensureSubtitleContainer();
             youtubeSubtitles.dom.makeContainerDraggable(container, persistSettings);
-            container.querySelector('.sub-original').textContent = displaySource;
-            container.querySelector('.sub-translated').textContent = translated;
-            container.querySelector('.sub-original').style.display = settings.displayMode === 'compact' && !settings.showOriginal ? 'none' : '';
+            const originalNode = container.querySelector('.sub-original');
+            const translatedNode = container.querySelector('.sub-translated');
+            originalNode.textContent = displaySource;
+            translatedNode.textContent = translated || errorMessage;
+            translatedNode.classList.toggle('sub-error', !translated && !!errorMessage);
+            translatedNode.style.display = translatedNode.textContent ? '' : 'none';
+            originalNode.style.display = settings.displayMode === 'compact' && !settings.showOriginal ? 'none' : '';
             state.lastRenderedSource = displaySource;
             youtubeSubtitles.dom.applySettingsStyles(settings);
             youtubeSubtitles.dom.setPlayerTranslating(true);
@@ -160,7 +168,7 @@
         };
 
         const startTranslationMode = () => {
-            const video = document.querySelector('video');
+            const video = ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
             if (!video) {
                 return;
             }
@@ -231,13 +239,24 @@
                 }, 300);
             };
 
+            const onLocationMaybeChanged = () => {
+                if (window.location.href === locationHref) {
+                    return;
+                }
+                locationHref = window.location.href;
+                onNavigateFinish();
+            };
+
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('yt-navigate-finish', onNavigateFinish);
             window.addEventListener('resize', resizeContainerIntoViewport);
+            state.locationPollTimer = window.setInterval(onLocationMaybeChanged, 700);
 
             pageEventCleanup = () => {
                 window.clearTimeout(state.navigateTimer);
                 state.navigateTimer = 0;
+                window.clearInterval(state.locationPollTimer);
+                state.locationPollTimer = 0;
                 document.removeEventListener('keydown', onKeyDown);
                 document.removeEventListener('yt-navigate-finish', onNavigateFinish);
                 window.removeEventListener('resize', resizeContainerIntoViewport);

@@ -62,6 +62,11 @@
         };
 
         const bindQualityEvents = () => {
+            const closePopup = () => {
+                const popup = $('fvp-res-popup');
+                if (popup) popup.style.display = 'none';
+            };
+
             const onWindowMessage = (event) => {
                 if (event.data?.type === 'fvp-page-quality-result' || (event.data?.type === 'fvp-iframe-quality-result' && ctx.floatedIframe?.contentWindow === event.source)) {
                     const popup = $('fvp-res-popup');
@@ -72,7 +77,7 @@
                             ev.stopPropagation();
                             if (ctx.floatedIframe) postToFloatedIframe({ command: 'set-quality', item: level });
                             else window.dispatchEvent(new CustomEvent('fvp-set-quality', { detail: level }));
-                            popup.style.display = 'none';
+                            closePopup();
                         };
                         popup.appendChild(item);
                     });
@@ -87,17 +92,27 @@
                     item.onclick = (ev) => {
                         ev.stopPropagation();
                         window.dispatchEvent(new CustomEvent('fvp-set-quality', { detail: level }));
-                        popup.style.display = 'none';
+                        closePopup();
                     };
                     popup.appendChild(item);
                 });
                 popup.style.display = 'flex';
             };
+            const onPointerDownOutside = (event) => {
+                const popup = $('fvp-res-popup');
+                const button = $('fvp-res');
+                if (!popup || popup.style.display !== 'flex') return;
+                const target = event.target instanceof Element ? event.target : null;
+                if (target && (popup.contains(target) || button?.contains(target))) return;
+                closePopup();
+            };
             window.addEventListener('message', onWindowMessage);
             window.addEventListener('fvp-quality-result', onQualityResult);
+            document.addEventListener('pointerdown', onPointerDownOutside, true);
             return () => {
                 window.removeEventListener('message', onWindowMessage);
                 window.removeEventListener('fvp-quality-result', onQualityResult);
+                document.removeEventListener('pointerdown', onPointerDownOutside, true);
             };
         };
 

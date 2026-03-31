@@ -38,6 +38,7 @@
                     if (document.body?.dataset) {
                         delete document.body.dataset.gestureYoutubeSubtitlesMounted;
                     }
+                    ext.youtubeSubtitles.dom.removeTranslateButtons();
                     originalDestroy();
                 }
             };

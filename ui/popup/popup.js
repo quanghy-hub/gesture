@@ -9,10 +9,10 @@
     const featureGesturesEnabled = document.getElementById('feature-gestures-enabled');
     const featureClipboardEnabled = document.getElementById('feature-clipboard-enabled');
     const featureVideoFloatingEnabled = document.getElementById('feature-video-floating-enabled');
+    const featureVideoScreenshotEnabled = document.getElementById('feature-video-screenshot-enabled');
     const featureQuickSearchEnabled = document.getElementById('feature-quick-search-enabled');
     const featureInlineTranslateEnabled = document.getElementById('feature-inline-translate-enabled');
     const featureYoutubeSubtitlesEnabled = document.getElementById('feature-youtube-subtitles-enabled');
-    const featureTrustedTypesEnabled = document.getElementById('feature-trusted-types-enabled');
     const featureForumEnabled = document.getElementById('feature-forum-enabled');
     const inlineTranslateHotkeyEnabled = document.getElementById('inline-translate-hotkey-enabled');
     const inlineTranslateHotkey = document.getElementById('inline-translate-hotkey');
@@ -27,7 +27,6 @@
     const youtubeSubtitlesShowOriginal = document.getElementById('youtube-subtitles-show-original');
     const youtubeSubtitlesOriginalColor = document.getElementById('youtube-subtitles-original-color');
     const youtubeSubtitlesTranslatedColor = document.getElementById('youtube-subtitles-translated-color');
-    const trustedTypesAllowDomains = document.getElementById('trusted-types-allow-domains');
     const quickSearchColumns = document.getElementById('quick-search-columns');
     const quickSearchImageSearchEnabled = document.getElementById('quick-search-image-search-enabled');
     const inlineTranslateSwipePx = document.getElementById('inline-translate-swipe-px');
@@ -67,10 +66,10 @@
     const gesturesCard = featureGesturesEnabled.closest('.card');
     const clipboardCard = featureClipboardEnabled.closest('.card');
     const videoFloatingCard = featureVideoFloatingEnabled.closest('.card');
+    const videoScreenshotCard = featureVideoScreenshotEnabled.closest('.card');
     const quickSearchCard = featureQuickSearchEnabled.closest('.card');
     const inlineTranslateCard = featureInlineTranslateEnabled.closest('.card');
     const youtubeSubtitlesCard = featureYoutubeSubtitlesEnabled.closest('.card');
-    const trustedTypesCard = featureTrustedTypesEnabled.closest('.card');
     const forumCard = featureForumEnabled.closest('.card');
     const quickSearchProviderIds = ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'];
     const quickSearchProviderInputs = Object.fromEntries(
@@ -120,10 +119,10 @@
         setCardState(gesturesCard, featureGesturesEnabled.checked);
         setCardState(clipboardCard, featureClipboardEnabled.checked);
         setCardState(videoFloatingCard, featureVideoFloatingEnabled.checked);
+        setCardState(videoScreenshotCard, featureVideoScreenshotEnabled.checked);
         setCardState(quickSearchCard, featureQuickSearchEnabled.checked);
         setCardState(inlineTranslateCard, featureInlineTranslateEnabled.checked);
         setCardState(youtubeSubtitlesCard, featureYoutubeSubtitlesEnabled.checked);
-        setCardState(trustedTypesCard, featureTrustedTypesEnabled.checked);
         setCardState(forumCard, featureForumEnabled.checked);
         setHostControlsState(canUseForumControls);
     };
@@ -135,11 +134,11 @@
         featureGesturesEnabled.checked = !!gestures.enabled;
         featureClipboardEnabled.checked = config.clipboard?.enabled !== false;
         featureVideoFloatingEnabled.checked = config.videoFloating?.enabled !== false;
+        featureVideoScreenshotEnabled.checked = config.videoScreenshot?.enabled !== false;
         featureQuickSearchEnabled.checked = config.quickSearch?.enabled !== false;
         featureInlineTranslateEnabled.checked = config.inlineTranslate?.enabled !== false;
         inlineTranslateHotkeyEnabled.checked = config.inlineTranslate?.hotkeyEnabled !== false;
         featureYoutubeSubtitlesEnabled.checked = !!config.youtubeSubtitles?.enabled;
-        featureTrustedTypesEnabled.checked = !!config.trustedTypes?.enabled;
         featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
         inlineTranslateHotkey.value = config.inlineTranslate?.hotkey || 'f2';
         inlineTranslateSwipeEnabled.checked = config.inlineTranslate?.swipeEnabled !== false;
@@ -154,7 +153,6 @@
         youtubeSubtitlesTranslatedColor.value = config.youtubeSubtitles?.translatedColor || '#0e8cef';
         youtubeSubtitlesDisplayMode.value = config.youtubeSubtitles?.displayMode || 'compact';
         youtubeSubtitlesShowOriginal.checked = config.youtubeSubtitles?.showOriginal !== false;
-        trustedTypesAllowDomains.value = Array.isArray(config.trustedTypes?.allowDomains) ? config.trustedTypes.allowDomains.join(', ') : '';
         quickSearchColumns.value = config.quickSearch?.columns || 5;
         quickSearchImageSearchEnabled.checked = config.quickSearch?.imageSearchEnabled !== false;
         const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds) ? config.quickSearch.enabledProviderIds : quickSearchProviderIds;
@@ -242,6 +240,7 @@
         next.clipboard.enabled = featureClipboardEnabled.checked;
         next.clipboard.maxHistory = Number(clipboardMaxHistory.value);
         next.videoFloating.enabled = featureVideoFloatingEnabled.checked;
+        next.videoScreenshot.enabled = featureVideoScreenshotEnabled.checked;
         next.videoFloating.minSwipeDistance = Number(videoFloatingMinDistance.value);
         next.videoFloating.swipeShort = Number(videoFloatingSwipeShort.value);
         next.videoFloating.swipeLong = Number(videoFloatingSwipeLong.value);
@@ -251,7 +250,7 @@
         next.videoFloating.realtimePreview = videoFloatingRealtimePreview.checked;
         next.videoFloating.throttle = Number(videoFloatingThrottle.value);
         next.videoFloating.noticeFontSize = Number(videoFloatingNoticeFontSize.value);
-        next.googleSearch.enabled = true;
+        next.googleSearch.enabled = next.googleSearch?.enabled !== false;
         next.quickSearch.enabled = featureQuickSearchEnabled.checked;
         next.quickSearch.columns = Number(quickSearchColumns.value);
         next.quickSearch.imageSearchEnabled = quickSearchImageSearchEnabled.checked;
@@ -272,12 +271,6 @@
         next.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
         next.youtubeSubtitles.displayMode = youtubeSubtitlesDisplayMode.value;
         next.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
-        next.trustedTypes.enabled = featureTrustedTypesEnabled.checked;
-        next.trustedTypes.allowDomains = trustedTypesAllowDomains.value
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean);
-
         let normalized = next;
         if (activeHost) {
             normalized = updateForumHostConfig(next, activeHost, {
@@ -329,6 +322,15 @@
     const registerAutoSave = (control, eventName = 'change', options = {}) => {
         if (!control) return;
         control.addEventListener(eventName, () => {
+            if (options.skipWhenEmpty && control.value === '') {
+                setStatus('Đang chỉnh giá trị...');
+                return;
+            }
+            if (options.restoreWhenEmpty && control.value === '') {
+                render();
+                setStatus('Giữ nguyên giá trị cũ.');
+                return;
+            }
             if (options.syncCards) {
                 syncFeatureCards();
             }
@@ -369,10 +371,10 @@
         featureGesturesEnabled,
         featureClipboardEnabled,
         featureVideoFloatingEnabled,
+        featureVideoScreenshotEnabled,
         featureQuickSearchEnabled,
         featureInlineTranslateEnabled,
         featureYoutubeSubtitlesEnabled,
-        featureTrustedTypesEnabled,
         featureForumEnabled
     ].forEach((control) => {
         registerAutoSave(control, 'change', { syncCards: true });
@@ -402,15 +404,20 @@
     });
 
     [
-        inlineTranslateSwipePx,
-        inlineTranslateFontScale,
         inlineTranslateMutedColor,
         youtubeSubtitlesTargetLang,
+        youtubeSubtitlesOriginalColor,
+        youtubeSubtitlesTranslatedColor
+    ].forEach((control) => {
+        registerAutoSave(control, 'input', { skipWhenEmpty: true });
+        registerAutoSave(control, 'change', { restoreWhenEmpty: true });
+    });
+
+    [
+        inlineTranslateSwipePx,
+        inlineTranslateFontScale,
         youtubeSubtitlesFontSize,
         youtubeSubtitlesTranslatedFontSize,
-        youtubeSubtitlesOriginalColor,
-        youtubeSubtitlesTranslatedColor,
-        trustedTypesAllowDomains,
         quickSearchColumns,
         clipboardMaxHistory,
         videoFloatingMinDistance,
@@ -432,8 +439,7 @@
         gEdgeSpeed,
         gPagerHops
     ].forEach((control) => {
-        registerAutoSave(control, 'input');
-        registerAutoSave(control, 'change');
+        registerAutoSave(control, 'change', { restoreWhenEmpty: true });
     });
 
     Object.values(quickSearchProviderInputs).forEach((control) => {
