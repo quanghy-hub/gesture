@@ -1,5 +1,29 @@
 (() => {
     const ext = globalThis.GestureExtension;
+    const apiServicesUtils = ext.shared.apiServices || {};
+    const DEFAULT_API_SERVICES = apiServicesUtils.DEFAULT_API_SERVICES || {
+        translate: {
+            activeProvider: 'google',
+            fallbackEnabled: true,
+            fallbackProvider: 'mymemory',
+            providers: {
+                google: { enabled: true, apiKey: '', endpoint: '' },
+                mymemory: { enabled: true, apiKey: '', endpoint: '' },
+                deepl: { enabled: false, apiKey: '', endpoint: '' }
+            }
+        },
+        ocr: {
+            activeProvider: 'ocrspace',
+            fallbackEnabled: false,
+            fallbackProvider: 'ocrspace-alt',
+            providers: {
+                ocrspace: { enabled: true, apiKey: 'helloworld', endpoint: '' },
+                'ocrspace-alt': { enabled: false, apiKey: '', endpoint: '' }
+            }
+        }
+    };
+    const getDefaultProviderId = apiServicesUtils.getDefaultProviderId || ((serviceType) => serviceType === 'ocr' ? 'ocrspace' : 'google');
+    const getDefaultFallbackProviderId = apiServicesUtils.getDefaultFallbackProviderId || ((serviceType) => serviceType === 'translate' ? 'mymemory' : '');
 
     const STORAGE_KEY = 'gesture_extension_config_v1';
 
@@ -62,6 +86,7 @@
             containerAlignment: 'left',
             enabled: false
         },
+        apiServices: DEFAULT_API_SERVICES,
         forum: {
             defaults: {
                 enabled: false,
@@ -125,6 +150,49 @@
 
     const normalizeMode = (value, fallback) => (value === 'fg' || value === 'bg' ? value : fallback);
     const normalizeSide = (value) => (value === 'left' || value === 'right' || value === 'both' ? value : 'both');
+    const normalizeProviderSettings = (value, fallback) => ({
+        enabled: value?.enabled !== false,
+        apiKey: typeof value?.apiKey === 'string' ? value.apiKey.trim() : (fallback?.apiKey || ''),
+        endpoint: typeof value?.endpoint === 'string' ? value.endpoint.trim() : (fallback?.endpoint || '')
+    });
+
+    const normalizeApiServiceConfig = (serviceType, value) => {
+        const defaults = DEFAULT_API_SERVICES[serviceType] || {
+            activeProvider: getDefaultProviderId(serviceType),
+            fallbackEnabled: false,
+            fallbackProvider: getDefaultFallbackProviderId(serviceType),
+            providers: {}
+        };
+        const next = value && typeof value === 'object' ? value : {};
+        const providerDefaults = defaults.providers && typeof defaults.providers === 'object' ? defaults.providers : {};
+        const providers = {};
+
+        for (const providerId of Object.keys(providerDefaults)) {
+            providers[providerId] = normalizeProviderSettings(next.providers?.[providerId], providerDefaults[providerId]);
+        }
+
+        if (next.providers && typeof next.providers === 'object') {
+            for (const [providerId, providerValue] of Object.entries(next.providers)) {
+                if (providers[providerId]) continue;
+                providers[providerId] = normalizeProviderSettings(providerValue, { enabled: true, apiKey: '', endpoint: '' });
+            }
+        }
+
+        const activeProvider = typeof next.activeProvider === 'string' && providers[next.activeProvider]
+            ? next.activeProvider
+            : defaults.activeProvider || getDefaultProviderId(serviceType);
+
+        const fallbackProvider = typeof next.fallbackProvider === 'string' && providers[next.fallbackProvider]
+            ? next.fallbackProvider
+            : defaults.fallbackProvider || getDefaultFallbackProviderId(serviceType);
+
+        return {
+            activeProvider,
+            fallbackEnabled: next.fallbackEnabled !== false && !!fallbackProvider,
+            fallbackProvider,
+            providers
+        };
+    };
 
     const normalizeConfig = (rawConfig) => {
         const merged = mergeObjects(DEFAULT_CONFIG, rawConfig || {});
@@ -188,7 +256,9 @@
 
         config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
         config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;
-        config.inlineTranslate.provider = config.inlineTranslate.provider === 'google' ? 'google' : 'google';
+        config.inlineTranslate.provider = typeof config.inlineTranslate.provider === 'string' && config.inlineTranslate.provider.trim()
+            ? config.inlineTranslate.provider.trim().toLowerCase()
+            : 'google';
         config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
         config.inlineTranslate.hotkey = ['f2', 'f4', 'f8'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
             ? String(config.inlineTranslate.hotkey).toLowerCase()
@@ -232,6 +302,14 @@
             ? config.youtubeSubtitles.containerAlignment
             : 'left';
         config.youtubeSubtitles.enabled = !!config.youtubeSubtitles.enabled;
+
+        config.apiServices = config.apiServices && typeof config.apiServices === 'object' ? config.apiServices : {};
+        config.apiServices.translate = normalizeApiServiceConfig('translate', config.apiServices.translate);
+        config.apiServices.ocr = normalizeApiServiceConfig('ocr', config.apiServices.ocr);
+        if (config.inlineTranslate.provider && config.apiServices.translate.providers[config.inlineTranslate.provider]) {
+            config.apiServices.translate.activeProvider = config.inlineTranslate.provider;
+        }
+        config.inlineTranslate.provider = config.apiServices.translate.activeProvider || 'google';
 
         config.forum.defaults.enabled = !!config.forum.defaults.enabled;
         config.forum.defaults.wide = !!config.forum.defaults.wide;

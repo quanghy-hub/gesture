@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "Gesture Suite DEV",
-    "version": "1.0.1",
+    "name": "Gesture",
+    "version": "1.1.0",
     "description": "Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.",
     "icons": {
         "16": "icons/icon16.png",
@@ -21,7 +21,7 @@
         "service_worker": "background/service-worker.js"
     },
     "action": {
-        "default_title": "Gesture Suite",
+        "default_title": "Gesture",
         "default_popup": "ui/popup/popup.html",
         "default_icon": {
             "16": "icons/icon16.png",
@@ -42,6 +42,7 @@
             ],
             "js": [
                 "shared/namespace.js",
+                "shared/api-services.js",
                 "shared/config.js",
                 "shared/storage.js",
                 "shared/runtime.js",

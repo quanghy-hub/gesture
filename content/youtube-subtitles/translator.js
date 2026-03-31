@@ -21,7 +21,6 @@
             try {
                 const result = await translateDetailed(key, {
                     cache,
-                    provider: 'google',
                     targetLanguage: settings.targetLang
                 });
                 const translated = String(result?.translatedText || '').trim();

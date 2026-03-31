@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gesture Suite</title>
+  <title>Gesture</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 
@@ -12,7 +12,7 @@
   <main class="popup">
     <header class="header">
       <div>
-        <h1>Gesture Suite</h1>
+        <h1>Gesture</h1>
         <p id="current-host">Đang tải...</p>
       </div>
       <div class="header-actions">
@@ -339,6 +339,62 @@
       </div>
     </section>
 
+    <!-- API Services -->
+    <section class="card">
+      <h2 class="card-title">API Services</h2>
+      <div class="table table-api-services">
+        <div class="item">
+          <span class="label-main">Translate</span>
+          <span class="label-sub">Provider</span>
+          <span class="param"><select id="api-translate-provider"></select></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Fallback</span>
+          <span class="param"><select id="api-translate-fallback-provider"></select></span>
+          <span class="toggle"><input id="api-translate-fallback-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">API key</span>
+          <span class="param"><input id="api-translate-api-key" type="text" autocomplete="off"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Fallback key</span>
+          <span class="param"><input id="api-translate-fallback-api-key" type="text" autocomplete="off"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+
+        <div class="item">
+          <span class="label-main">OCR</span>
+          <span class="label-sub">Provider</span>
+          <span class="param"><select id="api-ocr-provider"></select></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Fallback</span>
+          <span class="param"><select id="api-ocr-fallback-provider"></select></span>
+          <span class="toggle"><input id="api-ocr-fallback-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">API key</span>
+          <span class="param"><input id="api-ocr-api-key" type="text" autocomplete="off"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Fallback key</span>
+          <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+      </div>
+    </section>
+
     <!-- Forum -->
     <section class="card">
       <h2 class="card-title card-title-with-toggle"><span>Forum</span><input id="feature-forum-enabled" type="checkbox" aria-label="Bật Forum"></h2>
@@ -387,6 +443,7 @@
   </main>
 
   <script src="../../shared/namespace.js"></script>
+  <script src="../../shared/api-services.js"></script>
   <script src="../../shared/config.js"></script>
   <script src="../../shared/storage.js"></script>
   <script src="popup.js"></script>

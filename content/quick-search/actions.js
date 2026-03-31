@@ -45,7 +45,7 @@
             }
 
             try {
-                const result = await translate(text, { provider: 'google', cleanResult: true });
+                const result = await translate(text, { cleanResult: true });
                 if (!result || result === text) {
                     return;
                 }

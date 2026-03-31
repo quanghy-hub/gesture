@@ -1,6 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings } = ext.shared.config;
+    const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
 
     const hostLabel = document.getElementById('current-host');
@@ -27,6 +28,16 @@
     const youtubeSubtitlesShowOriginal = document.getElementById('youtube-subtitles-show-original');
     const youtubeSubtitlesOriginalColor = document.getElementById('youtube-subtitles-original-color');
     const youtubeSubtitlesTranslatedColor = document.getElementById('youtube-subtitles-translated-color');
+    const apiTranslateProvider = document.getElementById('api-translate-provider');
+    const apiTranslateFallbackEnabled = document.getElementById('api-translate-fallback-enabled');
+    const apiTranslateFallbackProvider = document.getElementById('api-translate-fallback-provider');
+    const apiTranslateApiKey = document.getElementById('api-translate-api-key');
+    const apiTranslateFallbackApiKey = document.getElementById('api-translate-fallback-api-key');
+    const apiOcrProvider = document.getElementById('api-ocr-provider');
+    const apiOcrFallbackEnabled = document.getElementById('api-ocr-fallback-enabled');
+    const apiOcrFallbackProvider = document.getElementById('api-ocr-fallback-provider');
+    const apiOcrApiKey = document.getElementById('api-ocr-api-key');
+    const apiOcrFallbackApiKey = document.getElementById('api-ocr-fallback-api-key');
     const quickSearchColumns = document.getElementById('quick-search-columns');
     const quickSearchImageSearchEnabled = document.getElementById('quick-search-image-search-enabled');
     const inlineTranslateSwipePx = document.getElementById('inline-translate-swipe-px');
@@ -82,6 +93,21 @@
     let isReady = false;
     let saveTimer = 0;
     let pendingSave = null;
+
+    const fillProviderOptions = (select, options) => {
+        if (!select) return;
+        select.replaceChildren(...options.map(({ id, label }) => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = label;
+            return option;
+        }));
+    };
+
+    fillProviderOptions(apiTranslateProvider, TRANSLATE_PROVIDER_OPTIONS);
+    fillProviderOptions(apiTranslateFallbackProvider, TRANSLATE_PROVIDER_OPTIONS);
+    fillProviderOptions(apiOcrProvider, OCR_PROVIDER_OPTIONS);
+    fillProviderOptions(apiOcrFallbackProvider, OCR_PROVIDER_OPTIONS);
 
     const setStatus = (message, isError = false) => {
         statusLabel.textContent = message;
@@ -153,6 +179,16 @@
         youtubeSubtitlesTranslatedColor.value = config.youtubeSubtitles?.translatedColor || '#0e8cef';
         youtubeSubtitlesDisplayMode.value = config.youtubeSubtitles?.displayMode || 'compact';
         youtubeSubtitlesShowOriginal.checked = config.youtubeSubtitles?.showOriginal !== false;
+        apiTranslateProvider.value = config.apiServices?.translate?.activeProvider || 'google';
+        apiTranslateFallbackEnabled.checked = !!config.apiServices?.translate?.fallbackEnabled;
+        apiTranslateFallbackProvider.value = config.apiServices?.translate?.fallbackProvider || 'mymemory';
+        apiTranslateApiKey.value = config.apiServices?.translate?.providers?.[apiTranslateProvider.value]?.apiKey || '';
+        apiTranslateFallbackApiKey.value = config.apiServices?.translate?.providers?.[apiTranslateFallbackProvider.value]?.apiKey || '';
+        apiOcrProvider.value = config.apiServices?.ocr?.activeProvider || 'ocrspace';
+        apiOcrFallbackEnabled.checked = !!config.apiServices?.ocr?.fallbackEnabled;
+        apiOcrFallbackProvider.value = config.apiServices?.ocr?.fallbackProvider || 'ocrspace-alt';
+        apiOcrApiKey.value = config.apiServices?.ocr?.providers?.[apiOcrProvider.value]?.apiKey || '';
+        apiOcrFallbackApiKey.value = config.apiServices?.ocr?.providers?.[apiOcrFallbackProvider.value]?.apiKey || '';
         quickSearchColumns.value = config.quickSearch?.columns || 5;
         quickSearchImageSearchEnabled.checked = config.quickSearch?.imageSearchEnabled !== false;
         const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds) ? config.quickSearch.enabledProviderIds : quickSearchProviderIds;
@@ -263,6 +299,25 @@
         next.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
         next.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
         next.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
+        next.apiServices.translate.activeProvider = apiTranslateProvider.value;
+        next.apiServices.translate.fallbackEnabled = apiTranslateFallbackEnabled.checked;
+        next.apiServices.translate.fallbackProvider = apiTranslateFallbackProvider.value;
+        next.apiServices.translate.providers[apiTranslateProvider.value].enabled = true;
+        next.apiServices.translate.providers[apiTranslateProvider.value].apiKey = apiTranslateApiKey.value.trim();
+        if (next.apiServices.translate.providers[apiTranslateFallbackProvider.value]) {
+            next.apiServices.translate.providers[apiTranslateFallbackProvider.value].enabled = true;
+            next.apiServices.translate.providers[apiTranslateFallbackProvider.value].apiKey = apiTranslateFallbackApiKey.value.trim();
+        }
+        next.apiServices.ocr.activeProvider = apiOcrProvider.value;
+        next.apiServices.ocr.fallbackEnabled = apiOcrFallbackEnabled.checked;
+        next.apiServices.ocr.fallbackProvider = apiOcrFallbackProvider.value;
+        next.apiServices.ocr.providers[apiOcrProvider.value].enabled = true;
+        next.apiServices.ocr.providers[apiOcrProvider.value].apiKey = apiOcrApiKey.value.trim();
+        if (next.apiServices.ocr.providers[apiOcrFallbackProvider.value]) {
+            next.apiServices.ocr.providers[apiOcrFallbackProvider.value].enabled = true;
+            next.apiServices.ocr.providers[apiOcrFallbackProvider.value].apiKey = apiOcrFallbackApiKey.value.trim();
+        }
+        next.inlineTranslate.provider = next.apiServices.translate.activeProvider;
         next.youtubeSubtitles.enabled = featureYoutubeSubtitlesEnabled.checked;
         next.youtubeSubtitles.targetLang = youtubeSubtitlesTargetLang.value;
         next.youtubeSubtitles.fontSize = Number(youtubeSubtitlesFontSize.value);
@@ -404,12 +459,32 @@
     });
 
     [
+        apiTranslateProvider,
+        apiTranslateFallbackProvider,
+        apiOcrProvider,
+        apiOcrFallbackProvider
+    ].forEach((control) => {
+        registerAutoSave(control, 'change', { renderAfter: true });
+    });
+
+    [
+        apiTranslateFallbackEnabled,
+        apiOcrFallbackEnabled
+    ].forEach((control) => {
+        registerAutoSave(control, 'change');
+    });
+
+    [
         inlineTranslateMutedColor,
+        apiTranslateApiKey,
+        apiTranslateFallbackApiKey,
+        apiOcrApiKey,
+        apiOcrFallbackApiKey,
         youtubeSubtitlesTargetLang,
         youtubeSubtitlesOriginalColor,
         youtubeSubtitlesTranslatedColor
     ].forEach((control) => {
-        registerAutoSave(control, 'input', { skipWhenEmpty: true });
+        registerAutoSave(control, 'input', { skipWhenEmpty: false });
         registerAutoSave(control, 'change', { restoreWhenEmpty: true });
     });
 
