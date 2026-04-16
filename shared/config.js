@@ -33,8 +33,7 @@
             enabled: true,
             maxHistory: 5,
             history: [],
-            pinned: [],
-            triggerPosition: null
+            pinned: []
         },
         googleSearch: {
             enabled: true
@@ -47,8 +46,7 @@
             forwardStep: 5, hotkeys: true,
             boost: true, boostLevel: 1, maxBoost: 5,
             noticeFontSize: 14,
-            layout: null,
-            iconPos: null
+            layout: null
         },
         videoScreenshot: {
             enabled: true
@@ -64,6 +62,7 @@
         inlineTranslate: {
             enabled: true,
             provider: 'google',
+            selectionTranslateEnabled: true,
             hotkeyEnabled: true,
             hotkey: 'f2',
             swipeEnabled: true,
@@ -97,6 +96,9 @@
                 initDelay: 100
             },
             hosts: {}
+        },
+        runtime: {
+            excludedHosts: ['ajog.org']
         },
         gestures: {
             desktop: {
@@ -150,6 +152,48 @@
 
     const normalizeMode = (value, fallback) => (value === 'fg' || value === 'bg' ? value : fallback);
     const normalizeSide = (value) => (value === 'left' || value === 'right' || value === 'both' ? value : 'both');
+    const normalizeHost = (value) => {
+        if (typeof value !== 'string') return '';
+        let host = value.trim().toLowerCase();
+        if (!host) return '';
+        host = host.replace(/^https?:\/\//, '').replace(/^(\*\.)+/, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+        host = host.replace(/^\.+|\.+$/g, '').replace(/\.+/g, '.');
+        if (host.startsWith('www.') && host.split('.').length > 2) {
+            host = host.slice(4);
+        }
+        if (!host || !host.includes('.') || !/^[a-z0-9.-]+$/.test(host)) {
+            return '';
+        }
+        return host;
+    };
+    const normalizeExcludedHosts = (value) => {
+        const list = Array.isArray(value) ? value : [];
+        return [...new Set(list.map(normalizeHost).filter(Boolean))];
+    };
+    const isHostExcluded = (configOrHosts, host) => {
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) return false;
+        const excludedHosts = Array.isArray(configOrHosts)
+            ? normalizeExcludedHosts(configOrHosts)
+            : normalizeExcludedHosts(configOrHosts?.runtime?.excludedHosts);
+        return excludedHosts.some((entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`));
+    };
+    const setHostExcluded = (config, host, excluded) => {
+        const next = normalizeConfig(config);
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) return next;
+        const current = new Set(normalizeExcludedHosts(next.runtime?.excludedHosts));
+        if (excluded) {
+            current.add(normalizedHost);
+        } else {
+            current.delete(normalizedHost);
+        }
+        next.runtime.excludedHosts = [...current];
+        return normalizeConfig(next);
+    };
+    const getExcludedMatchPatterns = (excludedHosts) => {
+        return normalizeExcludedHosts(excludedHosts).flatMap((host) => ([`*://${host}/*`, `*://*.${host}/*`]));
+    };
     const normalizeProviderSettings = (value, fallback) => ({
         enabled: value?.enabled !== false,
         apiKey: typeof value?.apiKey === 'string' ? value.apiKey.trim() : (fallback?.apiKey || ''),
@@ -210,13 +254,7 @@
         config.clipboard.pinned = Array.isArray(config.clipboard.pinned)
             ? config.clipboard.pinned.filter((s) => typeof s === 'string' && s.length > 0)
             : [];
-        config.clipboard.triggerPosition = config.clipboard.triggerPosition && typeof config.clipboard.triggerPosition === 'object'
-            ? config.clipboard.triggerPosition
-            : null;
-        if (config.clipboard.triggerPosition) {
-            config.clipboard.triggerPosition.x = clampNumber(config.clipboard.triggerPosition.x, 0, 0, 100000);
-            config.clipboard.triggerPosition.y = clampNumber(config.clipboard.triggerPosition.y, 0, 0, 100000);
-        }
+        delete config.clipboard.triggerPosition;
 
         config.googleSearch = config.googleSearch && typeof config.googleSearch === 'object' ? config.googleSearch : {};
         config.googleSearch.enabled = config.googleSearch.enabled !== false;
@@ -249,7 +287,7 @@
         config.videoFloating.maxBoost = clampNumber(config.videoFloating.maxBoost, 5, 1, 20);
         config.videoFloating.noticeFontSize = clampNumber(config.videoFloating.noticeFontSize, 14, 8, 48);
         config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
-        config.videoFloating.iconPos = config.videoFloating.iconPos && typeof config.videoFloating.iconPos === 'object' ? config.videoFloating.iconPos : null;
+        delete config.videoFloating.iconPos;
 
         config.videoScreenshot = config.videoScreenshot && typeof config.videoScreenshot === 'object' ? config.videoScreenshot : {};
         config.videoScreenshot.enabled = config.videoScreenshot.enabled !== false;
@@ -259,6 +297,7 @@
         config.inlineTranslate.provider = typeof config.inlineTranslate.provider === 'string' && config.inlineTranslate.provider.trim()
             ? config.inlineTranslate.provider.trim().toLowerCase()
             : 'google';
+        config.inlineTranslate.selectionTranslateEnabled = config.inlineTranslate.selectionTranslateEnabled !== false;
         config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
         config.inlineTranslate.hotkey = ['f2', 'f4', 'f8'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
             ? String(config.inlineTranslate.hotkey).toLowerCase()
@@ -332,6 +371,9 @@
         }
         config.forum.hosts = normalizedHosts;
 
+        config.runtime = config.runtime && typeof config.runtime === 'object' ? config.runtime : {};
+        config.runtime.excludedHosts = normalizeExcludedHosts(config.runtime.excludedHosts);
+
         config.gestures.desktop.enabled = !!config.gestures.desktop.enabled;
         config.gestures.desktop.lpress.enabled = !!config.gestures.desktop.lpress.enabled;
         config.gestures.desktop.lpress.mode = normalizeMode(config.gestures.desktop.lpress.mode, 'bg');
@@ -342,7 +384,6 @@
         config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
         config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 5);
-        config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
 
         config.gestures.mobile.enabled = !!config.gestures.mobile.enabled;
         config.gestures.mobile.lpress.enabled = !!config.gestures.mobile.lpress.enabled;
@@ -488,6 +529,11 @@
         normalizeConfig,
         getForumConfig,
         updateForumHostConfig,
+        normalizeHost,
+        normalizeExcludedHosts,
+        isHostExcluded,
+        setHostExcluded,
+        getExcludedMatchPatterns,
         getGestureSettings,
         applyGestureSettings
     };

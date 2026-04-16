@@ -1,6 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const viewport = ext.shared.viewportCore;
     const {
         JUNK,
         IS_REDDIT,
@@ -11,6 +12,12 @@
         HEADING_TAGS,
         CONTAINER_FALLBACK_TAGS
     } = inlineTranslate;
+    const EDITABLE_SELECTION_PANEL_MARGIN = 8;
+
+    let editableSelectionPanel = null;
+    let editableSelectionPanelMeta = null;
+    let editableSelectionPanelText = null;
+    let editableSelectionApplyHandler = null;
 
     const hasMeaningfulText = (text) => text.replace(JUNK, '').length > 0;
     const normalizeBlockText = (text) => String(text || '').replace(/\s+/g, ' ').trim();
@@ -179,6 +186,86 @@
         return { host: node, mode: 'append' };
     };
 
+    const applyEditableSelectionPanelPosition = (anchor) => {
+        if (!editableSelectionPanel || !anchor) {
+            return;
+        }
+        const width = editableSelectionPanel.offsetWidth;
+        const height = editableSelectionPanel.offsetHeight;
+        const centeredLeft = anchor.x - (width / 2);
+        const next = viewport?.fitPanelToViewport?.({
+            preferredLeft: centeredLeft,
+            preferredTop: anchor.y,
+            panelWidth: width,
+            panelHeight: height,
+            margin: EDITABLE_SELECTION_PANEL_MARGIN
+        }) || {
+            left: Math.max(EDITABLE_SELECTION_PANEL_MARGIN, Math.min(centeredLeft, window.innerWidth - width - EDITABLE_SELECTION_PANEL_MARGIN)),
+            top: Math.max(EDITABLE_SELECTION_PANEL_MARGIN, Math.min(anchor.y, window.innerHeight - height - EDITABLE_SELECTION_PANEL_MARGIN))
+        };
+
+        editableSelectionPanel.style.left = `${next.left}px`;
+        editableSelectionPanel.style.top = `${next.top}px`;
+    };
+
+    const ensureEditableSelectionPanel = () => {
+        if (editableSelectionPanel?.isConnected) {
+            return editableSelectionPanel;
+        }
+
+        editableSelectionPanel = document.createElement('div');
+        editableSelectionPanel.className = 'gesture-inline-translate-selection-panel';
+        editableSelectionPanel.setAttribute('role', 'button');
+        editableSelectionPanel.tabIndex = -1;
+
+        editableSelectionPanelMeta = document.createElement('div');
+        editableSelectionPanelMeta.className = 'gesture-inline-translate-selection-meta';
+        editableSelectionPanelText = document.createElement('div');
+        editableSelectionPanelText.className = 'gesture-inline-translate-selection-text';
+        editableSelectionPanel.append(editableSelectionPanelMeta, editableSelectionPanelText);
+
+        const keepSelectionStable = (event) => {
+            event.preventDefault();
+        };
+
+        editableSelectionPanel.addEventListener('pointerdown', keepSelectionStable);
+        editableSelectionPanel.addEventListener('mousedown', keepSelectionStable);
+        editableSelectionPanel.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (editableSelectionPanel.dataset.mode === 'result' && typeof editableSelectionApplyHandler === 'function') {
+                editableSelectionApplyHandler();
+            }
+        });
+        editableSelectionPanel.addEventListener('keydown', (event) => {
+            if (editableSelectionPanel.dataset.mode !== 'result') {
+                return;
+            }
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            editableSelectionApplyHandler?.();
+        });
+
+        document.documentElement.appendChild(editableSelectionPanel);
+        return editableSelectionPanel;
+    };
+
+    const setEditableSelectionPanelState = ({ mode, anchor, meta, text, onApply }) => {
+        const panel = ensureEditableSelectionPanel();
+        editableSelectionApplyHandler = typeof onApply === 'function' ? onApply : null;
+        panel.dataset.mode = mode;
+        panel.tabIndex = mode === 'result' ? 0 : -1;
+        panel.setAttribute('aria-disabled', mode === 'result' ? 'false' : 'true');
+        editableSelectionPanelMeta.textContent = meta;
+        editableSelectionPanelMeta.style.display = meta ? 'block' : 'none';
+        editableSelectionPanelText.textContent = text;
+        panel.style.display = 'block';
+        applyEditableSelectionPanelPosition(anchor);
+    };
+
     inlineTranslate.dom = {
         hasMeaningfulText,
         normalizeBlockText,
@@ -218,6 +305,45 @@
                     opacity: 0.6;
                     font-size: 0.75em;
                     animation: gesture-inline-translate-pulse 1s infinite;
+                }
+                .gesture-inline-translate-selection-panel {
+                    position: fixed;
+                    display: none;
+                    min-width: 180px;
+                    max-width: min(360px, calc(100vw - 16px));
+                    padding: 10px 12px;
+                    border-radius: 12px;
+                    background: rgba(15, 23, 42, 0.98);
+                    color: #f8fafc;
+                    box-shadow: 0 14px 36px rgba(2, 6, 23, 0.35);
+                    z-index: 2147483647;
+                    pointer-events: auto;
+                    user-select: none;
+                    animation: gesture-inline-translate-fade-in 0.16s ease;
+                }
+                .gesture-inline-translate-selection-panel[data-mode="result"] {
+                    cursor: pointer;
+                }
+                .gesture-inline-translate-selection-meta {
+                    margin-bottom: 6px;
+                    font: 600 11px/1.25 system-ui;
+                    letter-spacing: 0.02em;
+                    color: rgba(148, 163, 184, 0.95);
+                }
+                .gesture-inline-translate-selection-panel[data-mode="result"] .gesture-inline-translate-selection-meta {
+                    color: rgba(125, 211, 252, 0.95);
+                }
+                .gesture-inline-translate-selection-panel[data-mode="loading"] .gesture-inline-translate-selection-meta {
+                    color: #facc15;
+                }
+                .gesture-inline-translate-selection-panel[data-mode="error"] .gesture-inline-translate-selection-meta {
+                    color: #fca5a5;
+                }
+                .gesture-inline-translate-selection-text {
+                    white-space: pre-wrap;
+                    font: 500 13px/1.45 system-ui;
+                    color: #f8fafc;
+                    word-break: break-word;
                 }
                 @keyframes gesture-inline-translate-fade-in {
                     from { opacity: 0; transform: translateY(-5px); }
@@ -283,6 +409,54 @@
                 }
             }
             return null;
+        },
+        showEditableSelectionLoading(anchor) {
+            setEditableSelectionPanelState({
+                mode: 'loading',
+                anchor,
+                meta: 'Đang dịch sang tiếng Anh',
+                text: 'Đang xử lý vùng bôi đen…'
+            });
+        },
+        showEditableSelectionResult({ anchor, text, onApply }) {
+            setEditableSelectionPanelState({
+                mode: 'result',
+                anchor,
+                meta: '',
+                text,
+                onApply
+            });
+        },
+        showEditableSelectionError({ anchor, message }) {
+            setEditableSelectionPanelState({
+                mode: 'error',
+                anchor,
+                meta: 'Không dịch được',
+                text: String(message || 'Lỗi dịch tạm thời').slice(0, 140)
+            });
+        },
+        repositionEditableSelectionPanel(anchor) {
+            if (editableSelectionPanel?.style.display === 'block') {
+                applyEditableSelectionPanelPosition(anchor);
+            }
+        },
+        hideEditableSelectionPanel() {
+            editableSelectionApplyHandler = null;
+            if (editableSelectionPanel) {
+                editableSelectionPanel.style.display = 'none';
+                editableSelectionPanel.dataset.mode = '';
+                editableSelectionPanel.tabIndex = -1;
+            }
+        },
+        isEventInsideEditableSelectionPanel(event) {
+            if (!editableSelectionPanel?.isConnected) {
+                return false;
+            }
+            const path = event.composedPath?.();
+            if (Array.isArray(path) && path.includes(editableSelectionPanel)) {
+                return true;
+            }
+            return event.target instanceof Node && editableSelectionPanel.contains(event.target);
         },
         getTextBlock(element, x = 0, y = 0) {
             if (!element || element === document.body) {

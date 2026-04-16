@@ -20,6 +20,19 @@
       </div>
     </header>
 
+    <section class="card">
+      <h2 class="card-title">Host Blacklist</h2>
+      <p id="host-blacklist-note" class="section-note">Có thể tắt toàn bộ extension trên host hiện tại.</p>
+      <div class="table">
+        <div class="item">
+          <span class="label-main">Current host</span>
+          <span class="label-sub">Disable</span>
+          <span class="param"><span id="host-blacklist-label" class="param-name">Không có host</span></span>
+          <span class="toggle"><input id="host-blacklist-toggle" type="checkbox" aria-label="Tắt extension trên host hiện tại"></span>
+        </div>
+      </div>
+    </section>
+
     <!-- Gestures -->
     <section class="card">
       <h2 class="card-title card-title-with-toggle"><span>Gestures</span><input id="feature-gestures-enabled" type="checkbox" aria-label="Bật Gestures"></h2>
@@ -169,12 +182,6 @@
               min="0.5" max="5" step="0.05"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item">
-          <span class="label-main">Preview</span>
-          <span class="label-sub">Realtime</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
-          <span class="toggle"><input id="video-floating-realtime-preview" type="checkbox"></span>
-        </div>
         <div class="item item-sub">
           <span class="label-main label-main-empty"></span>
           <span class="label-sub">Throttle</span>
@@ -195,14 +202,6 @@
     <!-- Video Screenshot -->
     <section class="card">
       <h2 class="card-title card-title-with-toggle"><span>Video Screenshot</span><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Bật Video Screenshot"></h2>
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Capture</span>
-          <span class="label-sub">Button</span>
-          <span class="param"><span class="param-name">Show</span></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-      </div>
     </section>
 
     <!-- Quick Search -->
@@ -217,9 +216,9 @@
           <span class="toggle toggle-empty"></span>
         </div>
         <div class="item">
-          <span class="label-main">Image</span>
-          <span class="label-sub">Search</span>
-          <span class="param"><span class="param-name">Show</span><span class="param-value">On/Off</span></span>
+          <span class="label-main">Image search</span>
+          <span class="label-sub"></span>
+          <span class="param"></span>
           <span class="toggle"><input id="quick-search-image-search-enabled" type="checkbox"></span>
         </div>
       </div>
@@ -252,9 +251,15 @@
           <span class="toggle"><input id="inline-translate-hotkey-enabled" type="checkbox"></span>
         </div>
         <div class="item">
+          <span class="label-main">Selection</span>
+          <span class="label-sub">Translate</span>
+          <span class="param"></span>
+          <span class="toggle"><input id="inline-translate-selection-translate-enabled" type="checkbox"></span>
+        </div>
+        <div class="item">
           <span class="label-main">Swipe</span>
-          <span class="label-sub">State</span>
-          <span class="param"><span class="param-name">State</span><span class="param-value">On/Off</span></span>
+          <span class="label-sub"></span>
+          <span class="param"></span>
           <span class="toggle"><input id="inline-translate-swipe-enabled" type="checkbox"></span>
         </div>
         <div class="item item-sub">
@@ -398,11 +403,12 @@
     <!-- Forum -->
     <section class="card">
       <h2 class="card-title card-title-with-toggle"><span>Forum</span><input id="feature-forum-enabled" type="checkbox" aria-label="Bật Forum"></h2>
+      <p id="forum-scope" class="section-note"></p>
       <div class="table">
         <div class="item">
           <span class="label-main">Wide</span>
-          <span class="label-sub">Mode</span>
-          <span class="param"><span class="param-name">Wide</span><span class="param-value">On/Off</span></span>
+          <span class="label-sub"></span>
+          <span class="param"></span>
           <span class="toggle"><input id="forum-wide" type="checkbox"></span>
         </div>
 
@@ -437,9 +443,6 @@
       </div>
     </section>
 
-    <footer class="footer">
-      <p id="status" class="hint">Sẵn sàng.</p>
-    </footer>
   </main>
 
   <script src="../../shared/namespace.js"></script>
