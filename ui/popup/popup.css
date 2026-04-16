@@ -78,6 +78,13 @@ body {
     accent-color: #22c55e;
 }
 
+.section-note {
+    margin: -2px 0 8px;
+    color: #9ca3af;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .card.is-disabled {
     opacity: 0.55;
 }
@@ -154,13 +161,6 @@ body {
     text-align: left;
     width: auto;
     order: 2;
-}
-
-.param-value {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 0 4px;
 }
 
 .toggle {
@@ -259,16 +259,6 @@ button.inline-button {
 button.secondary {
     background: #374151;
     color: #fff;
-}
-
-.footer {
-    margin-top: 10px;
-}
-
-.hint {
-    margin: 0;
-    color: #9ca3af;
-    font-size: 12px;
 }
 
 .provider-picker {
