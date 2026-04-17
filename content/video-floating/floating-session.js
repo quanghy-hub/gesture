@@ -102,6 +102,21 @@
             }
         };
 
+        const resetIframePlaybackState = () => {
+            Object.assign(ctx.iframePlaybackState, {
+                hasVideo: false,
+                paused: true,
+                muted: false,
+                volume: 1,
+                currentTime: 0,
+                duration: 0,
+                bufferedEnd: 0,
+                fitIdx: 0,
+                zoomIdx: 0,
+                rotationAngle: 0
+            });
+        };
+
         const applyTransform = () => {
             if (!ctx.curVid) return;
             const zoom = ZOOM_LEVELS[ctx.zoomIdx];
@@ -142,7 +157,10 @@
             if (!video) return;
             video.onplay = () => updatePlaybackOverlayUI?.();
             video.onpause = () => updatePlaybackOverlayUI?.();
-            video.onended = () => switchVid(1);
+            video.onended = () => {
+                updatePlaybackOverlayUI?.();
+                switchVid(1);
+            };
         };
 
         const activateCurrentVideo = (video) => {
@@ -156,7 +174,9 @@
             updatePlaybackOverlayUI?.();
             startProgressLoop();
             bindCurrentVideo(video);
-            video.play().catch(() => { });
+            video.play().catch(() => {
+                updatePlaybackOverlayUI?.();
+            });
         };
 
         const createTransitionLayer = (video, className) => {
@@ -230,6 +250,7 @@
                 ctx.floatedIframe = null;
                 ctx.iframeOrigPar = null;
                 ctx.iframePh = null;
+                resetIframePlaybackState();
             } else if (!transitionRestored && ctx.curVid) {
                 // Restore the original DOM position of the video node to avoid leaving detached media behind.
                 ctx.origPar?.replaceChild(ctx.curVid, ctx.ph);
@@ -305,7 +326,9 @@
             wrapper.appendChild(outgoingLayer);
             wrapper.appendChild(incomingLayer);
             nextVideo.style.objectFit = FIT_MODES[0];
-            nextVideo.play().catch(() => { });
+            nextVideo.play().catch(() => {
+                updatePlaybackOverlayUI?.();
+            });
             updateVideoOrderUI(nextVideo);
 
             requestAnimationFrame(() => {
@@ -344,6 +367,7 @@
             ctx.floatedIframe = iframe;
             ctx.iframeOrigPar = iframe.parentNode;
             ctx.iframeOrigStyle = iframe.getAttribute('style') || '';
+            resetIframePlaybackState();
             ctx.iframePh = el('div', 'fvp-ph', '<div style="font-size:20px;opacity:.5">📺</div>');
             ctx.iframePh.style.cssText = `width:${iframe.offsetWidth || 300}px;height:${iframe.offsetHeight || 200}px`;
             ctx.iframeOrigPar?.replaceChild(ctx.iframePh, iframe);
@@ -359,6 +383,7 @@
             ensureLayoutReady().then((layout) => {
                 if (ctx.floatedIframe === iframe && layout) applyBoxLayout(layout);
             });
+            postToFloatedIframe({ command: 'get-state' });
             ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 350);
         };
 

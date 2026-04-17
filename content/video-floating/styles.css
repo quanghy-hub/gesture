@@ -144,11 +144,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: min(680px, calc(100vw - 40px));
+    width: min(680px, 100vw);
     height: 420px;
     min-width: 200px;
     min-height: 120px;
-    max-width: calc(100vw - 10px);
+    max-width: 100vw;
     max-height: calc(100vh - 60px);
     background: #000;
     border-radius: 12px;
@@ -187,7 +187,7 @@
     justify-content: center;
     background: transparent;
     color: #fff;
-    font-size: 120px;
+    font-size: 80px;
     line-height: 1;
     cursor: pointer;
     box-shadow: none;

@@ -8,6 +8,10 @@
         const getPausedState = () => ctx.floatedIframe
             ? !!ctx.iframePlaybackState.paused
             : !!(ctx.curVid?.paused ?? true);
+        const requestIframeState = () => {
+            if (!ctx.floatedIframe) return;
+            postToFloatedIframe({ command: 'get-state' });
+        };
 
         const updateVolUI = () => {
             const btn = $('fvp-vol-btn');
@@ -25,14 +29,18 @@
                 return;
             }
             const paused = getPausedState();
-            button.textContent = '▶';
-            button.setAttribute('aria-label', 'Play video');
+            button.textContent = '⏸';
+            button.setAttribute('aria-label', paused ? 'Resume video' : 'Pause video');
             button.hidden = !paused;
         };
 
         const togglePlayback = () => {
             if (ctx.floatedIframe) {
-                postToFloatedIframe({ command: 'play-pause' });
+                const paused = getPausedState();
+                ctx.iframePlaybackState.paused = !paused;
+                updatePlaybackOverlayUI();
+                postToFloatedIframe({ command: paused ? 'play' : 'pause' });
+                setTimeout(requestIframeState, 80);
                 return;
             }
             if (!ctx.curVid) return;

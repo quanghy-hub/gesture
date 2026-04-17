@@ -19,8 +19,10 @@
     videoFloating.createIframeController = () => {
         const childFrameVideoMap = new Map();
         const iframeUiState = { fitIdx: 0, zoomIdx: 0, rotationAngle: 0 };
+        const IFRAME_STATE_EVENTS = ['play', 'pause', 'ended', 'timeupdate', 'durationchange', 'loadedmetadata', 'volumechange', 'progress', 'seeking', 'seeked'];
         let activeIframeVideo = null;
         let styledIframeVideo = null;
+        let trackedStateVideo = null;
         let reportTimer = 0;
 
         const getOwnVideoCount = () => queryAllDeep('video').length;
@@ -46,9 +48,37 @@
         };
 
         const getCurrentIframeVideo = () => {
-            if (activeIframeVideo?.isConnected) return activeIframeVideo;
+            if (activeIframeVideo?.isConnected) {
+                bindActiveIframeState(activeIframeVideo);
+                return activeIframeVideo;
+            }
             activeIframeVideo = getVideo() || getIframeVideos()[0] || null;
+            bindActiveIframeState(activeIframeVideo);
             return activeIframeVideo;
+        };
+
+        const unbindActiveIframeState = () => {
+            if (!trackedStateVideo) return;
+            IFRAME_STATE_EVENTS.forEach((eventName) => trackedStateVideo.removeEventListener(eventName, onActiveIframeStateChange));
+            trackedStateVideo = null;
+        };
+
+        const bindActiveIframeState = (video) => {
+            if (trackedStateVideo === video) return;
+            unbindActiveIframeState();
+            if (!video) return;
+            trackedStateVideo = video;
+            IFRAME_STATE_EVENTS.forEach((eventName) => trackedStateVideo.addEventListener(eventName, onActiveIframeStateChange));
+        };
+
+        const onActiveIframeStateChange = (event) => {
+            const video = event.currentTarget;
+            if (video && video !== activeIframeVideo) {
+                activeIframeVideo = video;
+                applyIframePresentation(activeIframeVideo);
+                bindActiveIframeState(activeIframeVideo);
+            }
+            postIframeState();
         };
 
         const applyIframePresentation = (video = getCurrentIframeVideo()) => {
@@ -73,6 +103,7 @@
             const current = getCurrentIframeVideo();
             const index = Math.max(0, list.indexOf(current));
             activeIframeVideo = list[(index + dir + list.length) % list.length];
+            bindActiveIframeState(activeIframeVideo);
             Object.assign(iframeUiState, { fitIdx: 0, zoomIdx: 0, rotationAngle: 0 });
             applyIframePresentation(activeIframeVideo);
         };
@@ -119,6 +150,13 @@
             } catch { }
         };
 
+        const playIframeVideo = (video) => {
+            if (!video) return;
+            video.play?.().catch(() => {
+                postIframeState();
+            });
+        };
+
         const onMessage = (event) => {
             if (event.source === window && event.data?.source === FVP_IFRAME_BRIDGE) {
                 if (event.data?.type === 'fvp-page-quality-result') {
@@ -140,7 +178,9 @@
             if (event.data?.type !== 'fvp-iframe-command') return;
             const video = getCurrentIframeVideo();
             switch (event.data.command) {
-                case 'play-pause': if (video) video.paused ? video.play().catch(() => { }) : video.pause(); break;
+                case 'play': playIframeVideo(video); break;
+                case 'pause': if (video) video.pause(); break;
+                case 'play-pause': if (video) video.paused ? playIframeVideo(video) : video.pause(); break;
                 case 'toggle-mute': if (video) video.muted = !video.muted; break;
                 case 'seek-to-ratio': if (video?.duration) video.currentTime = clamp((event.data.ratio || 0) * video.duration, 0, video.duration); break;
                 case 'prev-video': switchIframeVideo(-1); break;
@@ -148,12 +188,13 @@
                 case 'cycle-fit': iframeUiState.fitIdx = (iframeUiState.fitIdx + 1) % FIT_MODES.length; applyIframePresentation(); break;
                 case 'cycle-zoom': iframeUiState.zoomIdx = (iframeUiState.zoomIdx + 1) % ZOOM_LEVELS.length; applyIframePresentation(); break;
                 case 'rotate': iframeUiState.rotationAngle = (iframeUiState.rotationAngle + 90) % 360; applyIframePresentation(); break;
+                case 'get-state': break;
                 case 'get-quality': postIframeBridgeMessage({ type: 'fvp-page-get-quality' }); break;
                 case 'set-quality': postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: event.data.item }); break;
                 default: break;
             }
             postIframeState();
-            setTimeout(postIframeState, 80);
+            if (event.data.command !== 'get-state') setTimeout(postIframeState, 80);
         };
 
         window.addEventListener('message', onMessage);
@@ -166,10 +207,12 @@
         window.addEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
         reportTimer = window.setInterval(reportVideos, videoFloating.VIDEO_CHECK_INTERVAL);
         reportVideos();
+        postIframeState();
 
         return {
             onConfigChange() { },
             destroy() {
+                unbindActiveIframeState();
                 window.removeEventListener('message', onMessage);
                 window.removeEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
                 window.clearInterval(reportTimer);

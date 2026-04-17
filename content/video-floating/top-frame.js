@@ -77,12 +77,35 @@
 
         const postToFloatedIframe = (cmd) => ctx.floatedIframe?.contentWindow?.postMessage({ type: 'fvp-iframe-command', ...cmd }, '*');
 
+        const getBoxViewportInsets = () => ({
+            horizontal: window.innerWidth <= 640 ? 0 : 8,
+            vertical: 8
+        });
+
+        const clampBoxPosition = ({ left = 0, top = 0, width = 0, height = 0 }) => {
+            const { horizontal, vertical } = getBoxViewportInsets();
+            return {
+                left: Math.min(
+                    Math.max(horizontal, left),
+                    Math.max(horizontal, window.innerWidth - width - horizontal)
+                ),
+                top: Math.min(
+                    Math.max(vertical, top),
+                    Math.max(vertical, window.innerHeight - height - vertical)
+                )
+            };
+        };
+
         const getDefaultLayout = () => {
-            const width = Math.min(Math.max(Math.round(window.innerWidth * 0.88), 260), 680);
-            const height = Math.min(Math.max(Math.round(width * 9 / 16), 160), Math.max(160, window.innerHeight - 24));
-            const centered = ext.shared.viewportCore?.getCenteredRect?.({ width, height, margin: 8 }) || {
-                left: Math.max(8, Math.round((window.innerWidth - width) / 2)),
-                top: Math.max(8, Math.round((window.innerHeight - height) / 2))
+            const { horizontal, vertical } = getBoxViewportInsets();
+            const preferredWidth = window.innerWidth <= 640
+                ? window.innerWidth - horizontal * 2
+                : Math.round(window.innerWidth * 0.88);
+            const width = Math.min(Math.max(preferredWidth, 260), Math.max(260, Math.min(680, window.innerWidth - horizontal * 2)));
+            const height = Math.min(Math.max(Math.round(width * 9 / 16), 160), Math.max(160, window.innerHeight - vertical * 2));
+            const centered = {
+                left: Math.max(horizontal, Math.round((window.innerWidth - width) / 2)),
+                top: Math.max(vertical, Math.round((window.innerHeight - height) / 2))
             };
             return { width: `${width}px`, height: `${height}px`, left: `${centered.left}px`, top: `${centered.top}px`, borderRadius: '12px' };
         };
@@ -95,26 +118,40 @@
             })();
             const fallbackWidth = parsePx(fallback.width, 320);
             const fallbackHeight = parsePx(fallback.height, 180);
+            const { horizontal, vertical } = getBoxViewportInsets();
             const normalized = ext.shared.viewportCore?.normalizeFixedLayout?.({
                 layout,
                 fallbackLayout: fallback,
                 minWidth: 200,
                 minHeight: 120,
-                maxWidth: Math.max(200, window.innerWidth - 8),
-                maxHeight: Math.max(120, window.innerHeight - 8),
-                margin: 8
+                maxWidth: Math.max(200, window.innerWidth - horizontal * 2),
+                maxHeight: Math.max(120, window.innerHeight - vertical * 2),
+                margin: Math.min(horizontal, vertical)
             });
             if (normalized) {
-                return { ...normalized, borderRadius: layout?.borderRadius || fallback.borderRadius || '12px' };
+                const width = parsePx(normalized.width, fallbackWidth);
+                const height = parsePx(normalized.height, fallbackHeight);
+                const pos = clampBoxPosition({
+                    left: parsePx(normalized.left, parsePx(fallback.left, horizontal)),
+                    top: parsePx(normalized.top, parsePx(fallback.top, vertical)),
+                    width,
+                    height
+                });
+                return {
+                    width: `${Math.round(width)}px`,
+                    height: `${Math.round(height)}px`,
+                    left: `${Math.round(pos.left)}px`,
+                    top: `${Math.round(pos.top)}px`,
+                    borderRadius: layout?.borderRadius || fallback.borderRadius || '12px'
+                };
             }
-            const width = Math.min(Math.max(parsePx(layout?.width, fallbackWidth), 200), Math.max(200, window.innerWidth - 8));
-            const height = Math.min(Math.max(parsePx(layout?.height, fallbackHeight), 120), Math.max(120, window.innerHeight - 8));
-            const pos = floating.clampFixedPosition({
-                left: parsePx(layout?.left, parsePx(fallback.left, 8)),
-                top: parsePx(layout?.top, parsePx(fallback.top, 8)),
+            const width = Math.min(Math.max(parsePx(layout?.width, fallbackWidth), 200), Math.max(200, window.innerWidth - horizontal * 2));
+            const height = Math.min(Math.max(parsePx(layout?.height, fallbackHeight), 120), Math.max(120, window.innerHeight - vertical * 2));
+            const pos = clampBoxPosition({
+                left: parsePx(layout?.left, parsePx(fallback.left, horizontal)),
+                top: parsePx(layout?.top, parsePx(fallback.top, vertical)),
                 width,
-                height,
-                margin: 8
+                height
             });
             return { width: `${Math.round(width)}px`, height: `${Math.round(height)}px`, left: `${Math.round(pos.left)}px`, top: `${Math.round(pos.top)}px`, borderRadius: layout?.borderRadius || fallback.borderRadius };
         };
@@ -192,7 +229,7 @@
 
             ctx.box = el('div', '', `
                 <div id="fvp-wrapper"></div>
-                <button id="fvp-center-play" type="button" aria-label="Play video" hidden>▶</button>
+                <button id="fvp-center-play" type="button" aria-label="Resume video" hidden>⏸</button>
                 <div id="fvp-left-drag"></div>
                 <div id="fvp-left-panel">
                     <div id="fvp-video-order" class="fvp-side-badge" hidden>1/1</div>
@@ -565,15 +602,16 @@
                 const dx = c.x - ctx.state.startX;
                 const dy = c.y - ctx.state.startY;
                 if (ctx.state.isDrag) {
-                    const next = floating.clampFixedPosition({ left: ctx.state.initX + dx, top: ctx.state.initY + dy, width: ctx.box.offsetWidth, height: ctx.box.offsetHeight, margin: 8 });
+                    const next = clampBoxPosition({ left: ctx.state.initX + dx, top: ctx.state.initY + dy, width: ctx.box.offsetWidth, height: ctx.box.offsetHeight });
                     ctx.box.style.left = `${next.left}px`;
                     ctx.box.style.top = `${next.top}px`;
                     updateLeftPanelLayout();
                 } else if (ctx.state.isResize) {
-                    const width = Math.min(Math.max(ctx.state.resizeDir === 'bl' ? ctx.state.initW - dx : ctx.state.initW + dx, 200), Math.max(200, window.innerWidth - 8));
-                    const height = Math.min(Math.max(ctx.state.initH + dy, 120), Math.max(120, window.innerHeight - 8));
+                    const { horizontal, vertical } = getBoxViewportInsets();
+                    const width = Math.min(Math.max(ctx.state.resizeDir === 'bl' ? ctx.state.initW - dx : ctx.state.initW + dx, 200), Math.max(200, window.innerWidth - horizontal * 2));
+                    const height = Math.min(Math.max(ctx.state.initH + dy, 120), Math.max(120, window.innerHeight - vertical * 2));
                     const left = ctx.state.resizeDir === 'bl' ? ctx.state.initX + (ctx.state.initW - width) : ctx.state.initX;
-                    const next = floating.clampFixedPosition({ left, top: ctx.state.initY, width, height, margin: 8 });
+                    const next = clampBoxPosition({ left, top: ctx.state.initY, width, height });
                     ctx.box.style.width = `${Math.round(width)}px`;
                     ctx.box.style.height = `${Math.round(height)}px`;
                     ctx.box.style.left = `${Math.round(next.left)}px`;
