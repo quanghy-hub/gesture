@@ -68,6 +68,7 @@
             swipeEnabled: true,
             swipeDir: 'both',
             swipePx: 60,
+            swipeMaxDurationMs: 500,
             swipeSlopeMax: 0.4,
             fontScale: 0.95,
             mutedColor: '#00bfff',
@@ -305,6 +306,7 @@
         config.inlineTranslate.swipeEnabled = config.inlineTranslate.swipeEnabled !== false;
         config.inlineTranslate.swipeDir = ['left', 'right', 'both'].includes(config.inlineTranslate.swipeDir) ? config.inlineTranslate.swipeDir : 'both';
         config.inlineTranslate.swipePx = clampNumber(config.inlineTranslate.swipePx, 60, 20, 240);
+        config.inlineTranslate.swipeMaxDurationMs = clampNumber(config.inlineTranslate.swipeMaxDurationMs, 500, 100, 1500);
         config.inlineTranslate.swipeSlopeMax = clampNumber(config.inlineTranslate.swipeSlopeMax, 0.4, 0.1, 1);
         config.inlineTranslate.fontScale = clampNumber(config.inlineTranslate.fontScale, 0.95, 0.5, 2);
         config.inlineTranslate.mutedColor = typeof config.inlineTranslate.mutedColor === 'string' && config.inlineTranslate.mutedColor.trim()

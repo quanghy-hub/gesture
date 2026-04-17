@@ -45,6 +45,7 @@
     const quickSearchColumns = document.getElementById('quick-search-columns');
     const quickSearchImageSearchEnabled = document.getElementById('quick-search-image-search-enabled');
     const inlineTranslateSwipePx = document.getElementById('inline-translate-swipe-px');
+    const inlineTranslateSwipeMaxDurationMs = document.getElementById('inline-translate-swipe-max-duration-ms');
     const clipboardMaxHistory = document.getElementById('clipboard-max-history');
     const clipboardClear = document.getElementById('clipboard-clear');
     const videoFloatingMinDistance = document.getElementById('video-floating-min-distance');
@@ -170,6 +171,7 @@
         inlineTranslateSelectionTranslateEnabled.checked = config.inlineTranslate?.selectionTranslateEnabled !== false;
         inlineTranslateSwipeDir.value = config.inlineTranslate?.swipeDir || 'both';
         inlineTranslateSwipePx.value = config.inlineTranslate?.swipePx || 60;
+        inlineTranslateSwipeMaxDurationMs.value = config.inlineTranslate?.swipeMaxDurationMs || 500;
         inlineTranslateFontScale.value = config.inlineTranslate?.fontScale || 0.95;
         inlineTranslateMutedColor.value = config.inlineTranslate?.mutedColor || '#00bfff';
         youtubeSubtitlesTargetLang.value = config.youtubeSubtitles?.targetLang || 'vi';
@@ -307,6 +309,7 @@
         nextWithHostBlacklist.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
         nextWithHostBlacklist.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
         nextWithHostBlacklist.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
+        nextWithHostBlacklist.inlineTranslate.swipeMaxDurationMs = Number(inlineTranslateSwipeMaxDurationMs.value);
         nextWithHostBlacklist.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
         nextWithHostBlacklist.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
         nextWithHostBlacklist.apiServices.translate.activeProvider = apiTranslateProvider.value;
@@ -491,6 +494,7 @@
 
     [
         inlineTranslateSwipePx,
+        inlineTranslateSwipeMaxDurationMs,
         inlineTranslateFontScale,
         youtubeSubtitlesFontSize,
         youtubeSubtitlesTranslatedFontSize,

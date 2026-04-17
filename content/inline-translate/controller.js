@@ -297,7 +297,7 @@
         };
 
         const onTouchEnd = (event) => {
-            if (!settings.swipeEnabled || !startX || Date.now() - startTime > 500) {
+            if (!settings.swipeEnabled || !startX || Date.now() - startTime > settings.swipeMaxDurationMs) {
                 startX = 0;
                 return;
             }
