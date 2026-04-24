@@ -100,23 +100,24 @@ const isTransientSyncError = (error) => {
         || /Extension context invalidated/i.test(message)
         || /Service worker context closed/i.test(message);
 };
-const normalizeArray = (value) => [...new Set(Array.isArray(value) ? value : [])].sort();
+const normalizeSetArray = (value) => [...new Set(Array.isArray(value) ? value : [])].sort();
+const normalizeOrderedArray = (value) => Array.isArray(value) ? [...value] : [];
 const areSameRegistrations = (left, right) => {
     return JSON.stringify(left.map((definition) => ({
         id: definition.id,
-        matches: normalizeArray(definition.matches),
-        excludeMatches: normalizeArray(definition.excludeMatches),
-        js: normalizeArray(definition.js),
-        css: normalizeArray(definition.css),
+        matches: normalizeSetArray(definition.matches),
+        excludeMatches: normalizeSetArray(definition.excludeMatches),
+        js: normalizeOrderedArray(definition.js),
+        css: normalizeOrderedArray(definition.css),
         allFrames: !!definition.allFrames,
         runAt: definition.runAt || '',
         world: definition.world || ''
     })).sort((a, b) => a.id.localeCompare(b.id))) === JSON.stringify(right.map((definition) => ({
         id: definition.id,
-        matches: normalizeArray(definition.matches),
-        excludeMatches: normalizeArray(definition.excludeMatches),
-        js: normalizeArray(definition.js),
-        css: normalizeArray(definition.css),
+        matches: normalizeSetArray(definition.matches),
+        excludeMatches: normalizeSetArray(definition.excludeMatches),
+        js: normalizeOrderedArray(definition.js),
+        css: normalizeOrderedArray(definition.css),
         allFrames: !!definition.allFrames,
         runAt: definition.runAt || '',
         world: definition.world || ''

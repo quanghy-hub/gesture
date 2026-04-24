@@ -30,6 +30,7 @@
                 position: 'fixed',
                 zIndex: '2147483644'
             });
+            buttonRef.element.style.touchAction = 'none';
 
             togglePosStorage.load().then(({ left, top }) => {
                 const pos = floating.clampFixedPosition({
@@ -46,8 +47,8 @@
                 target: buttonRef.element,
                 threshold: 4,
                 getInitialPosition: () => ({
-                    left: buttonRef.element.offsetLeft,
-                    top: buttonRef.element.offsetTop
+                    left: buttonRef.element.getBoundingClientRect().left,
+                    top: buttonRef.element.getBoundingClientRect().top
                 }),
                 onMove: ({ event, deltaX, deltaY, origin }) => {
                     floating.stopFloatingEvent(event);
@@ -63,13 +64,18 @@
                 },
                 onDragEnd: () => {
                     buttonRef.element.classList.remove('is-dragging');
-                    togglePosStorage.save(buttonRef.element.offsetLeft, buttonRef.element.offsetTop);
+                    const rect = buttonRef.element.getBoundingClientRect();
+                    togglePosStorage.save(rect.left, rect.top);
                 },
                 onClick: ({ event }) => {
                     floating.stopFloatingEvent(event);
                     onToggleTranslate();
                 }
             });
+
+            buttonRef.element.addEventListener('pointerdown', (event) => {
+                floating.stopFloatingEvent(event);
+            }, true);
         },
         setTranslateButtonState(enabled) {
             const button = getToggleButton();

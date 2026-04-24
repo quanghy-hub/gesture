@@ -1,7 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const floating = ext.shared.floatingCore;
-    const { queryAllDeep, queryDeep } = ext.shared.domUtils;
+    const { queryAllDeep } = ext.shared.domUtils;
 
     const CONFIG = {
         minVideoWidth: 200,
@@ -41,11 +41,8 @@
             let removeDragBinding = () => { };
             let syncTimer = 0;
             let triggerRef = null;
-            let mobilePlayerButton = null;
 
             const isFeatureEnabled = () => context?.getConfig?.()?.videoScreenshot?.enabled !== false;
-            const isYoutubeMobileWatch = () => /(^|\.)m\.youtube\.com$/i.test(window.location.hostname) && /\/watch|[?&]v=/.test(window.location.href);
-            const getMobilePlayerHost = () => queryDeep('#player-container-id, .html5-video-player, #movie_player');
 
             const posStorage = floating.createPositionStorage(
                 'gesture_video_screenshot_trigger_pos_v1',
@@ -66,18 +63,6 @@
                         touch-action: none;
                     }
                     .gesture-video-screenshot-trigger svg {
-                        width: 28px !important;
-                        height: 28px !important;
-                    }
-                    .gesture-video-screenshot-mobile-button {
-                        position: absolute;
-                        right: 12px;
-                        bottom: 12px;
-                        z-index: 2147483644;
-                        width: 46px;
-                        height: 46px;
-                    }
-                    .gesture-video-screenshot-mobile-button svg {
                         width: 28px !important;
                         height: 28px !important;
                     }
@@ -152,37 +137,6 @@
                 });
             };
 
-            const ensureMobilePlayerButton = () => {
-                if (mobilePlayerButton?.isConnected) {
-                    return mobilePlayerButton;
-                }
-                const host = getMobilePlayerHost();
-                if (!host) {
-                    return null;
-                }
-                if (getComputedStyle(host).position === 'static') {
-                    host.style.position = 'relative';
-                }
-                mobilePlayerButton?.remove();
-                mobilePlayerButton = floating.createActionButton({
-                    className: 'gesture-video-screenshot-mobile-button',
-                    title: 'Chụp màn hình video (S)',
-                    ariaLabel: 'Chụp màn hình video',
-                    htmlContent: ICON,
-                    hidden: false,
-                    parent: host,
-                    position: 'absolute',
-                    zIndex: '2147483644'
-                }).element;
-                mobilePlayerButton.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    captureActiveVideo();
-                });
-                host.appendChild(mobilePlayerButton);
-                return mobilePlayerButton;
-            };
-
             const ensureTrigger = () => {
                 if (triggerRef) {
                     return triggerRef;
@@ -202,8 +156,8 @@
                     target: triggerRef.element,
                     threshold: 6,
                     getInitialPosition: () => ({
-                        left: triggerRef.element.offsetLeft,
-                        top: triggerRef.element.offsetTop
+                        left: triggerRef.element.getBoundingClientRect().left,
+                        top: triggerRef.element.getBoundingClientRect().top
                     }),
                     onMove: ({ deltaX, deltaY, origin }) => {
                         const next = floating.clampFixedPosition({
@@ -218,7 +172,8 @@
                     },
                     onDragEnd: () => {
                         triggerRef.element.classList.remove('is-dragging');
-                        posStorage.save(triggerRef.element.offsetLeft, triggerRef.element.offsetTop);
+                        const rect = triggerRef.element.getBoundingClientRect();
+                        posStorage.save(rect.left, rect.top);
                     },
                     onClick: ({ event }) => {
                         floating.stopFloatingEvent(event);
@@ -248,14 +203,9 @@
             const syncTrigger = () => {
                 window.clearTimeout(syncTimer);
                 syncTimer = 0;
-                const shouldUsePlayerButton = isYoutubeMobileWatch();
                 const hasVideo = !!findActiveVideo();
-                const mobileButton = shouldUsePlayerButton ? ensureMobilePlayerButton() : null;
-                if (mobilePlayerButton) {
-                    mobilePlayerButton.hidden = !(shouldUsePlayerButton && isFeatureEnabled() && hasVideo && mobileButton);
-                }
                 const trigger = ensureTrigger();
-                if (!shouldUsePlayerButton && isFeatureEnabled() && hasVideo) {
+                if (isFeatureEnabled() && hasVideo) {
                     trigger.show('inline-flex');
                 } else {
                     trigger.hide();
@@ -343,8 +293,6 @@
                     window.removeEventListener('resize', queueSyncTrigger);
                     window.removeEventListener('scroll', queueSyncTrigger, true);
                     window.clearTimeout(syncTimer);
-                    mobilePlayerButton?.remove();
-                    mobilePlayerButton = null;
                     triggerRef?.destroy();
                 }
             };

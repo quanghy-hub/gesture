@@ -66,7 +66,6 @@
             updateUI: () => updateUI(),
             setConfig,
             getConfig: () => config,
-            getCopiedTextCache: () => copiedTextCache,
             setCopiedTextCache
         });
 
