@@ -77,17 +77,36 @@
 
         const postToFloatedIframe = (cmd) => ctx.floatedIframe?.contentWindow?.postMessage({ type: 'fvp-iframe-command', ...cmd }, '*');
 
+        const MOBILE_VIEWPORT_MAX_WIDTH = 640;
+        const MOBILE_EDGE_OVERSCAN = 2;
+
+        const isMobileViewport = () => window.innerWidth <= MOBILE_VIEWPORT_MAX_WIDTH;
+
         const getBoxViewportInsets = () => ({
-            horizontal: window.innerWidth <= 640 ? 0 : 8,
+            horizontal: isMobileViewport() ? 0 : 8,
             vertical: 8
         });
 
+        const getMaxBoxWidth = () => {
+            const { horizontal } = getBoxViewportInsets();
+            return Math.max(200, window.innerWidth - horizontal * 2 + (isMobileViewport() ? MOBILE_EDGE_OVERSCAN : 0));
+        };
+
+        const expandMobileEdgeWidth = (width) => (
+            isMobileViewport() && width >= window.innerWidth - MOBILE_EDGE_OVERSCAN
+                ? getMaxBoxWidth()
+                : width
+        );
+
         const clampBoxPosition = ({ left = 0, top = 0, width = 0, height = 0 }) => {
             const { horizontal, vertical } = getBoxViewportInsets();
+            const minLeft = isMobileViewport() && width >= window.innerWidth
+                ? -Math.ceil(MOBILE_EDGE_OVERSCAN / 2)
+                : horizontal;
             return {
                 left: Math.min(
-                    Math.max(horizontal, left),
-                    Math.max(horizontal, window.innerWidth - width - horizontal)
+                    Math.max(minLeft, left),
+                    Math.max(minLeft, window.innerWidth - width - horizontal)
                 ),
                 top: Math.min(
                     Math.max(vertical, top),
@@ -99,12 +118,12 @@
         const getDefaultLayout = () => {
             const { horizontal, vertical } = getBoxViewportInsets();
             const preferredWidth = window.innerWidth <= 640
-                ? window.innerWidth - horizontal * 2
+                ? window.innerWidth - horizontal * 2 + MOBILE_EDGE_OVERSCAN
                 : Math.round(window.innerWidth * 0.88);
-            const width = Math.min(Math.max(preferredWidth, 260), Math.max(260, Math.min(680, window.innerWidth - horizontal * 2)));
+            const width = Math.min(Math.max(preferredWidth, 260), Math.max(260, Math.min(680, getMaxBoxWidth())));
             const height = Math.min(Math.max(Math.round(width * 9 / 16), 160), Math.max(160, window.innerHeight - vertical * 2));
             const centered = {
-                left: Math.max(horizontal, Math.round((window.innerWidth - width) / 2)),
+                left: Math.max(isMobileViewport() ? -Math.ceil(MOBILE_EDGE_OVERSCAN / 2) : horizontal, Math.round((window.innerWidth - width) / 2)),
                 top: Math.max(vertical, Math.round((window.innerHeight - height) / 2))
             };
             return { width: `${width}px`, height: `${height}px`, left: `${centered.left}px`, top: `${centered.top}px`, borderRadius: '12px' };
@@ -124,12 +143,12 @@
                 fallbackLayout: fallback,
                 minWidth: 200,
                 minHeight: 120,
-                maxWidth: Math.max(200, window.innerWidth - horizontal * 2),
+                maxWidth: getMaxBoxWidth(),
                 maxHeight: Math.max(120, window.innerHeight - vertical * 2),
                 margin: Math.min(horizontal, vertical)
             });
             if (normalized) {
-                const width = parsePx(normalized.width, fallbackWidth);
+                const width = expandMobileEdgeWidth(parsePx(normalized.width, fallbackWidth));
                 const height = parsePx(normalized.height, fallbackHeight);
                 const pos = clampBoxPosition({
                     left: parsePx(normalized.left, parsePx(fallback.left, horizontal)),
@@ -145,7 +164,7 @@
                     borderRadius: layout?.borderRadius || fallback.borderRadius || '12px'
                 };
             }
-            const width = Math.min(Math.max(parsePx(layout?.width, fallbackWidth), 200), Math.max(200, window.innerWidth - horizontal * 2));
+            const width = expandMobileEdgeWidth(Math.min(Math.max(parsePx(layout?.width, fallbackWidth), 200), getMaxBoxWidth()));
             const height = Math.min(Math.max(parsePx(layout?.height, fallbackHeight), 120), Math.max(120, window.innerHeight - vertical * 2));
             const pos = clampBoxPosition({
                 left: parsePx(layout?.left, parsePx(fallback.left, horizontal)),
@@ -607,8 +626,8 @@
                     ctx.box.style.top = `${next.top}px`;
                     updateLeftPanelLayout();
                 } else if (ctx.state.isResize) {
-                    const { horizontal, vertical } = getBoxViewportInsets();
-                    const width = Math.min(Math.max(ctx.state.resizeDir === 'bl' ? ctx.state.initW - dx : ctx.state.initW + dx, 200), Math.max(200, window.innerWidth - horizontal * 2));
+                    const { vertical } = getBoxViewportInsets();
+                    const width = Math.min(Math.max(ctx.state.resizeDir === 'bl' ? ctx.state.initW - dx : ctx.state.initW + dx, 200), getMaxBoxWidth());
                     const height = Math.min(Math.max(ctx.state.initH + dy, 120), Math.max(120, window.innerHeight - vertical * 2));
                     const left = ctx.state.resizeDir === 'bl' ? ctx.state.initX + (ctx.state.initW - width) : ctx.state.initX;
                     const next = clampBoxPosition({ left, top: ctx.state.initY, width, height });

@@ -161,6 +161,12 @@
     animation: fvp-fade-in .2s ease-out;
 }
 
+@media (max-width: 640px) {
+    #fvp-container {
+        max-width: none;
+    }
+}
+
 #fvp-wrapper {
     width: 100%;
     height: 100%;
