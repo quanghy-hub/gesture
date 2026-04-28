@@ -2,6 +2,7 @@
     const ext = globalThis.GestureExtension;
     const gestures = ext.gestures = ext.gestures || {};
     const touch = ext.shared.touchCore;
+    const scrollCore = gestures.scrollCore;
 
     gestures.createDesktopController = (context) => {
         const TOLERANCE = { move: 20 };
@@ -24,8 +25,17 @@
 
         const dist = (x1, y1, x2, y2) => touch.getDistance({ x: x1, y: y1 }, { x: x2, y: y2 });
         const getConfig = () => context.getConfig().gestures.desktop;
+        const getForumConfig = () => ext.shared.config.getForumConfig(context.getConfig(), location.host);
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
         const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
+        const shouldRunPagerForForum = () => {
+            const forumConfig = getForumConfig();
+            return forumConfig.enabled && innerWidth > innerHeight && innerWidth >= forumConfig.minWidth;
+        };
+        const isVideoAtWheelPoint = (event) => {
+            const helpers = globalThis.GestureExtension?.videoFloating?.helpers;
+            return !!helpers?.getSeekableVideoAtPoint?.(event.clientX || 0, event.clientY || 0);
+        };
 
         const getValidLink = (event) => {
             for (const node of (event.composedPath?.() || [])) {
@@ -167,6 +177,39 @@
             return absX >= absY * 0.65 || (absX >= 18 && absY < 40);
         };
 
+        const hasVerticalIntent = (event) => {
+            return scrollCore?.hasVerticalWheelIntent?.(event, getConfig()) || false;
+        };
+
+        const hasScrollableAncestor = (target) => {
+            let element = target instanceof Element ? target : target?.parentElement || target?.parentNode;
+            if (!(element instanceof Element)) {
+                element = null;
+            }
+            while (element && element !== document.body && element !== document.documentElement) {
+                const style = getComputedStyle(element);
+                const overflowY = `${style.overflowY} ${style.overflow}`;
+                if (element.scrollHeight > element.clientHeight && /auto|scroll/.test(overflowY)) {
+                    return true;
+                }
+                element = element.parentElement;
+            }
+            return false;
+        };
+
+        const isFastScrollWheelGesture = (event, cfg) => {
+            const fastScroll = scrollCore?.getFastScroll?.(cfg) || cfg.fastScroll || {};
+            const rightZoneWidth = scrollCore?.getRightZoneWidth?.(innerWidth, cfg) || fastScroll.wheelZone;
+            if (!fastScroll.enabled) return false;
+            if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return false;
+            if (!hasVerticalIntent(event)) return false;
+            if (event.clientX < innerWidth - rightZoneWidth) return false;
+            if (touch.isExtensionUiTarget(event) || isEditable(event.target)) return false;
+            if (event.target instanceof Element && event.target.closest('#fvp-container')) return false;
+            if (hasScrollableAncestor(event.target)) return false;
+            return true;
+        };
+
         const guard = (event) => {
             if (Date.now() < state.suppressUntil) {
                 event.preventDefault();
@@ -174,6 +217,17 @@
                 return true;
             }
             return false;
+        };
+
+        const scrollPageFast = (dir, event = null) => {
+            const element = document.scrollingElement || document.documentElement;
+            const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
+            const step = scrollCore?.getFastScrollStepPixels?.(innerHeight, getConfig()) || Math.round(innerHeight * 0.92);
+            const delta = step * dir;
+            const nextScrollTop = Math.max(0, Math.min(maxScrollTop, element.scrollTop + delta));
+            if (nextScrollTop !== element.scrollTop) {
+                element.scrollTop = nextScrollTop;
+            }
         };
 
         ensurePagerStyles();
@@ -189,6 +243,26 @@
                 event.stopPropagation();
             }
         }, true);
+
+        addListener(window, 'keydown', (event) => {
+            const cfg = getConfig();
+            if (!cfg.enabled || !cfg.fastScroll?.enabled || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            if (touch.isExtensionUiTarget(event) || isEditable(event.target)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            scrollPageFast(event.key === 'ArrowDown' ? 1 : -1);
+        }, true);
+
+        addListener(window, 'wheel', (event) => {
+            const cfg = getConfig();
+            if (!cfg.enabled || !isFastScrollWheelGesture(event, cfg)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            scrollPageFast(scrollCore.getWheelDeltaPixels(event) > 0 ? 1 : -1, event);
+        }, { capture: true, passive: false });
 
         addListener(window, 'pointerdown', (event) => {
             state.lpFired = false;
@@ -279,7 +353,10 @@
         addListener(window, 'wheel', (event) => {
             const cfg = getConfig();
             if (!cfg.enabled || !cfg.pager.enabled) return;
+            if (!shouldRunPagerForForum()) return;
+            if (event.target instanceof Element && event.target.closest('#fvp-container')) return;
             if (!hasHorizontalIntent(event)) return;
+            if (isVideoAtWheelPoint(event)) return;
 
             let element = event.target;
             while (element && element !== document.body) {

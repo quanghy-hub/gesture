@@ -1,14 +1,14 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, normalizeHost } = ext.shared.config;
+    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, normalizeHost, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
 
     const hostLabel = document.getElementById('current-host');
     const closeButton = document.getElementById('close-popup');
-    const hostBlacklistNote = document.getElementById('host-blacklist-note');
     const hostBlacklistLabel = document.getElementById('host-blacklist-label');
     const hostBlacklistToggle = document.getElementById('host-blacklist-toggle');
+    const featureUnblockCopyEnabled = document.getElementById('feature-unblock-copy-enabled');
     const featureGesturesEnabled = document.getElementById('feature-gestures-enabled');
     const featureClipboardEnabled = document.getElementById('feature-clipboard-enabled');
     const featureVideoFloatingEnabled = document.getElementById('feature-video-floating-enabled');
@@ -70,6 +70,9 @@
     const gDblRight = document.getElementById('g-dbl-right');
     const gDblTapEnabled = document.getElementById('g-dbl-tap-enabled');
     const gDblTapMs = document.getElementById('g-dbl-tap-ms');
+    const gFastScrollEnabled = document.getElementById('g-fast-scroll-enabled');
+    const gFastScrollStep = document.getElementById('g-fast-scroll-step');
+    const gFastScrollWheelZone = document.getElementById('g-fast-scroll-wheel-zone');
     const gEdgeEnabled = document.getElementById('g-edge-enabled');
     const gEdgeSide = document.getElementById('g-edge-side');
     const gEdgeWidth = document.getElementById('g-edge-width');
@@ -78,6 +81,7 @@
     const gPagerHops = document.getElementById('g-pager-hops');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
+    const unblockCopyCard = featureUnblockCopyEnabled.closest('.card');
     const gesturesCard = featureGesturesEnabled.closest('.card');
     const clipboardCard = featureClipboardEnabled.closest('.card');
     const videoFloatingCard = featureVideoFloatingEnabled.closest('.card');
@@ -90,13 +94,18 @@
     const quickSearchProviderInputs = Object.fromEntries(
         quickSearchProviderIds.map((providerId) => [providerId, document.getElementById(`quick-search-provider-${providerId}`)])
     );
+    const popupRoot = document.querySelector('.popup');
+    const panelCards = Array.from(document.querySelectorAll('.card[data-panel-id]'));
+    const panelToggleButtons = Array.from(document.querySelectorAll('[data-panel-toggle]'));
+    const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
 
     let activeHost = null;
     let config = null;
-    let isSaving = false;
     let isReady = false;
     let saveTimer = 0;
     let pendingSave = null;
+    let dragArmedCard = null;
+    let draggingCard = null;
 
     const fillProviderOptions = (select, options) => {
         if (!select) return;
@@ -106,6 +115,26 @@
             option.textContent = label;
             return option;
         }));
+    };
+
+    const getPanelOrder = () => Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'))
+        .map((card) => card.dataset.panelId)
+        .filter((value) => typeof value === 'string' && value);
+
+    const clearDropIndicators = () => {
+        panelCards.forEach((card) => {
+            card.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+    };
+
+    const applyPanelOrder = (order) => {
+        const normalizedOrder = Array.isArray(order) && order.length ? order : DEFAULT_POPUP_PANEL_ORDER;
+        normalizedOrder.forEach((panelId) => {
+            const card = panelCards.find((entry) => entry.dataset.panelId === panelId);
+            if (card) {
+                popupRoot.appendChild(card);
+            }
+        });
     };
 
     fillProviderOptions(apiTranslateProvider, TRANSLATE_PROVIDER_OPTIONS);
@@ -141,6 +170,7 @@
 
     const syncFeatureCards = () => {
         const canUseForumControls = !!activeHost && featureForumEnabled.checked;
+        setCardState(unblockCopyCard, featureUnblockCopyEnabled.checked);
         setCardState(gesturesCard, featureGesturesEnabled.checked);
         setCardState(clipboardCard, featureClipboardEnabled.checked);
         setCardState(videoFloatingCard, featureVideoFloatingEnabled.checked);
@@ -155,8 +185,10 @@
     const render = () => {
         if (!config) return;
 
+        applyPanelOrder(config.runtime?.popupPanelOrder);
         const gestures = getGestureSettings(config);
         const normalizedActiveHost = normalizeHost(activeHost);
+        featureUnblockCopyEnabled.checked = config.unblockCopy?.enabled !== false;
         featureGesturesEnabled.checked = !!gestures.enabled;
         featureClipboardEnabled.checked = config.clipboard?.enabled !== false;
         featureVideoFloatingEnabled.checked = config.videoFloating?.enabled !== false;
@@ -217,6 +249,9 @@
         gDblRight.value = gestures.doubleRight.ms;
         gDblTapEnabled.checked = !!gestures.doubleTap.enabled;
         gDblTapMs.value = gestures.doubleTap.ms;
+        gFastScrollEnabled.checked = !!gestures.fastScroll.enabled;
+        gFastScrollStep.value = gestures.fastScroll.step;
+        gFastScrollWheelZone.value = gestures.fastScroll.wheelZone;
         gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
         gEdgeSide.value = gestures.edgeSwipe.side;
         gEdgeWidth.value = gestures.edgeSwipe.width;
@@ -226,11 +261,6 @@
         hostBlacklistToggle.disabled = !normalizedActiveHost;
         hostBlacklistToggle.checked = normalizedActiveHost ? isHostExcluded(config, normalizedActiveHost) : false;
         hostBlacklistLabel.textContent = normalizedActiveHost || 'Không có host';
-        if (hostBlacklistNote) {
-            hostBlacklistNote.textContent = normalizedActiveHost
-                ? `Nếu bật, extension sẽ không inject trên ${normalizedActiveHost} sau khi reload tab.`
-                : 'Trang hiện tại không có host hợp lệ để blacklist.';
-        }
 
         if (!activeHost) {
             hostLabel.textContent = 'Không có host hiện tại';
@@ -253,7 +283,7 @@
     const save = async () => {
         if (!config) return;
 
-        const next = applyGestureSettings(ext.shared.config.deepClone(config), {
+        const next = applyGestureSettings(deepClone(config), {
             enabled: featureGesturesEnabled.checked,
             longPress: {
                 enabled: gLpEnabled.checked,
@@ -272,6 +302,11 @@
                 enabled: gDblTapEnabled.checked,
                 ms: Number(gDblTapMs.value)
             },
+            fastScroll: {
+                enabled: gFastScrollEnabled.checked,
+                step: Number(gFastScrollStep.value),
+                wheelZone: Number(gFastScrollWheelZone.value)
+            },
             edgeSwipe: {
                 enabled: gEdgeEnabled.checked,
                 side: gEdgeSide.value,
@@ -285,6 +320,7 @@
         });
         const nextWithHostBlacklist = activeHost ? setHostExcluded(next, activeHost, hostBlacklistToggle.checked) : next;
 
+        nextWithHostBlacklist.unblockCopy.enabled = featureUnblockCopyEnabled.checked;
         nextWithHostBlacklist.clipboard.enabled = featureClipboardEnabled.checked;
         nextWithHostBlacklist.clipboard.maxHistory = Number(clipboardMaxHistory.value);
         nextWithHostBlacklist.videoFloating.enabled = featureVideoFloatingEnabled.checked;
@@ -359,12 +395,10 @@
         if (pendingSave) {
             return pendingSave;
         }
-        isSaving = true;
         pendingSave = save().catch((error) => {
             console.error('[GestureExtension][popup] save failed', error);
             throw error;
         }).finally(() => {
-            isSaving = false;
             pendingSave = null;
         });
         return pendingSave;
@@ -403,6 +437,79 @@
         });
     };
 
+    const setPanelExpanded = (button, expanded) => {
+        const panel = document.getElementById(button.getAttribute('aria-controls'));
+        if (!panel) return;
+        const title = button.closest('.card')?.querySelector('.card-title span')?.textContent?.trim() || 'panel';
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        button.setAttribute('aria-label', `${expanded ? 'Đóng' : 'Mở'} cài đặt ${title}`);
+        panel.classList.toggle('is-collapsed', !expanded);
+    };
+
+    const savePanelOrder = () => {
+        if (!config) return;
+        config.runtime = config.runtime || {};
+        config.runtime.popupPanelOrder = getPanelOrder();
+        scheduleAutoSave();
+    };
+
+    const setupPanelReorder = () => {
+        panelCards.forEach((card) => {
+            card.draggable = true;
+
+            card.addEventListener('dragstart', (event) => {
+                if (dragArmedCard !== card) {
+                    event.preventDefault();
+                    return;
+                }
+                draggingCard = card;
+                card.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', card.dataset.panelId || '');
+            });
+
+            card.addEventListener('dragover', (event) => {
+                if (!draggingCard || draggingCard === card) return;
+                event.preventDefault();
+                const bounds = card.getBoundingClientRect();
+                const before = event.clientY < bounds.top + bounds.height / 2;
+                clearDropIndicators();
+                card.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+            });
+
+            card.addEventListener('drop', (event) => {
+                if (!draggingCard || draggingCard === card) return;
+                event.preventDefault();
+                const bounds = card.getBoundingClientRect();
+                const before = event.clientY < bounds.top + bounds.height / 2;
+                popupRoot.insertBefore(draggingCard, before ? card : card.nextSibling);
+                clearDropIndicators();
+                savePanelOrder();
+            });
+
+            card.addEventListener('dragend', () => {
+                clearDropIndicators();
+                card.classList.remove('is-dragging');
+                draggingCard = null;
+                dragArmedCard = null;
+            });
+        });
+
+        dragHandles.forEach((handle) => {
+            handle.addEventListener('pointerdown', () => {
+                dragArmedCard = handle.closest('.card[data-panel-id]');
+            });
+            handle.addEventListener('pointerup', () => {
+                dragArmedCard = null;
+            });
+            handle.addEventListener('mouseleave', () => {
+                if (!draggingCard) {
+                    dragArmedCard = null;
+                }
+            });
+        });
+    };
+
     Promise.all([storage.getConfig(), getActiveTab()]).then(([loadedConfig, activeTab]) => {
         config = loadedConfig;
         activeHost = getHostFromUrl(activeTab?.url || '');
@@ -425,7 +532,17 @@
         window.close();
     });
 
+    panelToggleButtons.forEach((button) => {
+        setPanelExpanded(button, button.getAttribute('aria-expanded') === 'true');
+        button.addEventListener('click', () => {
+            setPanelExpanded(button, button.getAttribute('aria-expanded') !== 'true');
+        });
+    });
+
+    setupPanelReorder();
+
     [
+        featureUnblockCopyEnabled,
         featureGesturesEnabled,
         featureClipboardEnabled,
         featureVideoFloatingEnabled,
@@ -454,6 +571,7 @@
         gRcMode,
         gDblRightEnabled,
         gDblTapEnabled,
+        gFastScrollEnabled,
         gEdgeEnabled,
         gEdgeSide,
         gPagerEnabled,
@@ -515,6 +633,8 @@
         gLpMs,
         gDblRight,
         gDblTapMs,
+        gFastScrollStep,
+        gFastScrollWheelZone,
         gEdgeWidth,
         gEdgeSpeed,
         gPagerHops

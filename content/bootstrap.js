@@ -50,7 +50,8 @@
             ext.features.youtubeSubtitles,
             ext.features.forum,
             ext.features.gesturesDesktop,
-            ext.features.gesturesMobile
+            ext.features.gesturesMobile,
+            ext.features.unblockCopy
         ].filter(Boolean);
 
         features.forEach((feature, index) => {

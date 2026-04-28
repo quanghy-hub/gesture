@@ -277,6 +277,22 @@
         return null;
     };
 
+    const getSeekableVideoAtPoint = (x, y, { includeFloating = false } = {}) => {
+        if (includeFloating) {
+            const wrapper = $('fvp-wrapper');
+            const box = $('fvp-container');
+            const isFloatingBoxVisible = !!(box && box.style.display !== 'none');
+            const rect = isFloatingBoxVisible ? getRect(wrapper) : null;
+            if (rect?.width && rect?.height && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                const video = getFloatingActiveVideo(wrapper);
+                if (video?.isConnected && Number.isFinite(video.duration) && video.duration > 0) return video;
+            }
+        }
+
+        const video = getVideoAtPoint(x, y);
+        return video?.isConnected && Number.isFinite(video.duration) && video.duration > 0 ? video : null;
+    };
+
     const ensureNotice = (video) => {
         if (!video) return null;
         const fs = getFullscreenEl();
@@ -310,6 +326,18 @@
         const node = target instanceof Element ? target : null;
         if (!node) return false;
         return Boolean(node.closest('#fvp-left-panel, #fvp-ctrl, #fvp-res-popup, .fvp-resize-handle, button, input, select, textarea, a, label'));
+    };
+
+    const isVideoSeekEditableTarget = (target) => {
+        const node = target instanceof Element ? target : null;
+        if (!node) return false;
+        return Boolean(node.closest('input, select, textarea, [contenteditable]'));
+    };
+
+    const isVideoSeekWheelBlockedTarget = (target) => {
+        const node = target instanceof Element ? target : null;
+        if (!node) return false;
+        return isVideoSeekEditableTarget(node) || Boolean(node.closest('button, a, label, [role="button"]'));
     };
 
     const stopTouchEventForFloating = (event) => {
@@ -473,6 +501,112 @@
         };
     };
 
+    const installWheelKeyboardSeek = () => {
+        const wheel = {
+            video: null,
+            baseTime: 0,
+            deltaX: 0,
+            resetTimer: 0
+        };
+        const pointer = {
+            active: false,
+            x: 0,
+            y: 0
+        };
+        const resetWheelGesture = () => {
+            wheel.video = null;
+            wheel.baseTime = 0;
+            wheel.deltaX = 0;
+            wheel.resetTimer = 0;
+        };
+        const scheduleWheelReset = () => {
+            clearTimeout(wheel.resetTimer);
+            wheel.resetTimer = window.setTimeout(resetWheelGesture, videoFloating.WHEEL_GESTURE.idleMs);
+        };
+        const seekVideoBy = (video, deltaSeconds) => {
+            if (!video?.duration) return false;
+            const nextTime = clamp((video.currentTime || 0) + deltaSeconds, 0, video.duration);
+            video.currentTime = nextTime;
+            showSeekNotice(video, Math.round(deltaSeconds));
+            return true;
+        };
+        const seekVideoFromWheel = (video, deltaX) => {
+            if (!video?.duration) return false;
+            if (wheel.video !== video) {
+                wheel.video = video;
+                wheel.baseTime = video.currentTime || 0;
+                wheel.deltaX = 0;
+            }
+            wheel.deltaX += deltaX;
+            const nextTime = clamp(
+                wheel.baseTime - wheel.deltaX * videoFloating.WHEEL_GESTURE.seekSecondsPerPixel,
+                0,
+                video.duration
+            );
+            video.currentTime = nextTime;
+            showSeekNotice(video, Math.round(nextTime - wheel.baseTime));
+            return true;
+        };
+        const stopSeekEvent = (event) => {
+            if (event.cancelable) event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation?.();
+        };
+        const updatePointerPosition = (event) => {
+            pointer.active = true;
+            pointer.x = event.clientX || 0;
+            pointer.y = event.clientY || 0;
+        };
+        const blurFocusedControl = () => {
+            const active = document.activeElement;
+            if (!(active instanceof HTMLElement) || isVideoSeekEditableTarget(active)) return;
+            if (active.matches('button, a, label, [role="button"], [tabindex]')) {
+                active.blur();
+            }
+        };
+        const onWheel = (event) => {
+            if (!isFeatureEnabled()) return;
+            if (isVideoSeekWheelBlockedTarget(event.target)) return;
+            const absX = Math.abs(event.deltaX || 0);
+            const absY = Math.abs(event.deltaY || 0);
+            if (!absX || absX < absY * 0.8) return;
+
+            const video = getSeekableVideoAtPoint(event.clientX || 0, event.clientY || 0);
+            if (!video) return;
+
+            stopSeekEvent(event);
+            scheduleWheelReset();
+            seekVideoFromWheel(video, event.deltaX || 0);
+        };
+        const onKeyDown = (event) => {
+            if (!isFeatureEnabled() || getFeatureConfig().hotkeys === false) return;
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
+            if (!pointer.active || isVideoSeekEditableTarget(event.target)) return;
+
+            const video = getSeekableVideoAtPoint(pointer.x, pointer.y, { includeFloating: true });
+            if (!video) return;
+
+            const step = Math.max(1, Number(getFeatureConfig().forwardStep) || 5);
+            stopSeekEvent(event);
+            blurFocusedControl();
+            seekVideoBy(video, event.key === 'ArrowRight' ? step : -step);
+        };
+
+        window.addEventListener('pointermove', updatePointerPosition, { capture: true, passive: true });
+        window.addEventListener('pointerdown', updatePointerPosition, { capture: true, passive: true });
+        window.addEventListener('wheel', onWheel, { capture: true, passive: false });
+        document.addEventListener('keydown', onKeyDown, true);
+
+        return () => {
+            window.removeEventListener('pointermove', updatePointerPosition, { capture: true, passive: true });
+            window.removeEventListener('pointerdown', updatePointerPosition, { capture: true, passive: true });
+            window.removeEventListener('wheel', onWheel, { capture: true, passive: false });
+            document.removeEventListener('keydown', onKeyDown, true);
+            clearTimeout(wheel.resetTimer);
+        };
+    };
+
     videoFloating.helpers = {
         CONFIG_STORAGE_KEY,
         VIDEO_CHECK_INTERVAL,
@@ -500,8 +634,10 @@
         getFullscreenEl,
         getVideo,
         getVideoAtPoint,
+        getSeekableVideoAtPoint,
         showSeekNotice,
         TOUCH_SWITCH_VIDEO_EVENT,
-        installTouchSwipeSeek
+        installTouchSwipeSeek,
+        installWheelKeyboardSeek
     };
 })();

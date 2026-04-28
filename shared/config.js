@@ -26,6 +26,19 @@
     const getDefaultFallbackProviderId = apiServicesUtils.getDefaultFallbackProviderId || ((serviceType) => serviceType === 'translate' ? 'mymemory' : '');
 
     const STORAGE_KEY = 'gesture_extension_config_v1';
+    const DEFAULT_POPUP_PANEL_ORDER = Object.freeze([
+        'host-blacklist',
+        'unblock-copy',
+        'gestures',
+        'clipboard',
+        'floating-video',
+        'video-screenshot',
+        'quick-search',
+        'inline-translate',
+        'youtube-subtitles',
+        'api-services',
+        'forum'
+    ]);
 
     const DEFAULT_CONFIG = Object.freeze({
         version: 1,
@@ -34,6 +47,9 @@
             maxHistory: 5,
             history: [],
             pinned: []
+        },
+        unblockCopy: {
+            enabled: true
         },
         googleSearch: {
             enabled: true
@@ -99,7 +115,8 @@
             hosts: {}
         },
         runtime: {
-            excludedHosts: ['ajog.org']
+            excludedHosts: ['ajog.org'],
+            popupPanelOrder: DEFAULT_POPUP_PANEL_ORDER
         },
         gestures: {
             desktop: {
@@ -107,6 +124,7 @@
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
                 rclick: { enabled: true, mode: 'fg' },
                 dblRight: { enabled: true, ms: 500 },
+                fastScroll: { enabled: true, step: 0.92, wheelZone: 80 },
                 pager: { enabled: true, hops: 3 }
             },
             mobile: {
@@ -170,6 +188,23 @@
     const normalizeExcludedHosts = (value) => {
         const list = Array.isArray(value) ? value : [];
         return [...new Set(list.map(normalizeHost).filter(Boolean))];
+    };
+    const normalizePopupPanelOrder = (value) => {
+        const incoming = Array.isArray(value) ? value : [];
+        const allowed = new Set(DEFAULT_POPUP_PANEL_ORDER);
+        const result = [];
+        incoming.forEach((entry) => {
+            if (typeof entry !== 'string') return;
+            const normalized = entry.trim();
+            if (!allowed.has(normalized) || result.includes(normalized)) return;
+            result.push(normalized);
+        });
+        DEFAULT_POPUP_PANEL_ORDER.forEach((entry) => {
+            if (!result.includes(entry)) {
+                result.push(entry);
+            }
+        });
+        return result;
     };
     const isHostExcluded = (configOrHosts, host) => {
         const normalizedHost = normalizeHost(host);
@@ -256,6 +291,9 @@
             ? config.clipboard.pinned.filter((s) => typeof s === 'string' && s.length > 0)
             : [];
         delete config.clipboard.triggerPosition;
+
+        config.unblockCopy = config.unblockCopy && typeof config.unblockCopy === 'object' ? config.unblockCopy : {};
+        config.unblockCopy.enabled = config.unblockCopy.enabled !== false;
 
         config.googleSearch = config.googleSearch && typeof config.googleSearch === 'object' ? config.googleSearch : {};
         config.googleSearch.enabled = config.googleSearch.enabled !== false;
@@ -352,7 +390,7 @@
         }
         config.inlineTranslate.provider = config.apiServices.translate.activeProvider || 'google';
 
-        config.forum.defaults.enabled = !!config.forum.defaults.enabled;
+        config.forum.defaults.enabled = false;
         config.forum.defaults.wide = !!config.forum.defaults.wide;
         config.forum.defaults.minWidth = clampNumber(config.forum.defaults.minWidth, 1000, 0, 4000);
         config.forum.defaults.gap = clampNumber(config.forum.defaults.gap, 1, 0, 24);
@@ -363,7 +401,7 @@
         const hosts = config.forum.hosts && typeof config.forum.hosts === 'object' ? config.forum.hosts : {};
         for (const [host, values] of Object.entries(hosts)) {
             normalizedHosts[host] = {
-                enabled: values?.enabled ?? config.forum.defaults.enabled,
+                enabled: values?.enabled === true,
                 wide: values?.wide ?? config.forum.defaults.wide,
                 minWidth: clampNumber(values?.minWidth, config.forum.defaults.minWidth, 0, 4000),
                 gap: clampNumber(values?.gap, config.forum.defaults.gap, 0, 24),
@@ -375,6 +413,7 @@
 
         config.runtime = config.runtime && typeof config.runtime === 'object' ? config.runtime : {};
         config.runtime.excludedHosts = normalizeExcludedHosts(config.runtime.excludedHosts);
+        config.runtime.popupPanelOrder = normalizePopupPanelOrder(config.runtime.popupPanelOrder);
 
         config.gestures.desktop.enabled = !!config.gestures.desktop.enabled;
         config.gestures.desktop.lpress.enabled = !!config.gestures.desktop.lpress.enabled;
@@ -384,6 +423,11 @@
         config.gestures.desktop.rclick.mode = normalizeMode(config.gestures.desktop.rclick.mode, 'fg');
         config.gestures.desktop.dblRight.enabled = !!config.gestures.desktop.dblRight.enabled;
         config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
+        config.gestures.desktop.fastScroll = config.gestures.desktop.fastScroll && typeof config.gestures.desktop.fastScroll === 'object' ? config.gestures.desktop.fastScroll : {};
+        config.gestures.desktop.fastScroll.enabled = config.gestures.desktop.fastScroll.enabled !== false;
+        config.gestures.desktop.fastScroll.step = clampNumber(config.gestures.desktop.fastScroll.step, 0.92, 0.5, 1);
+        config.gestures.desktop.fastScroll.wheelZone = clampNumber(config.gestures.desktop.fastScroll.wheelZone, 80, 40, 240);
+        delete config.gestures.desktop.fastScroll.touchpadBoost;
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
         config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 5);
 
@@ -393,6 +437,7 @@
         config.gestures.mobile.lpress.ms = clampNumber(config.gestures.mobile.lpress.ms, 500, 200, 2000);
         config.gestures.mobile.dblTap.enabled = !!config.gestures.mobile.dblTap.enabled;
         config.gestures.mobile.dblTap.ms = clampNumber(config.gestures.mobile.dblTap.ms, 300, 150, 500);
+        delete config.gestures.mobile.fastScroll;
         config.gestures.mobile.edge.enabled = !!config.gestures.mobile.edge.enabled;
         config.gestures.mobile.edge.width = clampNumber(config.gestures.mobile.edge.width, 40, 20, 120);
         config.gestures.mobile.edge.speed = clampNumber(config.gestures.mobile.edge.speed, 3, 1, 10);
@@ -439,6 +484,11 @@
                 enabled: !!normalized.gestures.mobile.dblTap.enabled,
                 ms: normalized.gestures.mobile.dblTap.ms
             },
+            fastScroll: {
+                enabled: !!normalized.gestures.desktop.fastScroll.enabled,
+                step: normalized.gestures.desktop.fastScroll.step,
+                wheelZone: normalized.gestures.desktop.fastScroll.wheelZone
+            },
             edgeSwipe: {
                 enabled: !!normalized.gestures.mobile.edge.enabled,
                 side: normalized.gestures.mobile.edge.side,
@@ -473,6 +523,10 @@
             doubleTap: {
                 ...current.doubleTap,
                 ...(patch?.doubleTap || {})
+            },
+            fastScroll: {
+                ...current.fastScroll,
+                ...(patch?.fastScroll || {})
             },
             edgeSwipe: {
                 ...current.edgeSwipe,
@@ -510,6 +564,12 @@
             enabled: !!merged.doubleTap.enabled,
             ms: merged.doubleTap.ms
         };
+        next.gestures.desktop.fastScroll = {
+            enabled: !!merged.fastScroll.enabled,
+            step: merged.fastScroll.step,
+            wheelZone: merged.fastScroll.wheelZone
+        };
+        delete next.gestures.mobile.fastScroll;
         next.gestures.mobile.edge = {
             enabled: !!merged.edgeSwipe.enabled,
             side: merged.edgeSwipe.side,
@@ -527,6 +587,7 @@
     ext.shared.config = {
         STORAGE_KEY,
         DEFAULT_CONFIG,
+        DEFAULT_POPUP_PANEL_ORDER,
         deepClone,
         normalizeConfig,
         getForumConfig,

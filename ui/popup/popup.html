@@ -20,22 +20,26 @@
       </div>
     </header>
 
-    <section class="card">
-      <h2 class="card-title">Host Blacklist</h2>
-      <p id="host-blacklist-note" class="section-note">Có thể tắt toàn bộ extension trên host hiện tại.</p>
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Current host</span>
-          <span class="label-sub">Disable</span>
-          <span class="param"><span id="host-blacklist-label" class="param-name">Không có host</span></span>
-          <span class="toggle"><input id="host-blacklist-toggle" type="checkbox" aria-label="Tắt extension trên host hiện tại"></span>
-        </div>
+    <section class="card" data-panel-id="host-blacklist">
+      <div class="host-blacklist-row">
+        <h2 class="card-title">Host Blacklist</h2>
+        <span id="host-blacklist-label" class="host-blacklist-host">Không có host</span>
+        <span class="card-title-actions">
+          <button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Host Blacklist"></button>
+          <input id="host-blacklist-toggle" type="checkbox" aria-label="Tắt extension trên host hiện tại">
+        </span>
       </div>
     </section>
 
+    <!-- Unblock Copy -->
+    <section class="card" data-panel-id="unblock-copy">
+      <h2 class="card-title card-title-with-toggle"><span>Unblock Copy</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Unblock Copy"></button><input id="feature-unblock-copy-enabled" type="checkbox" aria-label="Bật Unblock Copy"></span></h2>
+    </section>
+
     <!-- Gestures -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Gestures</span><input id="feature-gestures-enabled" type="checkbox" aria-label="Bật Gestures"></h2>
+    <section class="card" data-panel-id="gestures">
+      <h2 class="card-title card-title-with-toggle"><span>Gestures</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Gestures"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-gestures" aria-expanded="false" aria-label="Mở cài đặt Gestures"></button><input id="feature-gestures-enabled" type="checkbox" aria-label="Bật Gestures"></span></h2>
+      <div id="panel-gestures" class="panel-body is-collapsed">
       <div class="table">
         <div class="item">
           <span class="label-main">Long press</span>
@@ -81,9 +85,23 @@
         </div>
 
         <div class="item">
-          <span class="label-main">Edge swipe</span>
-          <span class="label-sub">Side</span>
-          <span class="param"><span class="param-name">Edge</span><select id="g-edge-side">
+          <span class="label-main">Scroll</span>
+          <span class="label-sub">Fast</span>
+          <span class="param"><span class="param-name">View</span><input id="g-fast-scroll-step" class="num xs" type="number"
+              min="0.5" max="1" step="0.05"></span>
+          <span class="toggle"><input id="g-fast-scroll-enabled" type="checkbox"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Wheel</span>
+          <span class="param"><span class="param-name">Px</span><input id="g-fast-scroll-wheel-zone" class="num xs" type="number"
+              min="40" max="240" step="10"></span>
+          <span class="toggle toggle-empty"></span>
+        </div>
+        <div class="item item-sub">
+          <span class="label-main label-main-empty"></span>
+          <span class="label-sub">Edge</span>
+          <span class="param"><span class="param-name">Side</span><select id="g-edge-side">
               <option value="both">Both</option>
               <option value="left">Left</option>
               <option value="right">Right</option>
@@ -113,11 +131,13 @@
           <span class="toggle"><input id="g-pager-enabled" type="checkbox"></span>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- Clipboard -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Clipboard</span><input id="feature-clipboard-enabled" type="checkbox" aria-label="Bật Clipboard"></h2>
+    <section class="card" data-panel-id="clipboard">
+      <h2 class="card-title card-title-with-toggle"><span>Clipboard</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Clipboard"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-clipboard" aria-expanded="false" aria-label="Mở cài đặt Clipboard"></button><input id="feature-clipboard-enabled" type="checkbox" aria-label="Bật Clipboard"></span></h2>
+      <div id="panel-clipboard" class="panel-body is-collapsed">
       <div class="table">
         <div class="item">
           <span class="label-main">History</span>
@@ -134,11 +154,13 @@
           <span class="toggle toggle-empty"></span>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- Floating Video -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Floating Video</span><input id="feature-video-floating-enabled" type="checkbox" aria-label="Bật Floating Video"></h2>
+    <section class="card" data-panel-id="floating-video">
+      <h2 class="card-title card-title-with-toggle"><span>Floating Video</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Floating Video"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-video-floating" aria-expanded="false" aria-label="Mở cài đặt Floating Video"></button><input id="feature-video-floating-enabled" type="checkbox" aria-label="Bật Floating Video"></span></h2>
+      <div id="panel-video-floating" class="panel-body is-collapsed">
       <div class="table">
         <div class="item">
           <span class="label-main">Swipe</span>
@@ -197,16 +219,18 @@
           <span class="toggle toggle-empty"></span>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- Video Screenshot -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Video Screenshot</span><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Bật Video Screenshot"></h2>
+    <section class="card" data-panel-id="video-screenshot">
+      <h2 class="card-title card-title-with-toggle"><span>Video Screenshot</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Video Screenshot"></button><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Bật Video Screenshot"></span></h2>
     </section>
 
     <!-- Quick Search -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Quick Search</span><input id="feature-quick-search-enabled" type="checkbox" aria-label="Bật Quick Search"></h2>
+    <section class="card" data-panel-id="quick-search">
+      <h2 class="card-title card-title-with-toggle"><span>Quick Search</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Quick Search"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-quick-search" aria-expanded="false" aria-label="Mở cài đặt Quick Search"></button><input id="feature-quick-search-enabled" type="checkbox" aria-label="Bật Quick Search"></span></h2>
+      <div id="panel-quick-search" class="panel-body is-collapsed">
       <div class="table">
         <div class="item">
           <span class="label-main">Bubble</span>
@@ -234,11 +258,13 @@
         <label class="provider-tile"><input id="quick-search-provider-youtube" type="checkbox"><img src="https://www.youtube.com/favicon.ico" alt=""><span class="provider-tile-label">YouTube</span></label>
         <label class="provider-tile"><input id="quick-search-provider-google-images" type="checkbox"><img src="https://www.google.com/favicon.ico" alt=""><span class="provider-tile-label">Google Images</span></label>
       </div>
+      </div>
     </section>
 
     <!-- Inline Translate -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Inline Translate</span><input id="feature-inline-translate-enabled" type="checkbox" aria-label="Bật Inline Translate"></h2>
+    <section class="card" data-panel-id="inline-translate">
+      <h2 class="card-title card-title-with-toggle"><span>Inline Translate</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Inline Translate"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-inline-translate" aria-expanded="false" aria-label="Mở cài đặt Inline Translate"></button><input id="feature-inline-translate-enabled" type="checkbox" aria-label="Bật Inline Translate"></span></h2>
+      <div id="panel-inline-translate" class="panel-body is-collapsed">
       <div class="table">
         <div class="item">
           <span class="label-main">Hotkey</span>
@@ -300,11 +326,13 @@
           <span class="toggle toggle-empty"></span>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- YouTube Subtitles -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>YouTube Subtitles</span><input id="feature-youtube-subtitles-enabled" type="checkbox" aria-label="Bật YouTube Subtitles"></h2>
+    <section class="card" data-panel-id="youtube-subtitles">
+      <h2 class="card-title card-title-with-toggle"><span>YouTube Subtitles</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí YouTube Subtitles"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-youtube-subtitles" aria-expanded="false" aria-label="Mở cài đặt YouTube Subtitles"></button><input id="feature-youtube-subtitles-enabled" type="checkbox" aria-label="Bật YouTube Subtitles"></span></h2>
+      <div id="panel-youtube-subtitles" class="panel-body is-collapsed">
       <div class="table">
         <div class="item">
           <span class="label-main">Target</span>
@@ -349,11 +377,13 @@
           <span class="toggle toggle-empty"></span>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- API Services -->
-    <section class="card">
-      <h2 class="card-title">API Services</h2>
+    <section class="card" data-panel-id="api-services">
+      <h2 class="card-title card-title-with-toggle"><span>API Services</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí API Services"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-api-services" aria-expanded="false" aria-label="Mở cài đặt API Services"></button></span></h2>
+      <div id="panel-api-services" class="panel-body is-collapsed">
       <div class="table table-api-services">
         <div class="item">
           <span class="label-main">Translate</span>
@@ -404,12 +434,14 @@
           <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off"></span>
           <span class="toggle toggle-empty"></span>
         </div>
+        </div>
       </div>
     </section>
 
     <!-- Forum -->
-    <section class="card">
-      <h2 class="card-title card-title-with-toggle"><span>Forum</span><input id="feature-forum-enabled" type="checkbox" aria-label="Bật Forum"></h2>
+    <section class="card" data-panel-id="forum">
+      <h2 class="card-title card-title-with-toggle"><span>Forum</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Forum"></button><button class="panel-toggle" type="button" data-panel-toggle aria-controls="panel-forum" aria-expanded="false" aria-label="Mở cài đặt Forum"></button><input id="feature-forum-enabled" type="checkbox" aria-label="Bật Forum"></span></h2>
+      <div id="panel-forum" class="panel-body is-collapsed">
       <p id="forum-scope" class="section-note"></p>
       <div class="table">
         <div class="item">
@@ -447,6 +479,7 @@
               min="0" max="1000"></span>
           <span class="toggle toggle-empty"></span>
         </div>
+      </div>
       </div>
     </section>
 

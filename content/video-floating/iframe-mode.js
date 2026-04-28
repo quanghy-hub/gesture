@@ -5,6 +5,7 @@
         FVP_IFRAME_BRIDGE,
         FIT_MODES,
         ZOOM_LEVELS,
+        WHEEL_GESTURE,
     } = videoFloating;
     const {
         $,
@@ -24,6 +25,12 @@
         let styledIframeVideo = null;
         let trackedStateVideo = null;
         let reportTimer = 0;
+        let isFloatingActive = false;
+        let wheelDeltaY = 0;
+        let wheelGestureLocked = false;
+        let wheelGestureResetTimer = 0;
+        let wheelSeekBaseTime = null;
+        let wheelSeekDeltaX = 0;
 
         const getOwnVideoCount = () => queryAllDeep('video').length;
         const getIframeVideos = () => [...queryAllDeep('video')].filter((video) => {
@@ -157,6 +164,34 @@
             });
         };
 
+        const scheduleWheelGestureReset = () => {
+            clearTimeout(wheelGestureResetTimer);
+            wheelGestureResetTimer = window.setTimeout(() => {
+                wheelDeltaY = 0;
+                wheelGestureLocked = false;
+                wheelSeekBaseTime = null;
+                wheelSeekDeltaX = 0;
+                wheelGestureResetTimer = 0;
+            }, WHEEL_GESTURE.idleMs);
+        };
+
+        const seekFromWheel = (deltaX) => {
+            const video = getCurrentIframeVideo();
+            if (!video?.duration) return false;
+            if (wheelSeekBaseTime === null) {
+                wheelSeekBaseTime = video.currentTime || 0;
+                wheelSeekDeltaX = 0;
+            }
+            wheelSeekDeltaX += deltaX;
+            video.currentTime = clamp(
+                wheelSeekBaseTime - wheelSeekDeltaX * WHEEL_GESTURE.seekSecondsPerPixel,
+                0,
+                video.duration
+            );
+            postIframeState();
+            return true;
+        };
+
         const onMessage = (event) => {
             if (event.source === window && event.data?.source === FVP_IFRAME_BRIDGE) {
                 if (event.data?.type === 'fvp-page-quality-result') {
@@ -176,6 +211,10 @@
                 return;
             }
             if (event.data?.type !== 'fvp-iframe-command') return;
+            if (event.data.command === 'set-floating-active') {
+                isFloatingActive = !!event.data.active;
+                return;
+            }
             const video = getCurrentIframeVideo();
             switch (event.data.command) {
                 case 'play': playIframeVideo(video); break;
@@ -197,7 +236,34 @@
             if (event.data.command !== 'get-state') setTimeout(postIframeState, 80);
         };
 
+        const onWheel = (event) => {
+            if (!isFloatingActive) return;
+            if (event.cancelable) event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation?.();
+            scheduleWheelGestureReset();
+
+            const absX = Math.abs(event.deltaX || 0);
+            const absY = Math.abs(event.deltaY || 0);
+            if (absX > 0 && absX >= absY * 0.8) {
+                seekFromWheel(event.deltaX || 0);
+                return;
+            }
+
+            if (wheelGestureLocked) return;
+
+            wheelDeltaY += event.deltaY || 0;
+            if (Math.abs(wheelDeltaY) < WHEEL_GESTURE.switchThreshold) return;
+
+            switchIframeVideo(wheelDeltaY > 0 ? 1 : -1);
+            wheelDeltaY = 0;
+            wheelGestureLocked = true;
+            postIframeState();
+            setTimeout(postIframeState, 80);
+        };
+
         window.addEventListener('message', onMessage);
+        window.addEventListener('wheel', onWheel, { capture: true, passive: false });
         const onTouchSwitchVideo = (event) => {
             const dir = Number(event.detail?.dir) || 0;
             if (!dir) return;
@@ -214,8 +280,10 @@
             destroy() {
                 unbindActiveIframeState();
                 window.removeEventListener('message', onMessage);
+                window.removeEventListener('wheel', onWheel, { capture: true, passive: false });
                 window.removeEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
                 window.clearInterval(reportTimer);
+                clearTimeout(wheelGestureResetTimer);
             }
         };
     };

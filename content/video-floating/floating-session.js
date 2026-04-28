@@ -117,6 +117,20 @@
             });
         };
 
+        const restoreFloatedIframe = ({ clearRefs = false } = {}) => {
+            if (!ctx.floatedIframe) return;
+            clearInterval(ctx.iframeStatePollTimer);
+            ctx.iframeStatePollTimer = 0;
+            postToFloatedIframe({ command: 'set-floating-active', active: false });
+            ctx.floatedIframe.setAttribute('style', ctx.iframeOrigStyle);
+            ctx.iframeOrigPar?.replaceChild(ctx.floatedIframe, ctx.iframePh);
+            if (!clearRefs) return;
+            ctx.floatedIframe = null;
+            ctx.iframeOrigPar = null;
+            ctx.iframePh = null;
+            resetIframePlaybackState();
+        };
+
         const applyTransform = () => {
             if (!ctx.curVid) return;
             const zoom = ZOOM_LEVELS[ctx.zoomIdx];
@@ -244,13 +258,7 @@
             ctx.state.seekDragActive = false;
             if (ctx.floatedIframe) {
                 // Put the iframe back exactly where it came from before tearing down the floating shell state.
-                clearInterval(ctx.iframeStatePollTimer);
-                ctx.floatedIframe.setAttribute('style', ctx.iframeOrigStyle);
-                ctx.iframeOrigPar?.replaceChild(ctx.floatedIframe, ctx.iframePh);
-                ctx.floatedIframe = null;
-                ctx.iframeOrigPar = null;
-                ctx.iframePh = null;
-                resetIframePlaybackState();
+                restoreFloatedIframe({ clearRefs: true });
             } else if (!transitionRestored && ctx.curVid) {
                 // Restore the original DOM position of the video node to avoid leaving detached media behind.
                 ctx.origPar?.replaceChild(ctx.curVid, ctx.ph);
@@ -358,9 +366,7 @@
         const floatIframe = (iframe) => {
             if (!isFeatureEnabled()) return;
             if (ctx.floatedIframe) {
-                clearInterval(ctx.iframeStatePollTimer);
-                ctx.floatedIframe.setAttribute('style', ctx.iframeOrigStyle);
-                ctx.iframeOrigPar?.replaceChild(ctx.floatedIframe, ctx.iframePh);
+                restoreFloatedIframe();
             }
             if (ctx.curVid) restore();
             deps.ensureInitialized();
@@ -383,6 +389,7 @@
             ensureLayoutReady().then((layout) => {
                 if (ctx.floatedIframe === iframe && layout) applyBoxLayout(layout);
             });
+            postToFloatedIframe({ command: 'set-floating-active', active: true });
             postToFloatedIframe({ command: 'get-state' });
             ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 350);
         };
@@ -390,10 +397,7 @@
         const float = (video) => {
             if (!isFeatureEnabled()) return;
             if (ctx.floatedIframe) {
-                clearInterval(ctx.iframeStatePollTimer);
-                ctx.floatedIframe.setAttribute('style', ctx.iframeOrigStyle);
-                ctx.iframeOrigPar?.replaceChild(ctx.floatedIframe, ctx.iframePh);
-                ctx.floatedIframe = null;
+                restoreFloatedIframe({ clearRefs: true });
             }
             if (ctx.curVid && ctx.curVid !== video) restore();
             if (ctx.curVid === video) return;
