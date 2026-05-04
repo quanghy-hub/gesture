@@ -184,7 +184,7 @@
             }
             wheelSeekDeltaX += deltaX;
             video.currentTime = clamp(
-                wheelSeekBaseTime - wheelSeekDeltaX * WHEEL_GESTURE.seekSecondsPerPixel,
+                wheelSeekBaseTime + wheelSeekDeltaX * WHEEL_GESTURE.seekSecondsPerPixel,
                 0,
                 video.duration
             );

@@ -574,7 +574,7 @@
                 }
                 wheelSeekDeltaX += deltaX;
                 const nextTime = videoFloating.helpers.clamp(
-                    wheelSeekBaseTime - wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel,
+                    wheelSeekBaseTime + wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel,
                     0,
                     ctx.curVid.duration
                 );

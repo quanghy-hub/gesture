@@ -96,7 +96,7 @@
     );
     const popupRoot = document.querySelector('.popup');
     const panelCards = Array.from(document.querySelectorAll('.card[data-panel-id]'));
-    const panelToggleButtons = Array.from(document.querySelectorAll('[data-panel-toggle]'));
+    const panelHeaderTriggers = Array.from(document.querySelectorAll('[data-panel-header]'));
     const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
 
     let activeHost = null;
@@ -437,12 +437,12 @@
         });
     };
 
-    const setPanelExpanded = (button, expanded) => {
-        const panel = document.getElementById(button.getAttribute('aria-controls'));
+    const setPanelExpanded = (trigger, expanded) => {
+        const panel = document.getElementById(trigger.getAttribute('aria-controls'));
         if (!panel) return;
-        const title = button.closest('.card')?.querySelector('.card-title span')?.textContent?.trim() || 'panel';
-        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        button.setAttribute('aria-label', `${expanded ? 'Đóng' : 'Mở'} cài đặt ${title}`);
+        const title = trigger.closest('.card')?.querySelector('.card-title span')?.textContent?.trim() || 'panel';
+        trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        trigger.setAttribute('aria-label', `${expanded ? 'Đóng' : 'Mở'} cài đặt ${title}`);
         panel.classList.toggle('is-collapsed', !expanded);
     };
 
@@ -532,10 +532,23 @@
         window.close();
     });
 
-    panelToggleButtons.forEach((button) => {
-        setPanelExpanded(button, button.getAttribute('aria-expanded') === 'true');
-        button.addEventListener('click', () => {
-            setPanelExpanded(button, button.getAttribute('aria-expanded') !== 'true');
+    panelHeaderTriggers.forEach((trigger) => {
+        setPanelExpanded(trigger, trigger.getAttribute('aria-expanded') === 'true');
+        trigger.addEventListener('click', (event) => {
+            if (event.target.closest('input, button, select, textarea, a, label')) {
+                return;
+            }
+            setPanelExpanded(trigger, trigger.getAttribute('aria-expanded') !== 'true');
+        });
+        trigger.addEventListener('keydown', (event) => {
+            if (event.target !== trigger) {
+                return;
+            }
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+            event.preventDefault();
+            setPanelExpanded(trigger, trigger.getAttribute('aria-expanded') !== 'true');
         });
     });
 

@@ -14,6 +14,7 @@
             lp: { timer: null, active: false, x: 0, y: 0 },
             dblRight: { timer: null, lastEvent: null },
             pager: { acc: 0, timer: null, dir: 0, hops: 0 },
+            pointer: { active: false, x: 0, y: 0 },
             pagerIndicator: null
         };
         const listeners = [];
@@ -30,11 +31,17 @@
         const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
         const shouldRunPagerForForum = () => {
             const forumConfig = getForumConfig();
-            return forumConfig.enabled && innerWidth > innerHeight && innerWidth >= forumConfig.minWidth;
+            return forumConfig.enabled;
         };
-        const isVideoAtWheelPoint = (event) => {
+        const updatePointerPosition = (event) => {
+            state.pointer.active = true;
+            state.pointer.x = event.clientX || 0;
+            state.pointer.y = event.clientY || 0;
+        };
+        const isVideoAtPointer = () => {
+            if (!state.pointer.active) return false;
             const helpers = globalThis.GestureExtension?.videoFloating?.helpers;
-            return !!helpers?.getSeekableVideoAtPoint?.(event.clientX || 0, event.clientY || 0);
+            return !!helpers?.getSeekableVideoAtPoint?.(state.pointer.x, state.pointer.y, { includeFloating: true });
         };
 
         const getValidLink = (event) => {
@@ -169,14 +176,6 @@
             state.pagerIndicator?.classList.remove('show');
         };
 
-        const hasHorizontalIntent = (event) => {
-            const absX = Math.abs(event.deltaX);
-            const absY = Math.abs(event.deltaY);
-            if (absX < 6) return false;
-            if (absY === 0) return true;
-            return absX >= absY * 0.65 || (absX >= 18 && absY < 40);
-        };
-
         const hasVerticalIntent = (event) => {
             return scrollCore?.hasVerticalWheelIntent?.(event, getConfig()) || false;
         };
@@ -255,6 +254,39 @@
             scrollPageFast(event.key === 'ArrowDown' ? 1 : -1);
         }, true);
 
+        addListener(window, 'keydown', (event) => {
+            const cfg = getConfig();
+            if (!cfg.enabled || !cfg.pager.enabled) return;
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            if (!shouldRunPagerForForum()) return;
+            if (touch.isExtensionUiTarget(event) || isEditable(event.target)) return;
+            if (event.target instanceof Element && event.target.closest('#fvp-container')) return;
+            if (isVideoAtPointer()) return;
+
+            const dir = event.key === 'ArrowRight' ? 1 : -1;
+            const maxHops = Math.max(1, Number(cfg.pager.hops) || 3);
+
+            event.preventDefault();
+            event.stopPropagation();
+            clearTimeout(state.pager.timer);
+            state.pager.hops = dir !== state.pager.dir ? 1 : state.pager.hops + 1;
+            state.pager.dir = dir;
+            showPagerIcon(dir, state.pager.hops, maxHops);
+
+            const currentDir = dir;
+            const currentHops = state.pager.hops;
+            state.pager.timer = window.setTimeout(() => {
+                hidePagerIcon();
+                if (state.pager.dir === currentDir && state.pager.hops === currentHops) {
+                    state.pager.dir = 0;
+                    state.pager.hops = 0;
+                }
+            }, 180);
+
+            goPage(dir, Math.min(currentHops, maxHops), currentHops > maxHops);
+        }, true);
+
         addListener(window, 'wheel', (event) => {
             const cfg = getConfig();
             if (!cfg.enabled || !isFastScrollWheelGesture(event, cfg)) return;
@@ -265,6 +297,7 @@
         }, { capture: true, passive: false });
 
         addListener(window, 'pointerdown', (event) => {
+            updatePointerPosition(event);
             state.lpFired = false;
             const cfg = getConfig();
             if (event.pointerType && event.pointerType !== 'mouse') return;
@@ -284,6 +317,7 @@
         }, true);
 
         addListener(window, 'pointermove', (event) => {
+            updatePointerPosition(event);
             if (state.lp.active && dist(event.clientX, event.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {
                 cancelLongPress();
             }
@@ -349,46 +383,6 @@
             state.rcHandled = true;
             openTab(link.href, cfg.rclick.mode);
         }, true);
-
-        addListener(window, 'wheel', (event) => {
-            const cfg = getConfig();
-            if (!cfg.enabled || !cfg.pager.enabled) return;
-            if (!shouldRunPagerForForum()) return;
-            if (event.target instanceof Element && event.target.closest('#fvp-container')) return;
-            if (!hasHorizontalIntent(event)) return;
-            if (isVideoAtWheelPoint(event)) return;
-
-            let element = event.target;
-            while (element && element !== document.body) {
-                if (element.scrollWidth > element.clientWidth && ['auto', 'scroll'].includes(getComputedStyle(element).overflowX)) return;
-                if (element.tagName === 'INPUT' || element.isContentEditable) return;
-                element = element.parentElement;
-            }
-
-            const dir = event.deltaX > 0 ? 1 : -1;
-            if (!dir) {
-                return;
-            }
-
-            clearTimeout(state.pager.timer);
-            state.pager.hops = dir !== state.pager.dir ? 1 : state.pager.hops + 1;
-            state.pager.dir = dir;
-            const maxHops = Math.max(1, Number(cfg.pager.hops) || 3);
-
-            showPagerIcon(dir, state.pager.hops, maxHops);
-
-            const currentDir = dir;
-            const currentHops = state.pager.hops;
-            state.pager.timer = window.setTimeout(() => {
-                hidePagerIcon();
-                if (state.pager.dir === currentDir && state.pager.hops === currentHops) {
-                    state.pager.dir = 0;
-                    state.pager.hops = 0;
-                }
-            }, 180);
-
-            goPage(dir, Math.min(currentHops, maxHops), currentHops > maxHops);
-        }, { capture: true, passive: true });
 
         return {
             destroy() {
