@@ -37,6 +37,7 @@
         'inline-translate',
         'youtube-subtitles',
         'api-services',
+        'backup',
         'forum'
     ]);
 
@@ -338,7 +339,7 @@
             : 'google';
         config.inlineTranslate.selectionTranslateEnabled = config.inlineTranslate.selectionTranslateEnabled !== false;
         config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
-        config.inlineTranslate.hotkey = ['f2', 'f4', 'f8'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
+        config.inlineTranslate.hotkey = String(config.inlineTranslate.hotkey || '').toLowerCase() === 'f2'
             ? String(config.inlineTranslate.hotkey).toLowerCase()
             : 'f2';
         config.inlineTranslate.swipeEnabled = config.inlineTranslate.swipeEnabled !== false;

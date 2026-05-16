@@ -250,10 +250,7 @@
             }
 
             const hotkey = settings.hotkey;
-            const matches =
-                (hotkey === 'f2' && event.code === 'F2') ||
-                (hotkey === 'f4' && event.code === 'F4') ||
-                (hotkey === 'f8' && event.code === 'F8');
+            const matches = hotkey === 'f2' && event.code === 'F2';
 
             if (!matches) {
                 return;

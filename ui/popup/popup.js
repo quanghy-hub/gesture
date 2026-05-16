@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, normalizeHost, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
+    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, normalizeHost, normalizeConfig, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
 
@@ -98,6 +98,18 @@
     const panelCards = Array.from(document.querySelectorAll('.card[data-panel-id]'));
     const panelHeaderTriggers = Array.from(document.querySelectorAll('[data-panel-header]'));
     const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
+    const backupGistToken = document.getElementById('backup-gist-token');
+    const backupVerifyToken = document.getElementById('backup-verify-token');
+    const backupExport = document.getElementById('backup-export');
+    const backupImport = document.getElementById('backup-import');
+    const backupStatus = document.getElementById('backup-status');
+
+    const BACKUP_STORAGE_KEYS = {
+        token: 'gestureBackupGistToken',
+        gistId: 'gestureBackupGistId'
+    };
+    const BACKUP_GIST_DESCRIPTION = 'Gesture Settings Backup';
+    const BACKUP_GIST_FILE = 'gesture_settings.json';
 
     let activeHost = null;
     let config = null;
@@ -145,6 +157,84 @@
     const getActiveTab = () => new Promise((resolve) => {
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
     });
+
+    const getRuntimeErrorMessage = () => chrome.runtime?.lastError?.message;
+
+    const getLocal = (keys) => new Promise((resolve, reject) => {
+        chrome.storage.local.get(keys, (result) => {
+            const runtimeError = getRuntimeErrorMessage();
+            if (runtimeError) {
+                reject(new Error(runtimeError));
+                return;
+            }
+            resolve(result || {});
+        });
+    });
+
+    const setLocal = (payload) => new Promise((resolve, reject) => {
+        chrome.storage.local.set(payload, () => {
+            const runtimeError = getRuntimeErrorMessage();
+            if (runtimeError) {
+                reject(new Error(runtimeError));
+                return;
+            }
+            resolve();
+        });
+    });
+
+    const setBackupStatus = (message, type = '') => {
+        if (!backupStatus) return;
+        backupStatus.textContent = message;
+        backupStatus.className = `section-note backup-status${type ? ` ${type}` : ''}`;
+    };
+
+    const getBackupHeaders = () => {
+        const token = backupGistToken?.value.trim();
+        if (!token) return null;
+        return {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'Content-Type': 'application/json'
+        };
+    };
+
+    const getStoredBackupGistId = async () => {
+        const result = await getLocal([BACKUP_STORAGE_KEYS.gistId]);
+        return (result[BACKUP_STORAGE_KEYS.gistId] || '').trim();
+    };
+
+    const findExistingBackupGistId = async (headers) => {
+        const res = await fetch('https://api.github.com/gists?per_page=100', {
+            method: 'GET',
+            headers
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const gists = await res.json();
+        if (!Array.isArray(gists)) return '';
+        const match = gists.find((gist) => gist?.files?.[BACKUP_GIST_FILE] || gist?.description === BACKUP_GIST_DESCRIPTION);
+        if (!match?.id) return '';
+
+        await setLocal({ [BACKUP_STORAGE_KEYS.gistId]: match.id });
+        return match.id;
+    };
+
+    const buildBackupPayload = () => ({
+        app: 'Gesture',
+        schema: 1,
+        exportedAt: new Date().toISOString(),
+        config: normalizeConfig(config)
+    });
+
+    const readBackupConfig = (content) => {
+        const parsed = JSON.parse(content);
+        const importedConfig = parsed?.config || parsed;
+        if (!importedConfig || typeof importedConfig !== 'object') {
+            throw new Error('File backup không hợp lệ');
+        }
+        return normalizeConfig(importedConfig);
+    };
 
     const getHostFromUrl = (url) => {
         try {
@@ -515,6 +605,11 @@
         activeHost = getHostFromUrl(activeTab?.url || '');
         render();
         isReady = true;
+        return getLocal([BACKUP_STORAGE_KEYS.token]);
+    }).then((backupState) => {
+        if (backupGistToken && backupState?.[BACKUP_STORAGE_KEYS.token]) {
+            backupGistToken.value = backupState[BACKUP_STORAGE_KEYS.token];
+        }
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
     });
@@ -553,6 +648,126 @@
     });
 
     setupPanelReorder();
+
+    backupGistToken?.addEventListener('input', () => {
+        setLocal({ [BACKUP_STORAGE_KEYS.token]: backupGistToken.value.trim() }).catch((error) => {
+            setBackupStatus(`Lỗi lưu token: ${error.message}`, 'err');
+        });
+    });
+
+    backupVerifyToken?.addEventListener('click', async () => {
+        const headers = getBackupHeaders();
+        if (!headers) {
+            setBackupStatus('Nhập token trước', 'err');
+            return;
+        }
+
+        backupVerifyToken.disabled = true;
+        setBackupStatus('Đang kiểm tra token...');
+        try {
+            const res = await fetch('https://api.github.com/user', {
+                method: 'GET',
+                headers
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const user = await res.json();
+            await setLocal({ [BACKUP_STORAGE_KEYS.token]: backupGistToken.value.trim() });
+            setBackupStatus(`Token hợp lệ: ${user.login}`, 'ok');
+        } catch (error) {
+            setBackupStatus(`Token lỗi: ${error.message}`, 'err');
+        } finally {
+            backupVerifyToken.disabled = false;
+        }
+    });
+
+    backupExport?.addEventListener('click', async () => {
+        const headers = getBackupHeaders();
+        if (!headers) {
+            setBackupStatus('Nhập token trước', 'err');
+            return;
+        }
+
+        backupExport.disabled = true;
+        setBackupStatus('Đang export...');
+        try {
+            if (pendingSave) {
+                await pendingSave;
+            }
+
+            const payload = {
+                description: BACKUP_GIST_DESCRIPTION,
+                public: false,
+                files: {
+                    [BACKUP_GIST_FILE]: {
+                        content: JSON.stringify(buildBackupPayload(), null, 2)
+                    }
+                }
+            };
+
+            let gistId = await getStoredBackupGistId();
+            if (!gistId) {
+                gistId = await findExistingBackupGistId(headers);
+            }
+
+            const res = await fetch(gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists', {
+                method: gistId ? 'PATCH' : 'POST',
+                headers,
+                body: JSON.stringify(gistId ? { files: payload.files } : payload)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+            await setLocal({
+                [BACKUP_STORAGE_KEYS.token]: backupGistToken.value.trim(),
+                [BACKUP_STORAGE_KEYS.gistId]: data.id
+            });
+            setBackupStatus(`Export xong ${new Date().toLocaleTimeString()}`, 'ok');
+        } catch (error) {
+            setBackupStatus(`Export lỗi: ${error.message}`, 'err');
+        } finally {
+            backupExport.disabled = false;
+        }
+    });
+
+    backupImport?.addEventListener('click', async () => {
+        const headers = getBackupHeaders();
+        if (!headers) {
+            setBackupStatus('Nhập token trước', 'err');
+            return;
+        }
+
+        backupImport.disabled = true;
+        setBackupStatus('Đang import...');
+        try {
+            let gistId = await getStoredBackupGistId();
+            if (!gistId) {
+                gistId = await findExistingBackupGistId(headers);
+            }
+            if (!gistId) {
+                throw new Error('Chưa có Gist backup. Export trước.');
+            }
+
+            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'GET',
+                headers
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+            const file = data.files?.[BACKUP_GIST_FILE];
+            if (!file?.content) {
+                throw new Error(`Không thấy ${BACKUP_GIST_FILE}`);
+            }
+
+            config = await storage.saveConfig(readBackupConfig(file.content));
+            render();
+            setBackupStatus(`Import xong ${new Date().toLocaleTimeString()}`, 'ok');
+        } catch (error) {
+            setBackupStatus(`Import lỗi: ${error.message}`, 'err');
+        } finally {
+            backupImport.disabled = false;
+        }
+    });
 
     [
         featureUnblockCopyEnabled,

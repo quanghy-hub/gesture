@@ -274,6 +274,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return;
             }
 
+            case 'gesture-ext/capture-visible-tab': {
+                const windowId = sender.tab?.windowId;
+                if (typeof windowId !== 'number') {
+                    sendResponse({ ok: false, error: 'No sender window' });
+                    return;
+                }
+
+                const url = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+                sendResponse({ ok: true, url });
+                return;
+            }
+
             case 'gesture-ext/perform-ocr': {
                 const imageUrl = message.payload?.imageUrl;
                 if (!imageUrl) {

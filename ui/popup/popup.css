@@ -256,6 +256,25 @@ body {
     grid-column: 1 / span 2;
 }
 
+.backup-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.backup-status {
+    margin: 8px 0 0;
+}
+
+.backup-status.ok {
+    color: #86efac;
+}
+
+.backup-status.err {
+    color: #fca5a5;
+}
+
 .param-name {
     color: #9ca3af;
     font-size: 11px;
@@ -280,6 +299,7 @@ body {
 select,
 input[type="number"],
 input[type="text"],
+input[type="password"],
 input[type="color"] {
     height: 30px;
     padding: 4px 8px;
@@ -308,7 +328,8 @@ select {
     -webkit-appearance: none;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
     width: 100%;
     min-width: 0;
 }

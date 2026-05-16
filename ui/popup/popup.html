@@ -271,8 +271,6 @@
           <span class="label-sub">Key</span>
           <span class="param"><span class="param-name">Key</span><select id="inline-translate-hotkey">
               <option value="f2">F2</option>
-              <option value="f4">F4</option>
-              <option value="f8">F8</option>
             </select></span>
           <span class="toggle"><input id="inline-translate-hotkey-enabled" type="checkbox"></span>
         </div>
@@ -435,6 +433,20 @@
           <span class="toggle toggle-empty"></span>
         </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Backup -->
+    <section class="card" data-panel-id="backup">
+      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-backup" aria-expanded="false" aria-label="Mở cài đặt Backup" role="button" tabindex="0"><span>Backup</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Backup"></button></span></h2>
+      <div id="panel-backup" class="panel-body is-collapsed">
+        <div class="backup-controls">
+          <input id="backup-gist-token" type="password" autocomplete="off" placeholder="GitHub token">
+          <button id="backup-verify-token" class="secondary inline-button" type="button">Test</button>
+          <button id="backup-export" class="secondary inline-button" type="button">Export</button>
+          <button id="backup-import" class="secondary inline-button" type="button">Import</button>
+        </div>
+        <p id="backup-status" class="section-note backup-status"></p>
       </div>
     </section>
 
