@@ -537,7 +537,7 @@
                 wheel.baseTime = video.currentTime || 0;
                 wheel.deltaX = 0;
             }
-            wheel.deltaX += deltaX;
+            wheel.deltaX -= deltaX;
             const nextTime = clamp(
                 wheel.baseTime + wheel.deltaX * videoFloating.WHEEL_GESTURE.seekSecondsPerPixel,
                 0,

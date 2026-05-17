@@ -43,5 +43,7 @@ Chromium Extension Manifest V3 được tách module từ các userscript:
 - Settings giờ được gom trực tiếp trong **popup** thành một bảng duy nhất, không cần mở rộng sang trang hay khung nổi riêng.
 - Scroll gestures được gom trong popup: fast scroll desktop dùng `Command + ↑/↓` trên macOS, `Ctrl + ↑/↓` trên Windows/Linux, hoặc cuộn chuột ở vùng mép phải; mobile chỉ còn edge swipe một ngón.
 - Nhánh `macos` ưu tiên Helium/Chromium trên macOS: trackpad được lọc kỹ hơn để tránh kích hoạt nhầm khi swipe ngang, pinch/zoom hoặc scroll nhẹ.
+- Tua video bằng trackpad macOS: vuốt 2 ngón sang phải để tua tới, vuốt sang trái để tua lùi. Combo chuột phải rồi chuột trái sẽ dịch đoạn text tại điểm bấm.
+- macOS không gửi số ngón trackpad cho Chromium extension, và gesture hệ thống như Mission Control/App Exposé được hệ điều hành chặn trước trang web. Muốn dùng 4 ngón cho extension cần tắt hoặc đổi shortcut 4 ngón trong System Settings trước.
 - Pager giờ hoạt động theo số lần cuộn được gom trong cửa sổ thời gian: **1 cuộn = 1 trang, 2 cuộn = 2 trang, 3 cuộn = 3 trang, và từ ngưỡng tối đa trở lên sẽ đi thẳng tới đầu/cuối**.
 - Bản này phù hợp để load unpacked trên Chromium desktop và Kiwi; nếu cần phát hành lâu dài, bước tiếp theo nên thêm build pipeline, lint và test checklist.

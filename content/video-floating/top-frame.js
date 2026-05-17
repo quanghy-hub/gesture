@@ -572,7 +572,7 @@
                     wheelSeekBaseTime = ctx.curVid.currentTime || 0;
                     wheelSeekDeltaX = 0;
                 }
-                wheelSeekDeltaX += deltaX;
+                wheelSeekDeltaX -= deltaX;
                 const nextTime = videoFloating.helpers.clamp(
                     wheelSeekBaseTime + wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel,
                     0,

@@ -5,6 +5,8 @@
     const selectionCore = ext.shared.selectionCore;
     const { TRANSLATION_PENDING, VIETNAMESE_CHAR_PATTERN } = inlineTranslate;
     const EDITABLE_SELECTION_DELAY_MS = 80;
+    const RIGHT_LEFT_CHORD_MS = 1200;
+    const THREE_TOUCH_TRANSLATE_MS = 550;
 
     inlineTranslate.createController = ({ getConfig }) => {
         let settings = getConfig().inlineTranslate;
@@ -15,6 +17,14 @@
         let startedInVideo = false;
         let editableSelectionTimer = 0;
         let editableSelectionRequestId = 0;
+        let suppressContextMenuUntil = 0;
+        let threeTouchTimer = 0;
+        const rightChord = {
+            active: false,
+            x: 0,
+            y: 0,
+            time: 0
+        };
 
         const dom = inlineTranslate.dom;
         const actions = inlineTranslate.createActions({
@@ -270,8 +280,63 @@
             }
         };
 
-        const onPointerUp = () => {
+        const stopTranslateGestureEvent = (event) => {
+            if (event.cancelable) {
+                event.preventDefault();
+            }
+            event.stopPropagation();
+            event.stopImmediatePropagation?.();
+        };
+
+        const resetRightChord = () => {
+            rightChord.active = false;
+            rightChord.x = 0;
+            rightChord.y = 0;
+            rightChord.time = 0;
+        };
+
+        const onMouseDown = (event) => {
+            lastPointer = touch.getPrimaryPoint(event);
+            if (dom.isEventInsideEditableSelectionPanel(event)) {
+                return;
+            }
+
+            if (event.button === 2) {
+                rightChord.active = true;
+                rightChord.x = event.clientX || 0;
+                rightChord.y = event.clientY || 0;
+                rightChord.time = Date.now();
+                return;
+            }
+
+            if (event.button !== 0 || !rightChord.active) {
+                return;
+            }
+
+            if (Date.now() - rightChord.time > RIGHT_LEFT_CHORD_MS) {
+                resetRightChord();
+                return;
+            }
+
+            stopTranslateGestureEvent(event);
+            suppressContextMenuUntil = Date.now() + 700;
+            const x = event.clientX || rightChord.x;
+            const y = event.clientY || rightChord.y;
+            resetRightChord();
+            toggleTranslationAtPoint(x, y);
+        };
+
+        const onMouseUp = (event) => {
+            if (event.button === 2 && rightChord.active && Date.now() - rightChord.time > RIGHT_LEFT_CHORD_MS) {
+                resetRightChord();
+            }
             scheduleEditableSelectionEvaluation();
+        };
+
+        const onContextMenu = (event) => {
+            if (Date.now() < suppressContextMenuUntil) {
+                stopTranslateGestureEvent(event);
+            }
         };
 
         const onKeyUp = () => {
@@ -282,7 +347,29 @@
             syncEditableSelectionPanel();
         };
 
+        const clearThreeTouchTimer = () => {
+            window.clearTimeout(threeTouchTimer);
+            threeTouchTimer = 0;
+        };
+
         const onTouchStart = (event) => {
+            clearThreeTouchTimer();
+            if (event.touches.length === 3) {
+                const points = [...event.touches];
+                const x = points.reduce((sum, point) => sum + point.clientX, 0) / points.length;
+                const y = points.reduce((sum, point) => sum + point.clientY, 0) / points.length;
+                if (!dom.isInVideoZone(x, y)) {
+                    if (event.cancelable) {
+                        event.preventDefault();
+                    }
+                    threeTouchTimer = window.setTimeout(() => {
+                        threeTouchTimer = 0;
+                        toggleTranslationAtPoint(x, y);
+                    }, THREE_TOUCH_TRANSLATE_MS);
+                }
+                return;
+            }
+
             if (!settings.swipeEnabled || event.touches.length !== 1) {
                 return;
             }
@@ -294,6 +381,7 @@
         };
 
         const onTouchEnd = (event) => {
+            clearThreeTouchTimer();
             if (!settings.swipeEnabled || !startX || Date.now() - startTime > settings.swipeMaxDurationMs) {
                 startX = 0;
                 return;
@@ -328,17 +416,25 @@
             scheduleEditableSelectionEvaluation(0);
         };
 
+        const onTouchCancel = () => {
+            clearThreeTouchTimer();
+            startX = 0;
+        };
+
         dom.ensureStyles();
         dom.applyInlineTranslateCssVars(settings);
 
         document.addEventListener('mousemove', onMouseMove, { passive: true });
+        document.addEventListener('mousedown', onMouseDown, true);
+        document.addEventListener('mouseup', onMouseUp, true);
+        window.addEventListener('contextmenu', onContextMenu, true);
         document.addEventListener('keydown', onKeyDown, true);
         document.addEventListener('keyup', onKeyUp, true);
         document.addEventListener('pointerdown', onPointerDown, true);
-        document.addEventListener('pointerup', onPointerUp, true);
         document.addEventListener('selectionchange', onSelectionChange, true);
-        document.addEventListener('touchstart', onTouchStart, { passive: true });
+        document.addEventListener('touchstart', onTouchStart, { passive: false });
         document.addEventListener('touchend', onTouchEnd, { passive: true });
+        document.addEventListener('touchcancel', onTouchCancel, { passive: true });
         window.addEventListener('scroll', onScrollOrResize, true);
         window.addEventListener('resize', onScrollOrResize, true);
 
@@ -354,15 +450,19 @@
             },
             destroy() {
                 window.clearTimeout(editableSelectionTimer);
+                clearThreeTouchTimer();
                 hideEditableSelectionPanel();
                 document.removeEventListener('mousemove', onMouseMove, { passive: true });
+                document.removeEventListener('mousedown', onMouseDown, true);
+                document.removeEventListener('mouseup', onMouseUp, true);
+                window.removeEventListener('contextmenu', onContextMenu, true);
                 document.removeEventListener('keydown', onKeyDown, true);
                 document.removeEventListener('keyup', onKeyUp, true);
                 document.removeEventListener('pointerdown', onPointerDown, true);
-                document.removeEventListener('pointerup', onPointerUp, true);
                 document.removeEventListener('selectionchange', onSelectionChange, true);
-                document.removeEventListener('touchstart', onTouchStart, { passive: true });
+                document.removeEventListener('touchstart', onTouchStart, { passive: false });
                 document.removeEventListener('touchend', onTouchEnd, { passive: true });
+                document.removeEventListener('touchcancel', onTouchCancel, { passive: true });
                 window.removeEventListener('scroll', onScrollOrResize, true);
                 window.removeEventListener('resize', onScrollOrResize, true);
             }
