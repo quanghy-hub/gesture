@@ -10,6 +10,10 @@
     };
 
     const isHttpPage = () => location.protocol === 'http:' || location.protocol === 'https:';
+    const isMacOS = () => {
+        const platform = navigator.userAgentData?.platform || navigator.platform || '';
+        return /mac/i.test(platform);
+    };
     const isHtmlDocument = () => {
         const root = document.documentElement;
         if (!root) {
@@ -24,6 +28,7 @@
 
     ext.shared.runtime = {
         debounce,
+        isMacOS,
         isHttpPage,
         isHtmlDocument
     };

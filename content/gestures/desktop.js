@@ -29,6 +29,7 @@
         const getForumConfig = () => ext.shared.config.getForumConfig(context.getConfig(), location.host);
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
         const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
+        const isMacOS = () => context.runtime?.isMacOS?.() || false;
         const shouldRunPagerForForum = () => {
             const forumConfig = getForumConfig();
             return forumConfig.enabled;
@@ -177,7 +178,7 @@
         };
 
         const hasVerticalIntent = (event) => {
-            return scrollCore?.hasVerticalWheelIntent?.(event, getConfig()) || false;
+            return scrollCore?.hasVerticalWheelIntent?.(event, { isMacOS: isMacOS() }) || false;
         };
 
         const hasScrollableAncestor = (target) => {
@@ -200,6 +201,7 @@
             const fastScroll = scrollCore?.getFastScroll?.(cfg) || cfg.fastScroll || {};
             const rightZoneWidth = scrollCore?.getRightZoneWidth?.(innerWidth, cfg) || fastScroll.wheelZone;
             if (!fastScroll.enabled) return false;
+            if (event.defaultPrevented) return false;
             if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return false;
             if (!hasVerticalIntent(event)) return false;
             if (event.clientX < innerWidth - rightZoneWidth) return false;
@@ -245,7 +247,10 @@
 
         addListener(window, 'keydown', (event) => {
             const cfg = getConfig();
-            if (!cfg.enabled || !cfg.fastScroll?.enabled || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+            const fastScrollModifierPressed = isMacOS()
+                ? event.metaKey && !event.ctrlKey
+                : event.ctrlKey && !event.metaKey;
+            if (!cfg.enabled || !cfg.fastScroll?.enabled || !fastScrollModifierPressed || event.altKey || event.shiftKey) return;
             if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
             if (touch.isExtensionUiTarget(event) || isEditable(event.target)) return;
 

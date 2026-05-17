@@ -14,12 +14,13 @@ Chromium Extension Manifest V3 được tách module từ các userscript:
 - `ui/popup/` quick toggles
 - `icons/` icon của extension cho toolbar/extensions page
 
-## Cài trên Chromium desktop
+## Cài trên Chromium desktop / Helium macOS
 
 1. Mở `chrome://extensions`
 2. Bật **Developer mode**
 3. Chọn **Load unpacked**
-4. Trỏ đến thư mục `extension`
+4. Trỏ đến thư mục repo này, nơi có `manifest.json`
+5. Sau khi đổi branch hoặc sửa file, bấm **Reload** extension trong Helium/Chromium
 
 ## Cài trên Kiwi Browser
 
@@ -40,6 +41,7 @@ Chromium Extension Manifest V3 được tách module từ các userscript:
 - Gestures không còn chặn riêng `mail.google.com`; mọi site HTTP/HTTPS đều có thể chạy, trừ khi bị xung đột bởi chính trang đó.
 - Runtime vẫn tách desktop/mobile ở mức event listener nội bộ, nhưng không còn khóa cứng theo nhận diện thiết bị để tránh trường hợp máy cảm ứng hoặc môi trường lai làm gestures bị tắt toàn bộ.
 - Settings giờ được gom trực tiếp trong **popup** thành một bảng duy nhất, không cần mở rộng sang trang hay khung nổi riêng.
-- Scroll gestures được gom trong popup: fast scroll desktop dùng `Ctrl + ↑/↓` hoặc cuộn chuột ở vùng mép phải; mobile chỉ còn edge swipe một ngón.
+- Scroll gestures được gom trong popup: fast scroll desktop dùng `Command + ↑/↓` trên macOS, `Ctrl + ↑/↓` trên Windows/Linux, hoặc cuộn chuột ở vùng mép phải; mobile chỉ còn edge swipe một ngón.
+- Nhánh `macos` ưu tiên Helium/Chromium trên macOS: trackpad được lọc kỹ hơn để tránh kích hoạt nhầm khi swipe ngang, pinch/zoom hoặc scroll nhẹ.
 - Pager giờ hoạt động theo số lần cuộn được gom trong cửa sổ thời gian: **1 cuộn = 1 trang, 2 cuộn = 2 trang, 3 cuộn = 3 trang, và từ ngưỡng tối đa trở lên sẽ đi thẳng tới đầu/cuối**.
 - Bản này phù hợp để load unpacked trên Chromium desktop và Kiwi; nếu cần phát hành lâu dài, bước tiếp theo nên thêm build pipeline, lint và test checklist.

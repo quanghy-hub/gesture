@@ -5,7 +5,9 @@
     const DEFAULT_FAST_SCROLL = Object.freeze({
         step: 0.92,
         wheelZone: 80,
-        wheelMinDelta: 10
+        wheelMinDelta: 10,
+        macWheelMinDelta: 28,
+        wheelAxisRatio: 1.45
     });
 
     const numberOr = (value, fallback) => {
@@ -34,10 +36,11 @@
         return delta;
     };
 
-    const hasVerticalWheelIntent = (event) => {
+    const hasVerticalWheelIntent = (event, options = {}) => {
         const absX = Math.abs(Number(event?.deltaX) || 0);
         const absY = Math.abs(getWheelDeltaPixels(event));
-        return absY >= DEFAULT_FAST_SCROLL.wheelMinDelta && absY > absX * 1.15;
+        const minDelta = options.isMacOS ? DEFAULT_FAST_SCROLL.macWheelMinDelta : DEFAULT_FAST_SCROLL.wheelMinDelta;
+        return absY >= minDelta && absY > absX * DEFAULT_FAST_SCROLL.wheelAxisRatio;
     };
 
     const getFastScrollStepPixels = (viewportHeight, config) => {
