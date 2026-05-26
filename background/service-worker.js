@@ -3,6 +3,7 @@ importScripts(
     chrome.runtime.getURL('shared/api-services.js'),
     chrome.runtime.getURL('shared/config.js'),
     chrome.runtime.getURL('shared/storage.js'),
+    chrome.runtime.getURL('shared/cloudflare-sync.js'),
     chrome.runtime.getURL('background/api-service-registry.js')
 );
 
@@ -180,6 +181,14 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         return;
     }
     queueContentScriptSync();
+    GestureExtension.shared.cloudflareSync.consumeSkipNextConfigChange()
+        .then((shouldSkip) => {
+            if (shouldSkip) return;
+            return GestureExtension.shared.cloudflareSync.scheduleAutoSync(getStoredConfig);
+        })
+        .catch((error) => {
+            console.error('[GestureExtension] Failed to schedule Cloudflare sync', error);
+        });
 });
 
 queueContentScriptSync();

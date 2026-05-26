@@ -118,18 +118,14 @@
     const panelCards = Array.from(document.querySelectorAll('.card[data-panel-id]'));
     const panelHeaderTriggers = Array.from(document.querySelectorAll('[data-panel-header]'));
     const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
-    const backupGistToken = safeGetElementById('backup-gist-token');
-    const backupVerifyToken = safeGetElementById('backup-verify-token');
-    const backupExport = safeGetElementById('backup-export');
-    const backupImport = safeGetElementById('backup-import');
+    const backupWorkerUrl = safeGetElementById('backup-worker-url');
+    const backupApiCode = safeGetElementById('backup-api-code');
+    const backupSyncMode = safeGetElementById('backup-sync-mode');
+    const backupVerify = safeGetElementById('backup-verify');
+    const backupPush = safeGetElementById('backup-push');
+    const backupPull = safeGetElementById('backup-pull');
     const backupStatus = safeGetElementById('backup-status');
-
-    const BACKUP_STORAGE_KEYS = {
-        token: 'gestureBackupGistToken',
-        gistId: 'gestureBackupGistId'
-    };
-    const BACKUP_GIST_DESCRIPTION = 'Gesture Settings Backup';
-    const BACKUP_GIST_FILE = 'gesture_settings.json';
+    const cloudflareSync = ext.shared.cloudflareSync;
 
     let activeHost = null;
     let config = null;
@@ -178,61 +174,34 @@
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
     });
 
-    const getLocal = storage.getLocal;
-    const setLocal = storage.setLocal;
-
     const setBackupStatus = (message, type = '') => {
         if (!backupStatus) return;
         backupStatus.textContent = message;
         backupStatus.className = `section-note backup-status${type ? ` ${type}` : ''}`;
     };
 
-    const getBackupHeaders = () => {
-        const token = backupGistToken?.value.trim();
-        if (!token) return null;
-        return {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'Content-Type': 'application/json'
-        };
-    };
-
-    const getStoredBackupGistId = async () => {
-        const result = await getLocal([BACKUP_STORAGE_KEYS.gistId]);
-        return (result[BACKUP_STORAGE_KEYS.gistId] || '').trim();
-    };
-
-    const findExistingBackupGistId = async (headers) => {
-        const res = await fetch('https://api.github.com/gists?per_page=100', {
-            method: 'GET',
-            headers
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const gists = await res.json();
-        if (!Array.isArray(gists)) return '';
-        const match = gists.find((gist) => gist?.files?.[BACKUP_GIST_FILE] || gist?.description === BACKUP_GIST_DESCRIPTION);
-        if (!match?.id) return '';
-
-        await setLocal({ [BACKUP_STORAGE_KEYS.gistId]: match.id });
-        return match.id;
-    };
-
-    const buildBackupPayload = () => ({
-        app: 'Gesture',
-        schema: 1,
-        exportedAt: new Date().toISOString(),
-        config: normalizeConfig(config)
+    const getSyncSettingsFromControls = () => ({
+        workerUrl: backupWorkerUrl.value.trim(),
+        apiCode: backupApiCode.value.trim(),
+        mode: backupSyncMode.value === 'auto' ? 'auto' : 'manual'
     });
 
-    const readBackupConfig = (content) => {
-        const parsed = JSON.parse(content);
-        const importedConfig = parsed?.config || parsed;
-        if (!importedConfig || typeof importedConfig !== 'object') {
-            throw new Error('File backup không hợp lệ');
+    const renderSyncSettings = (settings) => {
+        backupWorkerUrl.value = settings.workerUrl || cloudflareSync.DEFAULT_WORKER_URL;
+        backupApiCode.value = settings.apiCode || '';
+        backupSyncMode.value = settings.mode === 'auto' ? 'auto' : 'manual';
+    };
+
+    const saveSyncSettingsFromControls = async (patch = {}) => {
+        const next = await cloudflareSync.saveSettings({
+            ...getSyncSettingsFromControls(),
+            ...patch
+        });
+        renderSyncSettings(next);
+        if (next.mode === 'auto' && !next.ready) {
+            setBackupStatus('Auto sync se bat sau khi keo ve thanh cong lan dau.');
         }
-        return normalizeConfig(importedConfig);
+        return next;
     };
 
     const getHostFromUrl = (url) => {
@@ -574,10 +543,11 @@
         activeHost = getHostFromUrl(activeTab?.url || '');
         render();
         isReady = true;
-        return getLocal([BACKUP_STORAGE_KEYS.token]);
-    }).then((backupState) => {
-        if (backupGistToken && backupState?.[BACKUP_STORAGE_KEYS.token]) {
-            backupGistToken.value = backupState[BACKUP_STORAGE_KEYS.token];
+        return cloudflareSync.loadSettings();
+    }).then((syncSettings) => {
+        renderSyncSettings(syncSettings);
+        if (syncSettings.mode === 'auto' && !syncSettings.ready) {
+            setBackupStatus('Auto sync se bat sau khi keo ve thanh cong lan dau.');
         }
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
@@ -618,123 +588,78 @@
 
     setupPanelReorder();
 
-    backupGistToken?.addEventListener('input', () => {
-        setLocal({ [BACKUP_STORAGE_KEYS.token]: backupGistToken.value.trim() }).catch((error) => {
-            setBackupStatus(`Lỗi lưu token: ${error.message}`, 'err');
+    backupWorkerUrl?.addEventListener('input', () => {
+        saveSyncSettingsFromControls().catch((error) => {
+            setBackupStatus(`Loi luu Worker URL: ${error.message}`, 'err');
         });
     });
 
-    backupVerifyToken?.addEventListener('click', async () => {
-        const headers = getBackupHeaders();
-        if (!headers) {
-            setBackupStatus('Nhập token trước', 'err');
-            return;
-        }
+    backupApiCode?.addEventListener('input', () => {
+        saveSyncSettingsFromControls().catch((error) => {
+            setBackupStatus(`Loi luu API code: ${error.message}`, 'err');
+        });
+    });
 
-        backupVerifyToken.disabled = true;
-        setBackupStatus('Đang kiểm tra token...');
+    backupSyncMode?.addEventListener('change', () => {
+        saveSyncSettingsFromControls().then((settings) => {
+            if (settings.mode === 'manual') {
+                setBackupStatus('Dang o che do thu cong.');
+                return;
+            }
+            if (!settings.ready) {
+                setBackupStatus('Auto sync se bat sau khi keo ve thanh cong lan dau.');
+                return;
+            }
+            setBackupStatus('Auto sync dang bat.', 'ok');
+        }).catch((error) => {
+            setBackupStatus(`Loi luu che do: ${error.message}`, 'err');
+        });
+    });
+
+    backupVerify?.addEventListener('click', async () => {
+        backupVerify.disabled = true;
+        setBackupStatus('Dang kiem tra Worker...');
         try {
-            const res = await fetch('https://api.github.com/user', {
-                method: 'GET',
-                headers
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const user = await res.json();
-            await setLocal({ [BACKUP_STORAGE_KEYS.token]: backupGistToken.value.trim() });
-            setBackupStatus(`Token hợp lệ: ${user.login}`, 'ok');
+            await saveSyncSettingsFromControls();
+            const remote = await cloudflareSync.verify(getSyncSettingsFromControls());
+            setBackupStatus(`Ket noi duoc Worker · revision ${remote.revision || 0}`, 'ok');
         } catch (error) {
-            setBackupStatus(`Token lỗi: ${error.message}`, 'err');
+            setBackupStatus(`Ket noi loi: ${error.message}`, 'err');
         } finally {
-            backupVerifyToken.disabled = false;
+            backupVerify.disabled = false;
         }
     });
 
-    backupExport?.addEventListener('click', async () => {
-        const headers = getBackupHeaders();
-        if (!headers) {
-            setBackupStatus('Nhập token trước', 'err');
-            return;
-        }
-
-        backupExport.disabled = true;
-        setBackupStatus('Đang export...');
+    backupPush?.addEventListener('click', async () => {
+        backupPush.disabled = true;
+        setBackupStatus('Dang day len cloud...');
         try {
+            await saveSyncSettingsFromControls();
             if (pendingSave) {
                 await pendingSave;
             }
-
-            const payload = {
-                description: BACKUP_GIST_DESCRIPTION,
-                public: false,
-                files: {
-                    [BACKUP_GIST_FILE]: {
-                        content: JSON.stringify(buildBackupPayload(), null, 2)
-                    }
-                }
-            };
-
-            let gistId = await getStoredBackupGistId();
-            if (!gistId) {
-                gistId = await findExistingBackupGistId(headers);
-            }
-
-            const res = await fetch(gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists', {
-                method: gistId ? 'PATCH' : 'POST',
-                headers,
-                body: JSON.stringify(gistId ? { files: payload.files } : payload)
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const data = await res.json();
-            await setLocal({
-                [BACKUP_STORAGE_KEYS.token]: backupGistToken.value.trim(),
-                [BACKUP_STORAGE_KEYS.gistId]: data.id
-            });
-            setBackupStatus(`Export xong ${new Date().toLocaleTimeString()}`, 'ok');
+            const remote = await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
+            setBackupStatus(`Day len xong · revision ${remote.revision || 0}`, 'ok');
         } catch (error) {
-            setBackupStatus(`Export lỗi: ${error.message}`, 'err');
+            setBackupStatus(`Day len loi: ${error.message}`, 'err');
         } finally {
-            backupExport.disabled = false;
+            backupPush.disabled = false;
         }
     });
 
-    backupImport?.addEventListener('click', async () => {
-        const headers = getBackupHeaders();
-        if (!headers) {
-            setBackupStatus('Nhập token trước', 'err');
-            return;
-        }
-
-        backupImport.disabled = true;
-        setBackupStatus('Đang import...');
+    backupPull?.addEventListener('click', async () => {
+        backupPull.disabled = true;
+        setBackupStatus('Dang keo ve cloud...');
         try {
-            let gistId = await getStoredBackupGistId();
-            if (!gistId) {
-                gistId = await findExistingBackupGistId(headers);
-            }
-            if (!gistId) {
-                throw new Error('Chưa có Gist backup. Export trước.');
-            }
-
-            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-                method: 'GET',
-                headers
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const data = await res.json();
-            const file = data.files?.[BACKUP_GIST_FILE];
-            if (!file?.content) {
-                throw new Error(`Không thấy ${BACKUP_GIST_FILE}`);
-            }
-
-            config = await storage.saveConfig(readBackupConfig(file.content));
+            await saveSyncSettingsFromControls();
+            const result = await cloudflareSync.pullConfig(getSyncSettingsFromControls());
+            config = result.config;
             render();
-            setBackupStatus(`Import xong ${new Date().toLocaleTimeString()}`, 'ok');
+            setBackupStatus(`Keo ve xong · revision ${result.state.revision || 0}`, 'ok');
         } catch (error) {
-            setBackupStatus(`Import lỗi: ${error.message}`, 'err');
+            setBackupStatus(`Keo ve loi: ${error.message}`, 'err');
         } finally {
-            backupImport.disabled = false;
+            backupPull.disabled = false;
         }
     });
 

@@ -29,6 +29,16 @@ Chromium Extension Manifest V3 được tách module từ các userscript:
 3. Bật developer mode nếu cần
 4. Load unpacked / cài từ thư mục phù hợp với bản Kiwi của bạn
 
+## Cloudflare Sync
+
+Popup có panel **Cloudflare Sync** dùng chung Worker `extension` và app namespace `gesture`:
+
+- Worker URL mặc định: `https://extension.quavav15-6.workers.dev`
+- API code là secret `SYNC_API_KEY` của Worker.
+- `Đẩy lên` lưu toàn bộ config Gesture hiện tại lên `/sync/gesture/state`.
+- `Kéo về` tải config cloud và nạp lại vào extension.
+- `Auto sync` chỉ chạy sau khi máy này đã `Kéo về` hoặc `Đẩy lên` thành công ít nhất một lần, để tránh máy mới ghi đè cloud ngay khi vừa cài.
+
 ## Ghi chú hiệu năng
 
 - Chuyển từ userscript sang extension không tự động tăng tốc nhiều nếu logic DOM vẫn giữ nguyên.
@@ -58,4 +68,3 @@ Extension này yêu cầu quyền `<all_urls>` trong `manifest.json` vì các t�
 4. **OCR (Nhận diện chữ trên ảnh)**: Cho phép trích xuất văn bản từ hình ảnh hoặc khung hình video trực tiếp trên bất kỳ trang web nào để phục vụ dịch thuật hoặc sao chép.
 
 Việc cấp quyền này đảm bảo trải nghiệm người dùng liền mạch và nhất quán trên toàn bộ môi trường duyệt web mà không bị gián đoạn hay giới hạn bởi tên miền. Chúng tôi cam kết không thu thập, lưu trữ hoặc truyền tải bất kỳ dữ liệu cá nhân hay lịch sử duyệt web nào của người dùng.
-

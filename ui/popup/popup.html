@@ -382,15 +382,20 @@
       </div>
     </section>
 
-    <!-- Backup -->
+    <!-- Cloudflare Sync -->
     <section class="card" data-panel-id="backup">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-backup" aria-expanded="false" aria-label="Mở cài đặt Backup" role="button" tabindex="0"><span>Backup</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Backup"></button></span></h2>
+      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-backup" aria-expanded="false" aria-label="Mở cài đặt Cloudflare Sync" role="button" tabindex="0"><span>Cloudflare Sync</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Cloudflare Sync"></button></span></h2>
       <div id="panel-backup" class="panel-body is-collapsed">
         <div class="backup-controls">
-          <input id="backup-gist-token" type="password" autocomplete="off" placeholder="GitHub token">
-          <button id="backup-verify-token" class="secondary inline-button" type="button">Test</button>
-          <button id="backup-export" class="secondary inline-button" type="button">Export</button>
-          <button id="backup-import" class="secondary inline-button" type="button">Import</button>
+          <input id="backup-worker-url" class="wide" type="url" autocomplete="off" placeholder="Worker URL">
+          <input id="backup-api-code" class="wide" type="password" autocomplete="off" placeholder="API code">
+          <select id="backup-sync-mode" aria-label="Chế độ đồng bộ">
+            <option value="manual">Thủ công</option>
+            <option value="auto">Auto sync</option>
+          </select>
+          <button id="backup-verify" class="secondary inline-button" type="button">Test</button>
+          <button id="backup-push" class="secondary inline-button" type="button">Đẩy lên</button>
+          <button id="backup-pull" class="secondary inline-button" type="button">Kéo về</button>
         </div>
         <p id="backup-status" class="section-note backup-status"></p>
       </div>
@@ -447,6 +452,7 @@
   <script src="../../shared/api-services.js"></script>
   <script src="../../shared/config.js"></script>
   <script src="../../shared/storage.js"></script>
+  <script src="../../shared/cloudflare-sync.js"></script>
   <script src="popup.js"></script>
 </body>
 
