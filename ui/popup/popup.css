@@ -258,13 +258,48 @@ body {
 
 .backup-controls {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     align-items: center;
 }
 
 .backup-controls .wide {
     grid-column: 1 / -1;
+}
+
+.sync-profile-selection,
+.sync-autosync-selection {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 12px;
+    border-top: 1px solid #374151;
+}
+
+.sync-label {
+    color: #9ca3af;
+    font-weight: 500;
+    min-width: 100px;
+    text-align: left;
+}
+
+.radio-label,
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #e5e7eb;
+    user-select: none;
+}
+
+.radio-label input[type="radio"],
+.checkbox-label input[type="checkbox"] {
+    accent-color: #22c55e;
+    cursor: pointer;
+    margin: 0;
 }
 
 .backup-controls button {

@@ -58,6 +58,20 @@
     const saveConfig = async (config) => {
         const normalized = normalizeConfig(config);
         await setLocal({ [STORAGE_KEY]: normalized });
+        try {
+            const activeProfileResult = await getLocal(['gestureSyncProfile', 'gestureSyncProfiles']);
+            const activeProfile = activeProfileResult.gestureSyncProfile || 'macbook';
+            const profiles = activeProfileResult.gestureSyncProfiles || {};
+            profiles[activeProfile] = {
+                settings: {
+                    schema: 1,
+                    config: normalized
+                }
+            };
+            await setLocal({ gestureSyncProfiles: profiles });
+        } catch (error) {
+            console.error('[GestureExtension][storage] Failed to cache profile settings', error);
+        }
         return normalized;
     };
 

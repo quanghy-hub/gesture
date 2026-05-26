@@ -120,7 +120,10 @@
     const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
     const backupWorkerUrl = safeGetElementById('backup-worker-url');
     const backupApiCode = safeGetElementById('backup-api-code');
-    const backupSyncMode = safeGetElementById('backup-sync-mode');
+    const profileMacbook = safeGetElementById('profile-macbook');
+    const profileMobile = safeGetElementById('profile-mobile');
+    const autosyncMacbook = safeGetElementById('autosync-macbook');
+    const autosyncMobile = safeGetElementById('autosync-mobile');
     const backupVerify = safeGetElementById('backup-verify');
     const backupPush = safeGetElementById('backup-push');
     const backupPull = safeGetElementById('backup-pull');
@@ -183,13 +186,19 @@
     const getSyncSettingsFromControls = () => ({
         workerUrl: backupWorkerUrl.value.trim(),
         apiCode: backupApiCode.value.trim(),
-        mode: backupSyncMode.value === 'auto' ? 'auto' : 'manual'
+        mode: (autosyncMacbook.checked || autosyncMobile.checked) ? 'auto' : 'manual'
     });
 
     const renderSyncSettings = (settings) => {
         backupWorkerUrl.value = settings.workerUrl || cloudflareSync.DEFAULT_WORKER_URL;
         backupApiCode.value = settings.apiCode || '';
-        backupSyncMode.value = settings.mode === 'auto' ? 'auto' : 'manual';
+        if (settings.profile === 'mobile') {
+            profileMobile.checked = true;
+        } else {
+            profileMacbook.checked = true;
+        }
+        autosyncMacbook.checked = settings.autosyncMacbook === true;
+        autosyncMobile.checked = settings.autosyncMobile === true;
     };
 
     const saveSyncSettingsFromControls = async (patch = {}) => {
@@ -198,10 +207,54 @@
             ...patch
         });
         renderSyncSettings(next);
-        if (next.mode === 'auto' && !next.ready) {
-            setBackupStatus('Auto sync se bat sau khi keo ve thanh cong lan dau.');
+        const isAutosyncEnabled = next.profile === 'mobile' ? next.autosyncMobile : next.autosyncMacbook;
+        if (isAutosyncEnabled && !next.ready) {
+            setBackupStatus('Auto-sync will be enabled after the first successful pull.');
         }
         return next;
+    };
+
+    const switchProfile = async (nextProfileId) => {
+        if (!config || !nextProfileId) return;
+        try {
+            const syncSettings = await cloudflareSync.loadSettings();
+            const currentProfile = syncSettings.profile;
+            if (currentProfile === nextProfileId) return;
+
+            const result = await ext.shared.storage.getLocal(['gestureSyncProfiles']);
+            const profiles = result.gestureSyncProfiles || {};
+            
+            profiles[currentProfile] = {
+                settings: {
+                    schema: 1,
+                    config: deepClone(config)
+                }
+            };
+            
+            const targetProfile = profiles[nextProfileId];
+            let nextConfig;
+            if (targetProfile?.settings?.config) {
+                nextConfig = normalizeConfig(targetProfile.settings.config);
+            } else {
+                nextConfig = normalizeConfig(DEFAULT_CONFIG);
+            }
+
+            await ext.shared.storage.setLocal({
+                gestureSyncProfile: nextProfileId,
+                gestureSyncProfiles: profiles
+            });
+
+            config = await storage.saveConfig(nextConfig);
+            
+            const nextSyncSettings = await cloudflareSync.saveSettings({ profile: nextProfileId });
+            renderSyncSettings(nextSyncSettings);
+            render();
+            
+            setBackupStatus(`Switched to active profile: ${nextProfileId === 'mobile' ? 'Mobile' : 'MacBook'}`);
+        } catch (error) {
+            console.error('[GestureExtension][popup] Failed to switch profile', error);
+            setBackupStatus(`Failed to switch profile: ${error.message}`, 'err');
+        }
     };
 
     const getHostFromUrl = (url) => {
@@ -307,18 +360,18 @@
         gPagerHops.value = gestures.pager.hops;
         hostBlacklistToggle.disabled = !normalizedActiveHost;
         hostBlacklistToggle.checked = normalizedActiveHost ? isHostExcluded(config, normalizedActiveHost) : false;
-        hostBlacklistLabel.textContent = normalizedActiveHost || 'Không có host';
+        hostBlacklistLabel.textContent = normalizedActiveHost || 'No host';
 
         if (!activeHost) {
-            hostLabel.textContent = 'Không có host hiện tại';
-            if (forumScopeLabel) forumScopeLabel.textContent = 'Chỉ áp dụng cho site XenForo. Trang hiện tại không có host hợp lệ.';
+            hostLabel.textContent = 'No active host';
+            if (forumScopeLabel) forumScopeLabel.textContent = 'Only applicable for XenForo sites. The current page has no valid host.';
             syncFeatureCards();
             return;
         }
 
         const forumConfig = getForumConfig(config, activeHost);
         hostLabel.textContent = activeHost;
-        if (forumScopeLabel) forumScopeLabel.textContent = `Chỉ áp dụng cho site XenForo hiện tại: ${activeHost}`;
+        if (forumScopeLabel) forumScopeLabel.textContent = `Only applicable for the current XenForo site: ${activeHost}`;
         forumWide.checked = !!forumConfig.wide;
         forumMinWidth.value = forumConfig.minWidth;
         forumGap.value = forumConfig.gap;
@@ -470,7 +523,7 @@
         if (!panel) return;
         const title = trigger.closest('.card')?.querySelector('.card-title span')?.textContent?.trim() || 'panel';
         trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        trigger.setAttribute('aria-label', `${expanded ? 'Đóng' : 'Mở'} cài đặt ${title}`);
+        trigger.setAttribute('aria-label', `${expanded ? 'Close' : 'Open'} ${title} settings`);
         panel.classList.toggle('is-collapsed', !expanded);
     };
 
@@ -546,8 +599,9 @@
         return cloudflareSync.loadSettings();
     }).then((syncSettings) => {
         renderSyncSettings(syncSettings);
-        if (syncSettings.mode === 'auto' && !syncSettings.ready) {
-            setBackupStatus('Auto sync se bat sau khi keo ve thanh cong lan dau.');
+        const isAutosyncEnabled = syncSettings.profile === 'mobile' ? syncSettings.autosyncMobile : syncSettings.autosyncMacbook;
+        if (isAutosyncEnabled && !syncSettings.ready) {
+            setBackupStatus('Auto-sync will be enabled after the first successful pull.');
         }
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
@@ -590,41 +644,73 @@
 
     backupWorkerUrl?.addEventListener('input', () => {
         saveSyncSettingsFromControls().catch((error) => {
-            setBackupStatus(`Loi luu Worker URL: ${error.message}`, 'err');
+            setBackupStatus(`Error saving Worker URL: ${error.message}`, 'err');
         });
     });
 
     backupApiCode?.addEventListener('input', () => {
         saveSyncSettingsFromControls().catch((error) => {
-            setBackupStatus(`Loi luu API code: ${error.message}`, 'err');
+            setBackupStatus(`Error saving API code: ${error.message}`, 'err');
         });
     });
 
-    backupSyncMode?.addEventListener('change', () => {
-        saveSyncSettingsFromControls().then((settings) => {
-            if (settings.mode === 'manual') {
-                setBackupStatus('Dang o che do thu cong.');
-                return;
+    profileMacbook?.addEventListener('change', () => {
+        if (profileMacbook.checked) {
+            switchProfile('macbook');
+        }
+    });
+
+    profileMobile?.addEventListener('change', () => {
+        if (profileMobile.checked) {
+            switchProfile('mobile');
+        }
+    });
+
+    autosyncMacbook?.addEventListener('change', () => {
+        saveSyncSettingsFromControls({
+            autosyncMacbook: autosyncMacbook.checked
+        }).then((settings) => {
+            if (settings.autosyncMacbook) {
+                if (!settings.ready) {
+                    setBackupStatus('Auto-sync will be enabled after the first successful pull.');
+                } else {
+                    setBackupStatus('Auto-sync for MacBook is enabled.', 'ok');
+                }
+            } else {
+                setBackupStatus('Auto-sync for MacBook is disabled.');
             }
-            if (!settings.ready) {
-                setBackupStatus('Auto sync se bat sau khi keo ve thanh cong lan dau.');
-                return;
-            }
-            setBackupStatus('Auto sync dang bat.', 'ok');
         }).catch((error) => {
-            setBackupStatus(`Loi luu che do: ${error.message}`, 'err');
+            setBackupStatus(`Error saving auto-sync: ${error.message}`, 'err');
+        });
+    });
+
+    autosyncMobile?.addEventListener('change', () => {
+        saveSyncSettingsFromControls({
+            autosyncMobile: autosyncMobile.checked
+        }).then((settings) => {
+            if (settings.autosyncMobile) {
+                if (!settings.ready) {
+                    setBackupStatus('Auto-sync will be enabled after the first successful pull.');
+                } else {
+                    setBackupStatus('Auto-sync for Mobile is enabled.', 'ok');
+                }
+            } else {
+                setBackupStatus('Auto-sync for Mobile is disabled.');
+            }
+        }).catch((error) => {
+            setBackupStatus(`Error saving auto-sync: ${error.message}`, 'err');
         });
     });
 
     backupVerify?.addEventListener('click', async () => {
         backupVerify.disabled = true;
-        setBackupStatus('Dang kiem tra Worker...');
+        setBackupStatus('Verifying Worker connection...');
         try {
             await saveSyncSettingsFromControls();
             const remote = await cloudflareSync.verify(getSyncSettingsFromControls());
-            setBackupStatus(`Ket noi duoc Worker · revision ${remote.revision || 0}`, 'ok');
+            setBackupStatus(`Connected to Worker · revision ${remote.revision || 0}`, 'ok');
         } catch (error) {
-            setBackupStatus(`Ket noi loi: ${error.message}`, 'err');
+            setBackupStatus(`Connection failed: ${error.message}`, 'err');
         } finally {
             backupVerify.disabled = false;
         }
@@ -632,16 +718,16 @@
 
     backupPush?.addEventListener('click', async () => {
         backupPush.disabled = true;
-        setBackupStatus('Dang day len cloud...');
+        setBackupStatus('Pushing to cloud...');
         try {
             await saveSyncSettingsFromControls();
             if (pendingSave) {
                 await pendingSave;
             }
             const remote = await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
-            setBackupStatus(`Day len xong · revision ${remote.revision || 0}`, 'ok');
+            setBackupStatus(`Push succeeded · revision ${remote.revision || 0}`, 'ok');
         } catch (error) {
-            setBackupStatus(`Day len loi: ${error.message}`, 'err');
+            setBackupStatus(`Push failed: ${error.message}`, 'err');
         } finally {
             backupPush.disabled = false;
         }
@@ -649,15 +735,15 @@
 
     backupPull?.addEventListener('click', async () => {
         backupPull.disabled = true;
-        setBackupStatus('Dang keo ve cloud...');
+        setBackupStatus('Pulling from cloud...');
         try {
             await saveSyncSettingsFromControls();
             const result = await cloudflareSync.pullConfig(getSyncSettingsFromControls());
             config = result.config;
             render();
-            setBackupStatus(`Keo ve xong · revision ${result.state.revision || 0}`, 'ok');
+            setBackupStatus(`Pull succeeded · revision ${result.state.revision || 0}`, 'ok');
         } catch (error) {
-            setBackupStatus(`Keo ve loi: ${error.message}`, 'err');
+            setBackupStatus(`Pull failed: ${error.message}`, 'err');
         } finally {
             backupPull.disabled = false;
         }

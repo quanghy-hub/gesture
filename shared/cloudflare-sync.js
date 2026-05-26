@@ -3,7 +3,6 @@
     const { STORAGE_KEY, normalizeConfig } = ext.shared.config;
 
     const APP_ID = 'gesture';
-    const PROFILE_ID = 'default';
     const DEFAULT_WORKER_URL = 'https://extension.quavav15-6.workers.dev';
     const AUTO_SYNC_DELAY = 1200;
 
@@ -11,6 +10,10 @@
         workerUrl: 'gestureSyncWorkerUrl',
         apiCode: 'gestureSyncApiCode',
         mode: 'gestureSyncMode',
+        autosyncMacbook: 'gestureSyncAutosyncMacbook',
+        autosyncMobile: 'gestureSyncAutosyncMobile',
+        profile: 'gestureSyncProfile',
+        profiles: 'gestureSyncProfiles',
         ready: 'gestureSyncReady',
         revision: 'gestureSyncRevision',
         skipNextConfigChange: 'gestureSyncSkipNextConfigChange'
@@ -45,7 +48,10 @@
             KEYS.apiCode,
             KEYS.mode,
             KEYS.ready,
-            KEYS.revision
+            KEYS.revision,
+            KEYS.profile,
+            KEYS.autosyncMacbook,
+            KEYS.autosyncMobile
         ]);
 
         return {
@@ -53,7 +59,10 @@
             apiCode: String(result[KEYS.apiCode] || '').trim(),
             mode: normalizeMode(result[KEYS.mode]),
             ready: result[KEYS.ready] === true,
-            revision: isSafeRevision(result[KEYS.revision])
+            revision: isSafeRevision(result[KEYS.revision]),
+            profile: result[KEYS.profile] === 'mobile' ? 'mobile' : 'macbook',
+            autosyncMacbook: result[KEYS.autosyncMacbook] === true,
+            autosyncMobile: result[KEYS.autosyncMobile] === true
         };
     };
 
@@ -78,7 +87,10 @@
             [KEYS.workerUrl]: next.workerUrl,
             [KEYS.apiCode]: next.apiCode,
             [KEYS.mode]: next.mode,
-            [KEYS.ready]: resetReady ? false : next.ready
+            [KEYS.ready]: resetReady ? false : next.ready,
+            [KEYS.profile]: next.profile === 'mobile' ? 'mobile' : 'macbook',
+            [KEYS.autosyncMacbook]: next.autosyncMacbook === true,
+            [KEYS.autosyncMobile]: next.autosyncMobile === true
         };
 
         if (resetReady) {
@@ -97,8 +109,8 @@
         const endpoint = getEndpoint(settings.workerUrl);
         const headers = getHeaders(settings.apiCode);
 
-        if (!endpoint) throw new Error('Nhap Worker URL truoc');
-        if (!headers) throw new Error('Nhap API code truoc');
+        if (!endpoint) throw new Error('Please enter Worker URL first');
+        if (!headers) throw new Error('Please enter API code first');
 
         return { endpoint, headers };
     };
@@ -117,10 +129,10 @@
         await setLocal(payload);
     };
 
-    const buildPayload = (config, baseRevision) => ({
+    const buildPayload = (config, baseRevision, profileId) => ({
         version: 1,
         appId: APP_ID,
-        profileId: PROFILE_ID,
+        profileId: profileId || 'macbook',
         baseRevision,
         links: [],
         groups: { list: [] },
@@ -134,10 +146,11 @@
         }
     });
 
-    const extractConfig = (state) => {
-        const syncedConfig = state?.profiles?.[PROFILE_ID]?.settings?.config || state?.config;
+    const extractConfig = (state, profileId) => {
+        const activeProfile = profileId || 'macbook';
+        const syncedConfig = state?.profiles?.[activeProfile]?.settings?.config || state?.config;
         if (!syncedConfig || typeof syncedConfig !== 'object') {
-            throw new Error('Cloud chua co config Gesture. Hay day len tu may goc truoc.');
+            throw new Error('Cloud does not have Gesture config yet. Please push from source machine first.');
         }
         return normalizeConfig(syncedConfig);
     };
@@ -155,7 +168,7 @@
         });
 
         if (res.status === 409) {
-            throw new Error('Cloud da co du lieu moi hon. Hay keo ve roi kiem tra lai truoc khi day.');
+            throw new Error('Cloud has newer data. Please pull and verify first before pushing.');
         }
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
@@ -171,8 +184,12 @@
     const verify = async (overrideSettings = {}) => requestState('GET', null, overrideSettings);
 
     const pullConfig = async (overrideSettings = {}) => {
-        const state = await requestState('GET', null, overrideSettings);
-        const config = extractConfig(state);
+        const settings = {
+            ...await loadSettings(),
+            ...overrideSettings
+        };
+        const state = await requestState('GET', null, settings);
+        const config = extractConfig(state, settings.profile);
         await setLocal({ [KEYS.skipNextConfigChange]: true });
         await ext.shared.storage.saveConfig(config);
         await markReady(state.revision);
@@ -184,7 +201,7 @@
             ...await loadSettings(),
             ...overrideSettings
         };
-        const state = await requestState('PUT', buildPayload(config, settings.revision), settings);
+        const state = await requestState('PUT', buildPayload(config, settings.revision, settings.profile), settings);
         await markReady(state.revision);
         return state;
     };
@@ -203,9 +220,10 @@
         }
 
         const settings = await loadSettings();
-        if (settings.mode !== 'auto' || !settings.workerUrl || !settings.apiCode) return;
+        const isAutosyncEnabled = settings.profile === 'mobile' ? settings.autosyncMobile : settings.autosyncMacbook;
+        if (!isAutosyncEnabled || !settings.workerUrl || !settings.apiCode) return;
         if (!settings.ready) {
-            onStatus?.('Auto sync dang cho keo ve lan dau.', '');
+            onStatus?.('Auto sync is waiting for the initial pull.', '');
             return;
         }
 
@@ -216,9 +234,9 @@
                 const config = typeof getConfig === 'function' ? await getConfig() : null;
                 if (!config) return;
                 await pushConfig(config);
-                onStatus?.(`Auto sync xong ${new Date().toLocaleTimeString()}`, 'ok');
+                onStatus?.(`Auto sync succeeded at ${new Date().toLocaleTimeString()}`, 'ok');
             } catch (error) {
-                onStatus?.(`Auto sync loi: ${error.message}`, 'err');
+                onStatus?.(`Auto sync failed: ${error.message}`, 'err');
                 console.error('[GestureExtension] Cloudflare auto sync failed', error);
             } finally {
                 autoSyncRunning = false;
