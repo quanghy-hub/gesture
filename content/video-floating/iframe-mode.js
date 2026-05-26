@@ -27,20 +27,51 @@
         let reportTimer = 0;
         let isFloatingActive = false;
         let wheelDeltaY = 0;
-        let wheelGestureLocked = false;
         let wheelGestureResetTimer = 0;
         let wheelSeekBaseTime = null;
         let wheelSeekDeltaX = 0;
+        let lastWheelSwitchAt = 0;
+        let hasSwitchedInCurrentGesture = false;
 
-        const getOwnVideoCount = () => queryAllDeep('video').length;
-        const getIframeVideos = () => [...queryAllDeep('video')].filter((video) => {
-            if (!video?.isConnected) return false;
-            if (isDetectableVideo(video)) return true;
-            const rect = getRect(video);
-            const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
-            const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
-            return hasMediaSource || hasPlaybackState || (rect.width > 0 && rect.height > 0);
-        });
+        const getOwnVideoCount = () => getIframeVideos().length;
+        const getIframeVideos = () => {
+            const unique = new Map();
+            for (const video of queryAllDeep('video')) {
+                if (!video?.isConnected) continue;
+
+                if (!isDetectableVideo(video)) continue;
+
+                try {
+                    const style = window.getComputedStyle(video);
+                    if (style.display === 'none' || style.visibility === 'hidden') continue;
+                } catch (e) {}
+
+                const isYouTube = location.hostname.includes('youtube.com') || location.hostname.includes('youtube-nocookie.com');
+                if (isYouTube) {
+                    const isMainPlayer = video.classList.contains('html5-main-video') || video.closest('#movie_player');
+                    if (!isMainPlayer) continue;
+                }
+
+                const rect = getRect(video);
+                const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
+                const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
+                const largeEnough = rect.width >= 160 && rect.height >= 90;
+                if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
+
+                const key = [
+                    video.currentSrc || video.src || '',
+                    Math.round(rect.left),
+                    Math.round(rect.top),
+                    Math.round(rect.width),
+                    Math.round(rect.height)
+                ].join('|');
+
+                if (!unique.has(key)) {
+                    unique.set(key, video);
+                }
+            }
+            return [...unique.values()];
+        };
 
         const postIframeBridgeMessage = (payload) => {
             try {
@@ -168,11 +199,17 @@
             clearTimeout(wheelGestureResetTimer);
             wheelGestureResetTimer = window.setTimeout(() => {
                 wheelDeltaY = 0;
-                wheelGestureLocked = false;
                 wheelSeekBaseTime = null;
                 wheelSeekDeltaX = 0;
                 wheelGestureResetTimer = 0;
+                hasSwitchedInCurrentGesture = false;
             }, WHEEL_GESTURE.idleMs);
+        };
+        const getWheelDeltaPixels = (event) => {
+            const delta = Number(event?.deltaY) || 0;
+            if (event?.deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * 16;
+            if (event?.deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * Math.max(1, innerHeight);
+            return delta;
         };
 
         const seekFromWheel = (deltaX) => {
@@ -250,14 +287,20 @@
                 return;
             }
 
-            if (wheelGestureLocked) return;
+            if (hasSwitchedInCurrentGesture) return;
 
-            wheelDeltaY += event.deltaY || 0;
+            wheelDeltaY += getWheelDeltaPixels(event);
             if (Math.abs(wheelDeltaY) < WHEEL_GESTURE.switchThreshold) return;
 
-            switchIframeVideo(wheelDeltaY > 0 ? 1 : -1);
-            wheelDeltaY = 0;
-            wheelGestureLocked = true;
+            const now = performance.now();
+            if (now - lastWheelSwitchAt < WHEEL_GESTURE.switchCooldownMs) return;
+
+            const dir = wheelDeltaY > 0 ? 1 : -1;
+            switchIframeVideo(dir);
+            hasSwitchedInCurrentGesture = true;
+            wheelDeltaY -= dir * WHEEL_GESTURE.switchThreshold;
+            if (Math.sign(wheelDeltaY) !== dir) wheelDeltaY = 0;
+            lastWheelSwitchAt = now;
             postIframeState();
             setTimeout(postIframeState, 80);
         };

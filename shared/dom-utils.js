@@ -6,7 +6,7 @@
         : true;
     const queryAllDeep = (selector, root = document) => {
         const visited = new Set();
-        const results = [];
+        const resultSet = new Set();
 
         const visit = (node) => {
             if (!node || visited.has(node)) {
@@ -16,9 +16,7 @@
 
             if (typeof node.querySelectorAll === 'function') {
                 for (const match of node.querySelectorAll(selector)) {
-                    if (!results.includes(match)) {
-                        results.push(match);
-                    }
+                    resultSet.add(match);
                 }
             }
 
@@ -37,7 +35,7 @@
         };
 
         visit(root);
-        return results;
+        return Array.from(resultSet);
     };
 
     ext.shared.domUtils = {

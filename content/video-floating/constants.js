@@ -10,6 +10,7 @@
     videoFloating.VIDEO_CHECK_INTERVAL = 2000;
     videoFloating.WHEEL_GESTURE = Object.freeze({
         switchThreshold: 24,
+        switchCooldownMs: 90,
         idleMs: 180,
         seekSecondsPerPixel: 0.07
     });

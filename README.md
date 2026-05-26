@@ -47,3 +47,15 @@ Chromium Extension Manifest V3 được tách module từ các userscript:
 - macOS không gửi số ngón trackpad cho Chromium extension, và gesture hệ thống như Mission Control/App Exposé được hệ điều hành chặn trước trang web. Muốn dùng 4 ngón cho extension cần tắt hoặc đổi shortcut 4 ngón trong System Settings trước.
 - Pager giờ hoạt động theo số lần cuộn được gom trong cửa sổ thời gian: **1 cuộn = 1 trang, 2 cuộn = 2 trang, 3 cuộn = 3 trang, và từ ngưỡng tối đa trở lên sẽ đi thẳng tới đầu/cuối**.
 - Bản này phù hợp để load unpacked trên Chromium desktop và Kiwi; nếu cần phát hành lâu dài, bước tiếp theo nên thêm build pipeline, lint và test checklist.
+
+## Giải trình về Quyền hạn `<all_urls>` (Host Permissions Rationale)
+
+Extension này yêu cầu quyền `<all_urls>` trong `manifest.json` vì các tính năng cốt lõi sau đây hoạt động trên phạm vi toàn cục và cần tương tác trực tiếp với DOM của mọi trang web:
+
+1. **Gestures (Cử chỉ toàn cục)**: Hỗ trợ người dùng thực hiện các cử chỉ vuốt trackpad/chuột, nhấn giữ, nhấp đúp hoặc vuốt mép màn hình để thực hiện hành động nhanh (như chuyển tab, đóng tab, cuộn trang) trên mọi trang web.
+2. **Inline Translate (Dịch thuật tại chỗ)**: Cho phép bôi đen văn bản và dịch trực tiếp ngay tại vị trí con trỏ trên bất kỳ website nào bằng tổ hợp phím tắt hoặc cử chỉ chuột.
+3. **Floating Video & Screenshot (Video nổi & Chụp ảnh màn hình)**: Tự động phát hiện các thẻ `<video>` trên mọi trang web để cung cấp thanh công cụ chụp ảnh màn hình, quay video clip ngắn và kích hoạt chế độ Picture-in-Picture (Video nổi).
+4. **OCR (Nhận diện chữ trên ảnh)**: Cho phép trích xuất văn bản từ hình ảnh hoặc khung hình video trực tiếp trên bất kỳ trang web nào để phục vụ dịch thuật hoặc sao chép.
+
+Việc cấp quyền này đảm bảo trải nghiệm người dùng liền mạch và nhất quán trên toàn bộ môi trường duyệt web mà không bị gián đoạn hay giới hạn bởi tên miền. Chúng tôi cam kết không thu thập, lưu trữ hoặc truyền tải bất kỳ dữ liệu cá nhân hay lịch sử duyệt web nào của người dùng.
+

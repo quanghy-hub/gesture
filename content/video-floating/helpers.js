@@ -101,11 +101,25 @@
         const unique = new Map();
         for (const video of queryAllDeep('video')) {
             if (!video?.isConnected || video.closest('#fvp-wrapper')) continue;
+
+            if (!isDetectableVideo(video)) continue;
+
+            try {
+                const style = window.getComputedStyle(video);
+                if (style.display === 'none' || style.visibility === 'hidden') continue;
+            } catch (e) {}
+
+            const isYouTube = location.hostname.includes('youtube.com') || location.hostname.includes('youtube-nocookie.com');
+            if (isYouTube) {
+                const isMainPlayer = video.classList.contains('html5-main-video') || video.closest('#movie_player');
+                if (!isMainPlayer) continue;
+            }
+
             const rect = getRect(video);
             const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
             const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
             const largeEnough = rect.width >= 160 && rect.height >= 90;
-            if (!(isDetectableVideo(video) || hasMediaSource || hasPlaybackState || largeEnough)) continue;
+            if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
 
             const key = [
                 video.currentSrc || video.src || '',
@@ -260,7 +274,22 @@
         return floatingVideos.find((node) => node.parentElement === wrapper) || floatingVideos[floatingVideos.length - 1] || null;
     };
 
+    const isPointInFloatingUI = (x, y) => {
+        for (const id of ['fvp-container', 'fvp-master-icon', 'fvp-menu']) {
+            const node = $(id);
+            if (node?.isConnected) {
+                const rect = getRect(node);
+                if (rect.width > 0 && rect.height > 0 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
     const getVideoAtPoint = (x, y) => {
+        if (isPointInFloatingUI(x, y)) return null;
+
         if (typeof document.elementsFromPoint === 'function') {
             for (const node of document.elementsFromPoint(x, y)) {
                 if (!(node instanceof Element)) continue;

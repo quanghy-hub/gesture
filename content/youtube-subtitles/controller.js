@@ -29,7 +29,8 @@
                         return;
                     }
                     mutationObserver = new MutationObserver(() => onChange());
-                    mutationObserver.observe(document.body, {
+                    const target = document.querySelector('#movie_player, .html5-video-player') || document.body;
+                    mutationObserver.observe(target, {
                         childList: true,
                         subtree: true,
                         characterData: true

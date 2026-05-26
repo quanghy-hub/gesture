@@ -48,55 +48,52 @@
             ctx.state.seekApplyRaf = requestAnimationFrame(() => flushPendingSeek(false));
         };
         const endSeekInteraction = () => {
-            ctx.state.isSeeking = false;
             ctx.state.seekDragActive = false;
             if (ctx.state.pendingSeekRatio !== null) {
                 flushPendingSeek(true);
                 ctx.state.pendingSeekRatio = null;
             }
-            ctx.state.seekPreviewRatio = null;
+
+            // Keep isSeeking = true and preserve seekPreviewRatio for a brief period to allow the player to update its currentTime
+            // and avoid snapping back to the old playback position.
+            setTimeout(() => {
+                if (!ctx.state.seekDragActive) {
+                    ctx.state.isSeeking = false;
+                    ctx.state.seekPreviewRatio = null;
+                }
+            }, 400);
         };
 
         const bind = () => {
             const seekEl = $('fvp-seek');
-            const beginSeekInteraction = (event) => {
-                // Seek is throttled separately from UI preview so drag stays responsive without spamming currentTime writes.
+
+            const handleInput = () => {
                 ctx.state.isSeeking = true;
                 ctx.state.seekDragActive = true;
-                const point = getCoord(event);
-                const ratio = getSeekRatioFromClientX(point.x);
-                renderSeekPreview(ratio);
+                const ratio = parseFloat(seekEl.value) / 10000;
+                ctx.state.seekPreviewRatio = ratio;
+                
+                // Update the preview immediately
+                const duration = getActiveSeekDuration();
+                const currentTime = duration > 0 ? clamp(ratio, 0, 1) * duration : 0;
+                const td = $('fvp-time-display');
+                if (td) td.textContent = `${formatTime(currentTime)}/${formatTime(duration)}`;
+
                 scheduleSeekApply(ratio);
             };
-            const handleSeekDragMove = (event) => {
-                if (!ctx.state.seekDragActive) return;
-                if (touch?.isTouchLikeEvent?.(event)) touch.preventCancelable(event);
-                const point = getCoord(event);
-                const ratio = getSeekRatioFromClientX(point.x);
-                renderSeekPreview(ratio);
-                scheduleSeekApply(ratio);
-            };
-            const stopSeekDrag = () => {
-                if (!ctx.state.seekDragActive && !ctx.state.isSeeking) return;
+
+            const handleChange = () => {
+                const ratio = parseFloat(seekEl.value) / 10000;
+                ctx.state.pendingSeekRatio = ratio;
                 endSeekInteraction();
             };
 
-            seekEl.addEventListener('pointerdown', beginSeekInteraction, POINTER_CAPTURE);
-            seekEl.addEventListener('touchstart', beginSeekInteraction, TOUCH_START_CAPTURE);
-            document.addEventListener('pointermove', handleSeekDragMove, POINTER_CAPTURE);
-            document.addEventListener('touchmove', handleSeekDragMove, TOUCH_MOVE_CAPTURE);
-            document.addEventListener('pointerup', stopSeekDrag, POINTER_CAPTURE);
-            document.addEventListener('touchend', stopSeekDrag, TOUCH_END_CAPTURE);
-            document.addEventListener('touchcancel', stopSeekDrag, TOUCH_END_CAPTURE);
+            seekEl.addEventListener('input', handleInput);
+            seekEl.addEventListener('change', handleChange);
 
             return () => {
-                seekEl.removeEventListener('pointerdown', beginSeekInteraction, POINTER_CAPTURE);
-                seekEl.removeEventListener('touchstart', beginSeekInteraction, TOUCH_START_CAPTURE);
-                document.removeEventListener('pointermove', handleSeekDragMove, POINTER_CAPTURE);
-                document.removeEventListener('touchmove', handleSeekDragMove, TOUCH_MOVE_CAPTURE);
-                document.removeEventListener('pointerup', stopSeekDrag, POINTER_CAPTURE);
-                document.removeEventListener('touchend', stopSeekDrag, TOUCH_END_CAPTURE);
-                document.removeEventListener('touchcancel', stopSeekDrag, TOUCH_END_CAPTURE);
+                seekEl.removeEventListener('input', handleInput);
+                seekEl.removeEventListener('change', handleChange);
             };
         };
 

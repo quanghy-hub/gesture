@@ -2,6 +2,7 @@ importScripts(
     chrome.runtime.getURL('shared/namespace.js'),
     chrome.runtime.getURL('shared/api-services.js'),
     chrome.runtime.getURL('shared/config.js'),
+    chrome.runtime.getURL('shared/storage.js'),
     chrome.runtime.getURL('background/api-service-registry.js')
 );
 
@@ -19,6 +20,7 @@ const CONTENT_SCRIPT_DEFINITIONS = [
         ],
         js: [
             'shared/namespace.js',
+            'shared/messaging.js',
             'shared/api-services.js',
             'shared/config.js',
             'shared/storage.js',
@@ -63,6 +65,9 @@ const CONTENT_SCRIPT_DEFINITIONS = [
             'content/inline-translate/actions.js',
             'content/inline-translate/controller.js',
             'content/inline-translate/index.js',
+            'content/video-screenshot/constants.js',
+            'content/video-screenshot/ui.js',
+            'content/video-screenshot/controller.js',
             'content/video-screenshot/index.js',
             'content/video-floating/constants.js',
             'content/video-floating/helpers.js',
@@ -126,16 +131,7 @@ const areSameRegistrations = (left, right) => {
     })).sort((a, b) => a.id.localeCompare(b.id)));
 };
 
-const getStoredConfig = () => new Promise((resolve, reject) => {
-    chrome.storage.local.get([STORAGE_KEY], (result) => {
-        const runtimeError = getRuntimeErrorMessage();
-        if (runtimeError) {
-            reject(new Error(runtimeError));
-            return;
-        }
-        resolve(normalizeConfig(result?.[STORAGE_KEY]));
-    });
-});
+const getStoredConfig = () => GestureExtension.shared.storage.getConfig();
 
 const syncRegisteredContentScripts = async () => {
     if (!chrome.scripting?.registerContentScripts) {
@@ -209,6 +205,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const tab = await chrome.tabs.create({
                     url,
                     active,
+                    openerTabId,
+                    index
+                });
+
+                sendResponse({ ok: true, tabId: tab.id });
+                return;
+            }
+
+            case 'gesture-ext/open-new-tab': {
+                const openerTabId = sender.tab?.id;
+                const index = typeof sender.tab?.index === 'number' ? sender.tab.index + 1 : undefined;
+
+                const tab = await chrome.tabs.create({
+                    active: true,
                     openerTabId,
                     index
                 });

@@ -135,6 +135,8 @@
     };
 
     ext.shared.storage = {
+        getLocal,
+        setLocal,
         getConfig,
         saveConfig,
         updateConfig,

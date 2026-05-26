@@ -540,10 +540,11 @@
             let wrapperMoved = false;
             let wrapperSwitchDir = 0;
             let wheelDeltaY = 0;
-            let wheelGestureLocked = false;
             let wheelGestureResetTimer = 0;
             let wheelSeekBaseTime = null;
             let wheelSeekDeltaX = 0;
+            let lastWheelSwitchAt = 0;
+            let hasSwitchedInCurrentGesture = false;
 
             const resetWrapperTap = () => {
                 wrapperPointerId = null;
@@ -560,11 +561,17 @@
                 clearTimeout(wheelGestureResetTimer);
                 wheelGestureResetTimer = window.setTimeout(() => {
                     wheelDeltaY = 0;
-                    wheelGestureLocked = false;
                     wheelSeekBaseTime = null;
                     wheelSeekDeltaX = 0;
                     wheelGestureResetTimer = 0;
+                    hasSwitchedInCurrentGesture = false;
                 }, wheelGestureConfig.idleMs);
+            };
+            const getWheelDeltaPixels = (event) => {
+                const delta = Number(event?.deltaY) || 0;
+                if (event?.deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * 16;
+                if (event?.deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * Math.max(1, innerHeight);
+                return delta;
             };
             const seekFromWheel = (deltaX) => {
                 if (!ctx.curVid?.duration) return false;
@@ -649,14 +656,19 @@
                     return;
                 }
 
-                if (wheelGestureLocked) return;
+                if (hasSwitchedInCurrentGesture) return;
 
-                wheelDeltaY += event.deltaY || 0;
+                wheelDeltaY += getWheelDeltaPixels(event);
                 if (Math.abs(wheelDeltaY) < wheelGestureConfig.switchThreshold) return;
 
+                const now = performance.now();
+                if (now - lastWheelSwitchAt < wheelGestureConfig.switchCooldownMs) return;
+
                 const dir = wheelDeltaY > 0 ? 1 : -1;
-                wheelDeltaY = 0;
-                wheelGestureLocked = true;
+                hasSwitchedInCurrentGesture = true;
+                wheelDeltaY -= dir * wheelGestureConfig.switchThreshold;
+                if (Math.sign(wheelDeltaY) !== dir) wheelDeltaY = 0;
+                lastWheelSwitchAt = now;
                 switchFromWrapper(dir);
             };
 

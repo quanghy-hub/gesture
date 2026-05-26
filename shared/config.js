@@ -81,7 +81,7 @@
             provider: 'google',
             selectionTranslateEnabled: true,
             hotkeyEnabled: true,
-            hotkey: 'f2',
+            hotkey: 'ctrl+d',
             swipeEnabled: true,
             swipeDir: 'both',
             swipePx: 60,
@@ -124,15 +124,15 @@
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
                 rclick: { enabled: true, mode: 'fg' },
-                dblRight: { enabled: true, ms: 500 },
-                fastScroll: { enabled: true, step: 0.92, wheelZone: 80 },
+                dblRight: { enabled: false, ms: 500 },
+                fastScroll: { enabled: false, step: 0.92, wheelZone: 80 },
                 pager: { enabled: true, hops: 3 }
             },
             mobile: {
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
                 dblTap: { enabled: false, ms: 300 },
-                edge: { enabled: true, width: 40, speed: 3, side: 'both' }
+                edge: { enabled: false, width: 40, speed: 3, side: 'both' }
             }
         }
     });
@@ -276,6 +276,9 @@
     };
 
     const normalizeConfig = (rawConfig) => {
+        if (rawConfig && rawConfig._isNormalized) {
+            return rawConfig;
+        }
         const merged = mergeObjects(DEFAULT_CONFIG, rawConfig || {});
         const config = deepClone(merged);
 
@@ -339,9 +342,9 @@
             : 'google';
         config.inlineTranslate.selectionTranslateEnabled = config.inlineTranslate.selectionTranslateEnabled !== false;
         config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
-        config.inlineTranslate.hotkey = String(config.inlineTranslate.hotkey || '').toLowerCase() === 'f2'
+        config.inlineTranslate.hotkey = ['ctrl+d', 'f2'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
             ? String(config.inlineTranslate.hotkey).toLowerCase()
-            : 'f2';
+            : 'ctrl+d';
         config.inlineTranslate.swipeEnabled = config.inlineTranslate.swipeEnabled !== false;
         config.inlineTranslate.swipeDir = ['left', 'right', 'both'].includes(config.inlineTranslate.swipeDir) ? config.inlineTranslate.swipeDir : 'both';
         config.inlineTranslate.swipePx = clampNumber(config.inlineTranslate.swipePx, 60, 20, 240);
@@ -391,7 +394,7 @@
         }
         config.inlineTranslate.provider = config.apiServices.translate.activeProvider || 'google';
 
-        config.forum.defaults.enabled = false;
+        config.forum.defaults.enabled = !!config.forum.defaults.enabled;
         config.forum.defaults.wide = !!config.forum.defaults.wide;
         config.forum.defaults.minWidth = clampNumber(config.forum.defaults.minWidth, 1000, 0, 4000);
         config.forum.defaults.gap = clampNumber(config.forum.defaults.gap, 1, 0, 24);
@@ -425,7 +428,7 @@
         config.gestures.desktop.dblRight.enabled = !!config.gestures.desktop.dblRight.enabled;
         config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
         config.gestures.desktop.fastScroll = config.gestures.desktop.fastScroll && typeof config.gestures.desktop.fastScroll === 'object' ? config.gestures.desktop.fastScroll : {};
-        config.gestures.desktop.fastScroll.enabled = config.gestures.desktop.fastScroll.enabled !== false;
+        config.gestures.desktop.fastScroll.enabled = !!config.gestures.desktop.fastScroll.enabled;
         config.gestures.desktop.fastScroll.step = clampNumber(config.gestures.desktop.fastScroll.step, 0.92, 0.5, 1);
         config.gestures.desktop.fastScroll.wheelZone = clampNumber(config.gestures.desktop.fastScroll.wheelZone, 80, 40, 240);
         delete config.gestures.desktop.fastScroll.touchpadBoost;
@@ -444,6 +447,7 @@
         config.gestures.mobile.edge.speed = clampNumber(config.gestures.mobile.edge.speed, 3, 1, 10);
         config.gestures.mobile.edge.side = normalizeSide(config.gestures.mobile.edge.side);
 
+        config._isNormalized = true;
         return config;
     };
 
@@ -456,12 +460,13 @@
     };
 
     const updateForumHostConfig = (config, host, patch) => {
-        const next = normalizeConfig(config);
+        const next = deepClone(normalizeConfig(config));
         next.forum.hosts[host] = {
             ...getForumConfig(next, host),
             ...(patch || {})
         };
-        return normalizeConfig(next);
+        next._isNormalized = true;
+        return next;
     };
 
     const getGestureSettings = (config) => {
@@ -504,7 +509,7 @@
     };
 
     const applyGestureSettings = (config, patch) => {
-        const next = normalizeConfig(config);
+        const next = deepClone(normalizeConfig(config));
         const current = getGestureSettings(next);
         const merged = {
             ...current,
@@ -582,7 +587,8 @@
             hops: merged.pager.hops
         };
 
-        return normalizeConfig(next);
+        next._isNormalized = true;
+        return next;
     };
 
     ext.shared.config = {

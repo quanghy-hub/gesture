@@ -22,23 +22,7 @@
         };
     };
 
-    const sendRuntimeMessage = (type, payload = {}) => new Promise((resolve, reject) => {
-        try {
-            chrome.runtime.sendMessage({ type, payload }, (response) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                }
-                if (response?.ok === false) {
-                    reject(new Error(response.error || 'Unknown runtime messaging error'));
-                    return;
-                }
-                resolve(response?.result ?? response);
-            });
-        } catch (error) {
-            reject(error);
-        }
-    });
+    const sendRuntimeMessage = (type, payload = {}) => ext.shared.messaging.sendRuntimeMessage(type, payload, { unwrapResult: true });
 
     const translateDetailed = async (text, { cache, provider, targetLanguage, cleanResult = false } = {}) => {
         const key = String(text || '').trim();

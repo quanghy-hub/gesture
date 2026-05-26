@@ -401,7 +401,7 @@
         };
 
         const onTouchStart = (event) => {
-            if (isEventInsideBubble(event, textBubble) || isEventInsideBubble(event, imageBubble) || event.touches.length !== 1) {
+            if (isEventInsideBubble(event, textBubble) || isEventInsideBubble(event, imageBubble) || !event.touches || event.touches.length !== 1) {
                 return;
             }
             const point = touch.getPrimaryPoint(event);
@@ -419,7 +419,7 @@
         };
 
         const onTouchMove = (event) => {
-            if (!state.touchCandidate || event.touches.length !== 1) {
+            if (!state.touchCandidate || !event.touches || event.touches.length !== 1) {
                 clearTouchLongPress();
                 return;
             }

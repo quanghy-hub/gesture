@@ -5,7 +5,6 @@
     const selectionCore = ext.shared.selectionCore;
     const { TRANSLATION_PENDING, VIETNAMESE_CHAR_PATTERN } = inlineTranslate;
     const EDITABLE_SELECTION_DELAY_MS = 80;
-    const RIGHT_LEFT_CHORD_MS = 1200;
     const THREE_TOUCH_TRANSLATE_MS = 550;
 
     inlineTranslate.createController = ({ getConfig }) => {
@@ -17,14 +16,7 @@
         let startedInVideo = false;
         let editableSelectionTimer = 0;
         let editableSelectionRequestId = 0;
-        let suppressContextMenuUntil = 0;
         let threeTouchTimer = 0;
-        const rightChord = {
-            active: false,
-            x: 0,
-            y: 0,
-            time: 0
-        };
 
         const dom = inlineTranslate.dom;
         const actions = inlineTranslate.createActions({
@@ -260,7 +252,9 @@
             }
 
             const hotkey = settings.hotkey;
-            const matches = hotkey === 'f2' && event.code === 'F2';
+            const matches = hotkey === 'ctrl+d'
+                ? event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'KeyD'
+                : hotkey === 'f2' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'F2';
 
             if (!matches) {
                 return;
@@ -280,63 +274,15 @@
             }
         };
 
-        const stopTranslateGestureEvent = (event) => {
-            if (event.cancelable) {
-                event.preventDefault();
-            }
-            event.stopPropagation();
-            event.stopImmediatePropagation?.();
-        };
-
-        const resetRightChord = () => {
-            rightChord.active = false;
-            rightChord.x = 0;
-            rightChord.y = 0;
-            rightChord.time = 0;
-        };
-
         const onMouseDown = (event) => {
             lastPointer = touch.getPrimaryPoint(event);
             if (dom.isEventInsideEditableSelectionPanel(event)) {
                 return;
             }
-
-            if (event.button === 2) {
-                rightChord.active = true;
-                rightChord.x = event.clientX || 0;
-                rightChord.y = event.clientY || 0;
-                rightChord.time = Date.now();
-                return;
-            }
-
-            if (event.button !== 0 || !rightChord.active) {
-                return;
-            }
-
-            if (Date.now() - rightChord.time > RIGHT_LEFT_CHORD_MS) {
-                resetRightChord();
-                return;
-            }
-
-            stopTranslateGestureEvent(event);
-            suppressContextMenuUntil = Date.now() + 700;
-            const x = event.clientX || rightChord.x;
-            const y = event.clientY || rightChord.y;
-            resetRightChord();
-            toggleTranslationAtPoint(x, y);
         };
 
         const onMouseUp = (event) => {
-            if (event.button === 2 && rightChord.active && Date.now() - rightChord.time > RIGHT_LEFT_CHORD_MS) {
-                resetRightChord();
-            }
             scheduleEditableSelectionEvaluation();
-        };
-
-        const onContextMenu = (event) => {
-            if (Date.now() < suppressContextMenuUntil) {
-                stopTranslateGestureEvent(event);
-            }
         };
 
         const onKeyUp = () => {
@@ -354,7 +300,7 @@
 
         const onTouchStart = (event) => {
             clearThreeTouchTimer();
-            if (event.touches.length === 3) {
+            if (event.touches && event.touches.length === 3) {
                 const points = [...event.touches];
                 const x = points.reduce((sum, point) => sum + point.clientX, 0) / points.length;
                 const y = points.reduce((sum, point) => sum + point.clientY, 0) / points.length;
@@ -370,7 +316,7 @@
                 return;
             }
 
-            if (!settings.swipeEnabled || event.touches.length !== 1) {
+            if (!settings.swipeEnabled || !event.touches || event.touches.length !== 1) {
                 return;
             }
             const point = touch.getPrimaryPoint(event);
@@ -425,9 +371,8 @@
         dom.applyInlineTranslateCssVars(settings);
 
         document.addEventListener('mousemove', onMouseMove, { passive: true });
-        document.addEventListener('mousedown', onMouseDown, true);
-        document.addEventListener('mouseup', onMouseUp, true);
-        window.addEventListener('contextmenu', onContextMenu, true);
+        window.addEventListener('mousedown', onMouseDown, true);
+        window.addEventListener('mouseup', onMouseUp, true);
         document.addEventListener('keydown', onKeyDown, true);
         document.addEventListener('keyup', onKeyUp, true);
         document.addEventListener('pointerdown', onPointerDown, true);
@@ -453,9 +398,8 @@
                 clearThreeTouchTimer();
                 hideEditableSelectionPanel();
                 document.removeEventListener('mousemove', onMouseMove, { passive: true });
-                document.removeEventListener('mousedown', onMouseDown, true);
-                document.removeEventListener('mouseup', onMouseUp, true);
-                window.removeEventListener('contextmenu', onContextMenu, true);
+                window.removeEventListener('mousedown', onMouseDown, true);
+                window.removeEventListener('mouseup', onMouseUp, true);
                 document.removeEventListener('keydown', onKeyDown, true);
                 document.removeEventListener('keyup', onKeyUp, true);
                 document.removeEventListener('pointerdown', onPointerDown, true);

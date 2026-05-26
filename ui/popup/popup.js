@@ -3,82 +3,102 @@
     const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, normalizeHost, normalizeConfig, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
+    const safeGetElementById = (id) => {
+        const el = document.getElementById(id);
+        if (el) return el;
+        console.warn(`[GestureExtension][popup] Element with id "${id}" not found. Returning a fallback dummy element.`);
+        return {
+            addEventListener() {},
+            removeEventListener() {},
+            closest() { return null; },
+            setAttribute() {},
+            getAttribute() { return null; },
+            removeAttribute() {},
+            classList: {
+                add() {},
+                remove() {},
+                toggle() {},
+                contains() { return false; }
+            },
+            style: {},
+            dataset: {},
+            querySelector() { return null; },
+            querySelectorAll() { return []; },
+            replaceChildren() {},
+            appendChild() {},
+            insertBefore() {},
+            value: '',
+            checked: false,
+            disabled: false,
+            textContent: '',
+            tagName: 'DIV'
+        };
+    };
 
-    const hostLabel = document.getElementById('current-host');
-    const closeButton = document.getElementById('close-popup');
-    const hostBlacklistLabel = document.getElementById('host-blacklist-label');
-    const hostBlacklistToggle = document.getElementById('host-blacklist-toggle');
-    const featureUnblockCopyEnabled = document.getElementById('feature-unblock-copy-enabled');
-    const featureGesturesEnabled = document.getElementById('feature-gestures-enabled');
-    const featureClipboardEnabled = document.getElementById('feature-clipboard-enabled');
-    const featureVideoFloatingEnabled = document.getElementById('feature-video-floating-enabled');
-    const featureVideoScreenshotEnabled = document.getElementById('feature-video-screenshot-enabled');
-    const featureQuickSearchEnabled = document.getElementById('feature-quick-search-enabled');
-    const featureInlineTranslateEnabled = document.getElementById('feature-inline-translate-enabled');
-    const featureYoutubeSubtitlesEnabled = document.getElementById('feature-youtube-subtitles-enabled');
-    const featureForumEnabled = document.getElementById('feature-forum-enabled');
-    const forumScopeLabel = document.getElementById('forum-scope');
-    const inlineTranslateHotkeyEnabled = document.getElementById('inline-translate-hotkey-enabled');
-    const inlineTranslateHotkey = document.getElementById('inline-translate-hotkey');
-    const inlineTranslateSelectionTranslateEnabled = document.getElementById('inline-translate-selection-translate-enabled');
-    const inlineTranslateSwipeEnabled = document.getElementById('inline-translate-swipe-enabled');
-    const inlineTranslateSwipeDir = document.getElementById('inline-translate-swipe-dir');
-    const inlineTranslateFontScale = document.getElementById('inline-translate-font-scale');
-    const inlineTranslateMutedColor = document.getElementById('inline-translate-muted-color');
-    const youtubeSubtitlesTargetLang = document.getElementById('youtube-subtitles-target-lang');
-    const youtubeSubtitlesFontSize = document.getElementById('youtube-subtitles-font-size');
-    const youtubeSubtitlesTranslatedFontSize = document.getElementById('youtube-subtitles-translated-font-size');
-    const youtubeSubtitlesDisplayMode = document.getElementById('youtube-subtitles-display-mode');
-    const youtubeSubtitlesShowOriginal = document.getElementById('youtube-subtitles-show-original');
-    const youtubeSubtitlesOriginalColor = document.getElementById('youtube-subtitles-original-color');
-    const youtubeSubtitlesTranslatedColor = document.getElementById('youtube-subtitles-translated-color');
-    const apiTranslateProvider = document.getElementById('api-translate-provider');
-    const apiTranslateFallbackEnabled = document.getElementById('api-translate-fallback-enabled');
-    const apiTranslateFallbackProvider = document.getElementById('api-translate-fallback-provider');
-    const apiTranslateApiKey = document.getElementById('api-translate-api-key');
-    const apiTranslateFallbackApiKey = document.getElementById('api-translate-fallback-api-key');
-    const apiOcrProvider = document.getElementById('api-ocr-provider');
-    const apiOcrFallbackEnabled = document.getElementById('api-ocr-fallback-enabled');
-    const apiOcrFallbackProvider = document.getElementById('api-ocr-fallback-provider');
-    const apiOcrApiKey = document.getElementById('api-ocr-api-key');
-    const apiOcrFallbackApiKey = document.getElementById('api-ocr-fallback-api-key');
-    const quickSearchColumns = document.getElementById('quick-search-columns');
-    const quickSearchImageSearchEnabled = document.getElementById('quick-search-image-search-enabled');
-    const inlineTranslateSwipePx = document.getElementById('inline-translate-swipe-px');
-    const inlineTranslateSwipeMaxDurationMs = document.getElementById('inline-translate-swipe-max-duration-ms');
-    const clipboardMaxHistory = document.getElementById('clipboard-max-history');
-    const clipboardClear = document.getElementById('clipboard-clear');
-    const videoFloatingMinDistance = document.getElementById('video-floating-min-distance');
-    const videoFloatingSwipeShort = document.getElementById('video-floating-swipe-short');
-    const videoFloatingSwipeLong = document.getElementById('video-floating-swipe-long');
-    const videoFloatingShortThreshold = document.getElementById('video-floating-short-threshold');
-    const videoFloatingVerticalTolerance = document.getElementById('video-floating-vertical-tolerance');
-    const videoFloatingDiagonalThreshold = document.getElementById('video-floating-diagonal-threshold');
-    const videoFloatingThrottle = document.getElementById('video-floating-throttle');
-    const videoFloatingNoticeFontSize = document.getElementById('video-floating-notice-font-size');
-    const forumWide = document.getElementById('forum-wide');
-    const forumMinWidth = document.getElementById('forum-min-width');
-    const forumGap = document.getElementById('forum-gap');
-    const forumFade = document.getElementById('forum-fade');
-    const forumDelay = document.getElementById('forum-delay');
-    const gLpEnabled = document.getElementById('g-lp-enabled');
-    const gLpMode = document.getElementById('g-lp-mode');
-    const gLpMs = document.getElementById('g-lp-ms');
-    const gRcEnabled = document.getElementById('g-rc-enabled');
-    const gRcMode = document.getElementById('g-rc-mode');
-    const gDblRightEnabled = document.getElementById('g-dbl-right-enabled');
-    const gDblRight = document.getElementById('g-dbl-right');
-    const gDblTapEnabled = document.getElementById('g-dbl-tap-enabled');
-    const gDblTapMs = document.getElementById('g-dbl-tap-ms');
-    const gFastScrollEnabled = document.getElementById('g-fast-scroll-enabled');
-    const gFastScrollStep = document.getElementById('g-fast-scroll-step');
-    const gFastScrollWheelZone = document.getElementById('g-fast-scroll-wheel-zone');
-    const gEdgeEnabled = document.getElementById('g-edge-enabled');
-    const gEdgeSide = document.getElementById('g-edge-side');
-    const gEdgeWidth = document.getElementById('g-edge-width');
-    const gEdgeSpeed = document.getElementById('g-edge-speed');
-    const gPagerEnabled = document.getElementById('g-pager-enabled');
-    const gPagerHops = document.getElementById('g-pager-hops');
+    const hostLabel = safeGetElementById('current-host');
+    const closeButton = safeGetElementById('close-popup');
+    const hostBlacklistLabel = safeGetElementById('host-blacklist-label');
+    const hostBlacklistToggle = safeGetElementById('host-blacklist-toggle');
+    const featureUnblockCopyEnabled = safeGetElementById('feature-unblock-copy-enabled');
+    const featureGesturesEnabled = safeGetElementById('feature-gestures-enabled');
+    const featureClipboardEnabled = safeGetElementById('feature-clipboard-enabled');
+    const featureVideoFloatingEnabled = safeGetElementById('feature-video-floating-enabled');
+    const featureVideoScreenshotEnabled = safeGetElementById('feature-video-screenshot-enabled');
+    const featureQuickSearchEnabled = safeGetElementById('feature-quick-search-enabled');
+    const featureInlineTranslateEnabled = safeGetElementById('feature-inline-translate-enabled');
+    const featureYoutubeSubtitlesEnabled = safeGetElementById('feature-youtube-subtitles-enabled');
+    const featureForumEnabled = safeGetElementById('feature-forum-enabled');
+    const forumScopeLabel = safeGetElementById('forum-scope');
+    const inlineTranslateHotkeyEnabled = safeGetElementById('inline-translate-hotkey-enabled');
+    const inlineTranslateHotkey = safeGetElementById('inline-translate-hotkey');
+    const inlineTranslateSelectionTranslateEnabled = safeGetElementById('inline-translate-selection-translate-enabled');
+    const inlineTranslateSwipeEnabled = safeGetElementById('inline-translate-swipe-enabled');
+    const inlineTranslateSwipeDir = safeGetElementById('inline-translate-swipe-dir');
+    const inlineTranslateFontScale = safeGetElementById('inline-translate-font-scale');
+    const inlineTranslateMutedColor = safeGetElementById('inline-translate-muted-color');
+    const youtubeSubtitlesTargetLang = safeGetElementById('youtube-subtitles-target-lang');
+    const youtubeSubtitlesFontSize = safeGetElementById('youtube-subtitles-font-size');
+    const youtubeSubtitlesTranslatedFontSize = safeGetElementById('youtube-subtitles-translated-font-size');
+    const youtubeSubtitlesDisplayMode = safeGetElementById('youtube-subtitles-display-mode');
+    const youtubeSubtitlesShowOriginal = safeGetElementById('youtube-subtitles-show-original');
+    const youtubeSubtitlesOriginalColor = safeGetElementById('youtube-subtitles-original-color');
+    const youtubeSubtitlesTranslatedColor = safeGetElementById('youtube-subtitles-translated-color');
+    const apiTranslateProvider = safeGetElementById('api-translate-provider');
+    const apiTranslateFallbackEnabled = safeGetElementById('api-translate-fallback-enabled');
+    const apiTranslateFallbackProvider = safeGetElementById('api-translate-fallback-provider');
+    const apiTranslateApiKey = safeGetElementById('api-translate-api-key');
+    const apiTranslateFallbackApiKey = safeGetElementById('api-translate-fallback-api-key');
+    const apiOcrProvider = safeGetElementById('api-ocr-provider');
+    const apiOcrFallbackEnabled = safeGetElementById('api-ocr-fallback-enabled');
+    const apiOcrFallbackProvider = safeGetElementById('api-ocr-fallback-provider');
+    const apiOcrApiKey = safeGetElementById('api-ocr-api-key');
+    const apiOcrFallbackApiKey = safeGetElementById('api-ocr-fallback-api-key');
+    const quickSearchColumns = safeGetElementById('quick-search-columns');
+    const quickSearchImageSearchEnabled = safeGetElementById('quick-search-image-search-enabled');
+    const inlineTranslateSwipePx = safeGetElementById('inline-translate-swipe-px');
+    const inlineTranslateSwipeMaxDurationMs = safeGetElementById('inline-translate-swipe-max-duration-ms');
+    const clipboardMaxHistory = safeGetElementById('clipboard-max-history');
+    const clipboardClear = safeGetElementById('clipboard-clear');
+    const videoFloatingMinDistance = safeGetElementById('video-floating-min-distance');
+    const videoFloatingSwipeShort = safeGetElementById('video-floating-swipe-short');
+    const videoFloatingSwipeLong = safeGetElementById('video-floating-swipe-long');
+    const videoFloatingShortThreshold = safeGetElementById('video-floating-short-threshold');
+    const videoFloatingVerticalTolerance = safeGetElementById('video-floating-vertical-tolerance');
+    const videoFloatingDiagonalThreshold = safeGetElementById('video-floating-diagonal-threshold');
+    const videoFloatingThrottle = safeGetElementById('video-floating-throttle');
+    const videoFloatingNoticeFontSize = safeGetElementById('video-floating-notice-font-size');
+    const forumWide = safeGetElementById('forum-wide');
+    const forumMinWidth = safeGetElementById('forum-min-width');
+    const forumGap = safeGetElementById('forum-gap');
+    const forumFade = safeGetElementById('forum-fade');
+    const forumDelay = safeGetElementById('forum-delay');
+    const gLpEnabled = safeGetElementById('g-lp-enabled');
+    const gLpMode = safeGetElementById('g-lp-mode');
+    const gLpMs = safeGetElementById('g-lp-ms');
+    const gRcEnabled = safeGetElementById('g-rc-enabled');
+    const gRcMode = safeGetElementById('g-rc-mode');
+    const gPagerEnabled = safeGetElementById('g-pager-enabled');
+    const gPagerHops = safeGetElementById('g-pager-hops');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
     const unblockCopyCard = featureUnblockCopyEnabled.closest('.card');
@@ -92,17 +112,17 @@
     const forumCard = featureForumEnabled.closest('.card');
     const quickSearchProviderIds = ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'];
     const quickSearchProviderInputs = Object.fromEntries(
-        quickSearchProviderIds.map((providerId) => [providerId, document.getElementById(`quick-search-provider-${providerId}`)])
+        quickSearchProviderIds.map((providerId) => [providerId, safeGetElementById(`quick-search-provider-${providerId}`)])
     );
     const popupRoot = document.querySelector('.popup');
     const panelCards = Array.from(document.querySelectorAll('.card[data-panel-id]'));
     const panelHeaderTriggers = Array.from(document.querySelectorAll('[data-panel-header]'));
     const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
-    const backupGistToken = document.getElementById('backup-gist-token');
-    const backupVerifyToken = document.getElementById('backup-verify-token');
-    const backupExport = document.getElementById('backup-export');
-    const backupImport = document.getElementById('backup-import');
-    const backupStatus = document.getElementById('backup-status');
+    const backupGistToken = safeGetElementById('backup-gist-token');
+    const backupVerifyToken = safeGetElementById('backup-verify-token');
+    const backupExport = safeGetElementById('backup-export');
+    const backupImport = safeGetElementById('backup-import');
+    const backupStatus = safeGetElementById('backup-status');
 
     const BACKUP_STORAGE_KEYS = {
         token: 'gestureBackupGistToken',
@@ -158,29 +178,8 @@
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
     });
 
-    const getRuntimeErrorMessage = () => chrome.runtime?.lastError?.message;
-
-    const getLocal = (keys) => new Promise((resolve, reject) => {
-        chrome.storage.local.get(keys, (result) => {
-            const runtimeError = getRuntimeErrorMessage();
-            if (runtimeError) {
-                reject(new Error(runtimeError));
-                return;
-            }
-            resolve(result || {});
-        });
-    });
-
-    const setLocal = (payload) => new Promise((resolve, reject) => {
-        chrome.storage.local.set(payload, () => {
-            const runtimeError = getRuntimeErrorMessage();
-            if (runtimeError) {
-                reject(new Error(runtimeError));
-                return;
-            }
-            resolve();
-        });
-    });
+    const getLocal = storage.getLocal;
+    const setLocal = storage.setLocal;
 
     const setBackupStatus = (message, type = '') => {
         if (!backupStatus) return;
@@ -288,7 +287,7 @@
         inlineTranslateHotkeyEnabled.checked = config.inlineTranslate?.hotkeyEnabled !== false;
         featureYoutubeSubtitlesEnabled.checked = !!config.youtubeSubtitles?.enabled;
         featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
-        inlineTranslateHotkey.value = config.inlineTranslate?.hotkey || 'f2';
+        inlineTranslateHotkey.value = config.inlineTranslate?.hotkey || 'ctrl+d';
         inlineTranslateSwipeEnabled.checked = config.inlineTranslate?.swipeEnabled !== false;
         inlineTranslateSelectionTranslateEnabled.checked = config.inlineTranslate?.selectionTranslateEnabled !== false;
         inlineTranslateSwipeDir.value = config.inlineTranslate?.swipeDir || 'both';
@@ -335,17 +334,6 @@
         gLpMs.value = gestures.longPress.ms;
         gRcEnabled.checked = !!gestures.rightClick.enabled;
         gRcMode.value = gestures.rightClick.mode;
-        gDblRightEnabled.checked = !!gestures.doubleRight.enabled;
-        gDblRight.value = gestures.doubleRight.ms;
-        gDblTapEnabled.checked = !!gestures.doubleTap.enabled;
-        gDblTapMs.value = gestures.doubleTap.ms;
-        gFastScrollEnabled.checked = !!gestures.fastScroll.enabled;
-        gFastScrollStep.value = gestures.fastScroll.step;
-        gFastScrollWheelZone.value = gestures.fastScroll.wheelZone;
-        gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
-        gEdgeSide.value = gestures.edgeSwipe.side;
-        gEdgeWidth.value = gestures.edgeSwipe.width;
-        gEdgeSpeed.value = gestures.edgeSwipe.speed;
         gPagerEnabled.checked = !!gestures.pager.enabled;
         gPagerHops.value = gestures.pager.hops;
         hostBlacklistToggle.disabled = !normalizedActiveHost;
@@ -383,25 +371,6 @@
             rightClick: {
                 enabled: gRcEnabled.checked,
                 mode: gRcMode.value
-            },
-            doubleRight: {
-                enabled: gDblRightEnabled.checked,
-                ms: Number(gDblRight.value)
-            },
-            doubleTap: {
-                enabled: gDblTapEnabled.checked,
-                ms: Number(gDblTapMs.value)
-            },
-            fastScroll: {
-                enabled: gFastScrollEnabled.checked,
-                step: Number(gFastScrollStep.value),
-                wheelZone: Number(gFastScrollWheelZone.value)
-            },
-            edgeSwipe: {
-                enabled: gEdgeEnabled.checked,
-                side: gEdgeSide.value,
-                width: Number(gEdgeWidth.value),
-                speed: Number(gEdgeSpeed.value)
             },
             pager: {
                 enabled: gPagerEnabled.checked,
@@ -797,11 +766,6 @@
         gLpMode,
         gRcEnabled,
         gRcMode,
-        gDblRightEnabled,
-        gDblTapEnabled,
-        gFastScrollEnabled,
-        gEdgeEnabled,
-        gEdgeSide,
         gPagerEnabled,
         hostBlacklistToggle
     ].forEach((control) => {
@@ -859,12 +823,6 @@
         forumFade,
         forumDelay,
         gLpMs,
-        gDblRight,
-        gDblTapMs,
-        gFastScrollStep,
-        gFastScrollWheelZone,
-        gEdgeWidth,
-        gEdgeSpeed,
         gPagerHops
     ].forEach((control) => {
         registerAutoSave(control, 'change', { restoreWhenEmpty: true });

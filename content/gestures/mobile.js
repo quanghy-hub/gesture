@@ -39,10 +39,6 @@
             }
         };
         const isEditable = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
-        const isInteractive = (el) => {
-            if (!el) return false;
-            return ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'VIDEO', 'AUDIO'].includes(el.tagName) || !!el.closest?.('button, a, [role="button"], [onclick]');
-        };
 
         const getValidLink = (event) => {
             for (const node of (event.composedPath?.() || [])) {
@@ -53,28 +49,12 @@
             return null;
         };
 
-        const isInEdgeZone = (x) => {
-            const edge = getConfig().edge;
-            if (!edge.enabled) return false;
-            const width = innerWidth;
-            if (edge.side === 'left') return x < edge.width;
-            if (edge.side === 'right') return x > width - edge.width;
-            return x < edge.width || x > width - edge.width;
-        };
-
         const openTab = async (url, mode) => {
             const response = await context.tabActions.openTab(url, mode);
             if (!response?.ok) {
                 window.open(url, '_blank');
             }
             suppress(800);
-        };
-
-        const closeTab = async () => {
-            const response = await context.tabActions.closeCurrentTab();
-            if (!response?.ok) {
-                try { window.close(); } catch { }
-            }
         };
 
         const cancelLongPress = () => {
@@ -210,43 +190,13 @@
 
             const now = Date.now();
 
-            if (event.touches.length !== 1) {
+            if (!event.touches || event.touches.length !== 1) {
                 cancelLongPress();
                 state.dblTap.last = null;
                 return;
             }
 
             const touchPoint = event.touches[0];
-
-            if (isInEdgeZone(touchPoint.clientX) && !event.target.closest?.('#fvp-container')) {
-                const element = document.scrollingElement || document.documentElement;
-                state.edge = {
-                    active: true,
-                    lastY: touchPoint.clientY,
-                    lastTime: now,
-                    velocity: 0,
-                    targetScrollTop: element.scrollTop,
-                    renderRAF: state.edge.renderRAF,
-                    renderTime: state.edge.renderTime
-                };
-                return;
-            }
-
-            if (cfg.dblTap.enabled && !isInteractive(event.target)) {
-                const last = state.dblTap.last;
-                const timeSinceLast = last ? now - last.time : Infinity;
-                if (last && last.ended && timeSinceLast >= 100 && timeSinceLast < cfg.dblTap.ms && dist(touchPoint.clientX, touchPoint.clientY, last.x, last.y) < TOLERANCE.tap) {
-                    preventDefaultIfCancelable(event);
-                    event.stopPropagation();
-                    state.dblTap.last = null;
-                    closeTab();
-                    return;
-                }
-
-                if (!last || timeSinceLast > 50) {
-                    state.dblTap.last = { time: now, x: touchPoint.clientX, y: touchPoint.clientY, ended: false };
-                }
-            }
 
             if (!cfg.lpress.enabled) return;
             const link = getValidLink(event);
@@ -267,6 +217,8 @@
                 state.edge.active = false;
                 return;
             }
+            if (!event.touches) return;
+
             if (state.lp.active && event.touches.length === 1) {
                 const touchPoint = event.touches[0];
                 if (dist(touchPoint.clientX, touchPoint.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {

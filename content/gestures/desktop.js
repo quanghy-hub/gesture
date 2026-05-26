@@ -2,7 +2,6 @@
     const ext = globalThis.GestureExtension;
     const gestures = ext.gestures = ext.gestures || {};
     const touch = ext.shared.touchCore;
-    const scrollCore = gestures.scrollCore;
 
     gestures.createDesktopController = (context) => {
         const TOLERANCE = { move: 20 };
@@ -12,10 +11,9 @@
             lpFired: false,
             rcHandled: false,
             lp: { timer: null, active: false, x: 0, y: 0 },
-            dblRight: { timer: null, lastEvent: null },
             pager: { acc: 0, timer: null, dir: 0, hops: 0 },
             pointer: { active: false, x: 0, y: 0 },
-            pagerIndicator: null
+            pointerIndicator: null
         };
         const listeners = [];
 
@@ -60,13 +58,6 @@
                 window.open(url, '_blank', mode === 'fg' ? '' : 'noopener');
             }
             suppress(800);
-        };
-
-        const closeTab = async () => {
-            const response = await context.tabActions.closeCurrentTab();
-            if (!response?.ok) {
-                try { window.close(); } catch { }
-            }
         };
 
         const cancelLongPress = () => {
@@ -177,40 +168,6 @@
             state.pagerIndicator?.classList.remove('show');
         };
 
-        const hasVerticalIntent = (event) => {
-            return scrollCore?.hasVerticalWheelIntent?.(event, { isMacOS: isMacOS() }) || false;
-        };
-
-        const hasScrollableAncestor = (target) => {
-            let element = target instanceof Element ? target : target?.parentElement || target?.parentNode;
-            if (!(element instanceof Element)) {
-                element = null;
-            }
-            while (element && element !== document.body && element !== document.documentElement) {
-                const style = getComputedStyle(element);
-                const overflowY = `${style.overflowY} ${style.overflow}`;
-                if (element.scrollHeight > element.clientHeight && /auto|scroll/.test(overflowY)) {
-                    return true;
-                }
-                element = element.parentElement;
-            }
-            return false;
-        };
-
-        const isFastScrollWheelGesture = (event, cfg) => {
-            const fastScroll = scrollCore?.getFastScroll?.(cfg) || cfg.fastScroll || {};
-            const rightZoneWidth = scrollCore?.getRightZoneWidth?.(innerWidth, cfg) || fastScroll.wheelZone;
-            if (!fastScroll.enabled) return false;
-            if (event.defaultPrevented) return false;
-            if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return false;
-            if (!hasVerticalIntent(event)) return false;
-            if (event.clientX < innerWidth - rightZoneWidth) return false;
-            if (touch.isExtensionUiTarget(event) || isEditable(event.target)) return false;
-            if (event.target instanceof Element && event.target.closest('#fvp-container')) return false;
-            if (hasScrollableAncestor(event.target)) return false;
-            return true;
-        };
-
         const guard = (event) => {
             if (Date.now() < state.suppressUntil) {
                 event.preventDefault();
@@ -220,21 +177,12 @@
             return false;
         };
 
-        const scrollPageFast = (dir, event = null) => {
-            const element = document.scrollingElement || document.documentElement;
-            const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight);
-            const step = scrollCore?.getFastScrollStepPixels?.(innerHeight, getConfig()) || Math.round(innerHeight * 0.92);
-            const delta = step * dir;
-            const nextScrollTop = Math.max(0, Math.min(maxScrollTop, element.scrollTop + delta));
-            if (nextScrollTop !== element.scrollTop) {
-                element.scrollTop = nextScrollTop;
-            }
-        };
-
         ensurePagerStyles();
 
         ['click', 'auxclick'].forEach((eventName) => {
-            addListener(window, eventName, guard, true);
+            addListener(window, eventName, (event) => {
+                guard(event);
+            }, true);
         });
 
         addListener(window, 'contextmenu', (event) => {
@@ -243,20 +191,6 @@
                 event.preventDefault();
                 event.stopPropagation();
             }
-        }, true);
-
-        addListener(window, 'keydown', (event) => {
-            const cfg = getConfig();
-            const fastScrollModifierPressed = isMacOS()
-                ? event.metaKey && !event.ctrlKey
-                : event.ctrlKey && !event.metaKey;
-            if (!cfg.enabled || !cfg.fastScroll?.enabled || !fastScrollModifierPressed || event.altKey || event.shiftKey) return;
-            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-            if (touch.isExtensionUiTarget(event) || isEditable(event.target)) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-            scrollPageFast(event.key === 'ArrowDown' ? 1 : -1);
         }, true);
 
         addListener(window, 'keydown', (event) => {
@@ -291,15 +225,6 @@
 
             goPage(dir, Math.min(currentHops, maxHops), currentHops > maxHops);
         }, true);
-
-        addListener(window, 'wheel', (event) => {
-            const cfg = getConfig();
-            if (!cfg.enabled || !isFastScrollWheelGesture(event, cfg)) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-            scrollPageFast(scrollCore.getWheelDeltaPixels(event) > 0 ? 1 : -1, event);
-        }, { capture: true, passive: false });
 
         addListener(window, 'pointerdown', (event) => {
             updatePointerPosition(event);
@@ -343,34 +268,25 @@
         addListener(window, 'mousedown', (event) => {
             state.rcHandled = false;
             if (event.button !== 2 || isEditable(event.target)) return;
-            if (getValidLink(event)) {
-                state.dblRight.lastEvent = null;
-                return;
-            }
+            if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
 
             const cfg = getConfig();
             const now = Date.now();
             if (now - pageLoadTime < 1000) return;
-            clearTimeout(state.dblRight.timer);
 
-            if (!cfg.dblRight.enabled) return;
-
-            if (state.dblRight.lastEvent && now - state.dblRight.lastEvent.time < cfg.dblRight.ms && dist(event.clientX, event.clientY, state.dblRight.lastEvent.x, state.dblRight.lastEvent.y) < TOLERANCE.move) {
+            const link = getValidLink(event);
+            if (link && cfg.enabled && cfg.rclick.enabled) {
                 event.preventDefault();
                 event.stopPropagation();
-                state.dblRight.lastEvent = null;
                 state.rcHandled = true;
-                closeTab();
+                openTab(link.href, cfg.rclick.mode);
                 return;
             }
-
-            state.dblRight.lastEvent = { time: now, x: event.clientX, y: event.clientY };
-            state.dblRight.timer = setTimeout(() => {
-                state.dblRight.lastEvent = null;
-            }, cfg.dblRight.ms + 100);
         }, true);
 
         addListener(window, 'contextmenu', (event) => {
+            if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+
             if (state.rcHandled || guard(event)) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -392,7 +308,6 @@
         return {
             destroy() {
                 cancelLongPress();
-                clearTimeout(state.dblRight.timer);
                 clearTimeout(state.pager.timer);
                 hidePagerIcon();
                 state.pagerIndicator?.remove();

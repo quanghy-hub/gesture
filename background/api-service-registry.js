@@ -113,7 +113,7 @@
     const getGoogleCooldownError = () => {
         const remainingMs = Math.max(0, googleCooldownUntil - Date.now());
         const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
-        return new Error(`Google Translate dang tam khoa, thu lai sau ${remainingSeconds}s`);
+        return new Error(`Google Translate đang tạm khóa, thử lại sau ${remainingSeconds}s`);
     };
     const isGoogleRateLimitError = (error) => {
         const message = String(error?.message || error || '').toLowerCase();
@@ -121,19 +121,20 @@
             message.includes('google translate http 429') ||
             message.includes('sorry') ||
             message.includes('unexpected content-type') ||
+            message.includes('tạm khóa') ||
             message.includes('tam khoa')
         );
     };
     const getFriendlyTranslateError = (primaryError, fallbackError) => {
         if (isGoogleRateLimitError(primaryError)) {
-            return `Google Translate dang bi gioi han. Fallback cung that bai: ${String(fallbackError?.message || fallbackError || 'Unknown error')}`;
+            return `Google Translate đang bị giới hạn. Fallback cũng thất bại: ${String(fallbackError?.message || fallbackError || 'Unknown error')}`;
         }
         return String(
             fallbackError?.message ||
             primaryError?.message ||
             fallbackError ||
             primaryError ||
-            'Loi dich tam thoi. Thu lai sau.'
+            'Lỗi dịch tạm thời. Thử lại sau.'
         );
     };
     const getFriendlyOcrError = (primaryError, fallbackError) => String(
@@ -141,14 +142,10 @@
         primaryError?.message ||
         fallbackError ||
         primaryError ||
-        'Loi OCR tam thoi. Thu lai sau.'
+        'Lỗi OCR tạm thời. Thử lại sau.'
     );
 
-    const getStoredConfig = async () => {
-        const storageKey = ext.shared.config.STORAGE_KEY;
-        const result = await chrome.storage.local.get([storageKey]);
-        return normalizeConfig(result?.[storageKey]);
-    };
+    const getStoredConfig = () => ext.shared.storage.getConfig();
 
     const getProviderSettings = (config, serviceType, providerId) => {
         return config?.apiServices?.[serviceType]?.providers?.[providerId] || {};
@@ -389,6 +386,7 @@
     ext.background.apiServiceRegistry = {
         detectTargetLanguage,
         executeTranslate,
-        executeOcr
+        executeOcr,
+        splitTranslateText
     };
 })();
