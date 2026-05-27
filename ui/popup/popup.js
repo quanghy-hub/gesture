@@ -660,8 +660,15 @@
         setBackupStatus('Verifying Worker connection...');
         try {
             await saveSyncSettingsFromControls();
-            const remote = await cloudflareSync.verify(getSyncSettingsFromControls());
-            setBackupStatus(`Connected to Worker · revision ${remote.revision || 0}`, 'ok');
+            const result = await cloudflareSync.bootstrapProfile(getSyncSettingsFromControls());
+            if (result.config) {
+                config = result.config;
+                render();
+            }
+            setBackupStatus(
+                `${result.action === 'pulled' ? 'Pulled cloud profile' : 'Connected to Worker'} · revision ${result.state.revision || 0}`,
+                'ok'
+            );
         } catch (error) {
             setBackupStatus(`Connection failed: ${error.message}`, 'err');
         } finally {

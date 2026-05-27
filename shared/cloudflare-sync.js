@@ -181,6 +181,11 @@
         return normalizeConfig(syncedConfig);
     };
 
+    const hasProfileConfig = (state, profileId) => {
+        const activeProfile = profileId || 'macbook';
+        return !!(state?.profiles?.[activeProfile]?.settings?.config || state?.config);
+    };
+
     const requestState = async (method, body, overrideSettings = {}) => {
         const settings = {
             ...await loadSettings(),
@@ -224,6 +229,25 @@
         return { config, state };
     };
 
+    const bootstrapProfile = async (overrideSettings = {}) => {
+        const settings = {
+            ...await loadSettings(),
+            ...overrideSettings
+        };
+        const state = await requestState('GET', null, settings);
+
+        if (hasProfileConfig(state, settings.profile)) {
+            const config = extractConfig(state, settings.profile);
+            await setLocal({ [KEYS.skipNextConfigChange]: true });
+            await ext.shared.storage.saveConfig(config);
+            await markReady(state.revision, settings.profile);
+            return { action: 'pulled', config, state };
+        }
+
+        await markReady(state.revision, settings.profile);
+        return { action: 'ready', config: null, state };
+    };
+
     const pushConfig = async (config, overrideSettings = {}) => {
         const settings = {
             ...await loadSettings(),
@@ -264,6 +288,13 @@
             if (autoSyncRunning) return;
             autoSyncRunning = true;
             try {
+                if (!settings.ready) {
+                    const boot = await bootstrapProfile(settings);
+                    if (boot.action === 'pulled') {
+                        onStatus?.(`Pulled cloud profile at ${new Date().toLocaleTimeString()}`, 'ok');
+                        return;
+                    }
+                }
                 const config = typeof getConfig === 'function' ? await getConfig() : null;
                 if (!config) return;
                 await pushConfig(config);
@@ -287,6 +318,7 @@
         pushConfig,
         saveSettings,
         scheduleAutoSync,
+        bootstrapProfile,
         verify
     };
 })();
