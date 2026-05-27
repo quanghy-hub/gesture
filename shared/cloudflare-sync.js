@@ -39,6 +39,12 @@
         year: 'numeric'
     });
     const statusSuffix = (revision) => `revision ${Number.isSafeInteger(revision) ? revision : 0} · ${formatSyncStamp()}`;
+    const persistStatus = async (message, type = '') => {
+        await setLocal({
+            [KEYS.status]: message,
+            [KEYS.statusType]: type
+        });
+    };
     const normalizeReadyProfiles = (value, legacyReady, activeProfile) => {
         const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
         const readyProfiles = {};
@@ -302,16 +308,22 @@
                 if (!settings.ready) {
                     const boot = await bootstrapProfile(settings);
                     if (boot.action === 'pulled') {
-                        onStatus?.(`Pulled cloud profile · ${statusSuffix(boot.state?.revision)}`, 'ok');
+                        const message = `Pulled cloud profile · ${statusSuffix(boot.state?.revision)}`;
+                        await persistStatus(message, 'ok');
+                        onStatus?.(message, 'ok');
                         return;
                     }
                 }
                 const config = typeof getConfig === 'function' ? await getConfig() : null;
                 if (!config) return;
                 const state = await pushConfig(config);
-                onStatus?.(`Auto sync succeeded · ${statusSuffix(state?.revision)}`, 'ok');
+                const message = `Auto sync succeeded · ${statusSuffix(state?.revision)}`;
+                await persistStatus(message, 'ok');
+                onStatus?.(message, 'ok');
             } catch (error) {
-                onStatus?.(`Auto sync failed: ${error.message}`, 'err');
+                const message = `Auto sync failed: ${error.message}`;
+                await persistStatus(message, 'err');
+                onStatus?.(message, 'err');
                 console.error('[GestureExtension] Cloudflare auto sync failed', error);
             } finally {
                 autoSyncRunning = false;
