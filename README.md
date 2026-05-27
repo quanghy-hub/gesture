@@ -35,9 +35,10 @@ Popup có panel **Cloudflare Sync** dùng chung Worker `extension` và app names
 
 - Worker URL mặc định: `https://extension.quavav15-6.workers.dev`
 - API code là secret `SYNC_API_KEY` của Worker.
-- `Đẩy lên` lưu toàn bộ config Gesture hiện tại lên `/sync/gesture/state`.
-- `Kéo về` tải config cloud và nạp lại vào extension.
-- `Auto sync` chỉ chạy sau khi máy này đã `Kéo về` hoặc `Đẩy lên` thành công ít nhất một lần, để tránh máy mới ghi đè cloud ngay khi vừa cài.
+- `MacBook` và `Mobile` là 2 profile config riêng trong `/sync/gesture/state`.
+- `Đẩy lên` chỉ lưu config của profile đang chọn.
+- `Kéo về` chỉ tải config của profile đang chọn.
+- `Auto sync` được bật và đánh dấu sẵn sàng riêng cho từng profile; profile mới phải `Kéo về` hoặc `Đẩy lên` một lần trước khi auto-sync để tránh ghi đè cloud bằng config mặc định.
 
 ## Ghi chú hiệu năng
 

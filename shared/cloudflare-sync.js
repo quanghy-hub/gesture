@@ -5,6 +5,7 @@
     const APP_ID = 'gesture';
     const DEFAULT_WORKER_URL = 'https://extension.quavav15-6.workers.dev';
     const AUTO_SYNC_DELAY = 1200;
+    const PROFILE_IDS = ['macbook', 'mobile'];
 
     const KEYS = {
         workerUrl: 'gestureSyncWorkerUrl',
@@ -15,6 +16,7 @@
         profile: 'gestureSyncProfile',
         profiles: 'gestureSyncProfiles',
         ready: 'gestureSyncReady',
+        readyProfiles: 'gestureSyncReadyProfiles',
         revision: 'gestureSyncRevision',
         skipNextConfigChange: 'gestureSyncSkipNextConfigChange'
     };
@@ -26,7 +28,21 @@
     const setLocal = (payload) => ext.shared.storage.setLocal(payload);
     const normalizeWorkerUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
     const normalizeMode = (value) => value === 'auto' ? 'auto' : 'manual';
+    const normalizeProfileId = (value) => value === 'mobile' ? 'mobile' : 'macbook';
     const isSafeRevision = (value) => Number.isSafeInteger(value) ? value : null;
+    const normalizeReadyProfiles = (value, legacyReady, activeProfile) => {
+        const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+        const readyProfiles = {};
+        PROFILE_IDS.forEach((profileId) => {
+            if (source[profileId] === true) {
+                readyProfiles[profileId] = true;
+            }
+        });
+        if (!Object.keys(readyProfiles).length && legacyReady === true) {
+            readyProfiles[normalizeProfileId(activeProfile)] = true;
+        }
+        return readyProfiles;
+    };
 
     const getHeaders = (apiCode) => {
         const token = String(apiCode || '').trim();
@@ -48,19 +64,23 @@
             KEYS.apiCode,
             KEYS.mode,
             KEYS.ready,
+            KEYS.readyProfiles,
             KEYS.revision,
             KEYS.profile,
             KEYS.autosyncMacbook,
             KEYS.autosyncMobile
         ]);
+        const profile = normalizeProfileId(result[KEYS.profile]);
+        const readyProfiles = normalizeReadyProfiles(result[KEYS.readyProfiles], result[KEYS.ready], profile);
 
         return {
             workerUrl: normalizeWorkerUrl(result[KEYS.workerUrl] || DEFAULT_WORKER_URL),
             apiCode: String(result[KEYS.apiCode] || '').trim(),
             mode: normalizeMode(result[KEYS.mode]),
-            ready: result[KEYS.ready] === true,
+            ready: readyProfiles[profile] === true,
+            readyProfiles,
             revision: isSafeRevision(result[KEYS.revision]),
-            profile: result[KEYS.profile] === 'mobile' ? 'mobile' : 'macbook',
+            profile,
             autosyncMacbook: result[KEYS.autosyncMacbook] === true,
             autosyncMobile: result[KEYS.autosyncMobile] === true
         };
@@ -75,7 +95,10 @@
         next.workerUrl = normalizeWorkerUrl(next.workerUrl);
         next.apiCode = String(next.apiCode || '').trim();
         next.mode = normalizeMode(next.mode);
+        next.profile = normalizeProfileId(next.profile);
         next.revision = isSafeRevision(next.revision);
+        next.readyProfiles = normalizeReadyProfiles(next.readyProfiles, next.ready, next.profile);
+        next.ready = next.readyProfiles[next.profile] === true;
 
         const resetReady = (
             Object.prototype.hasOwnProperty.call(patch, 'workerUrl') && next.workerUrl !== current.workerUrl
@@ -88,7 +111,8 @@
             [KEYS.apiCode]: next.apiCode,
             [KEYS.mode]: next.mode,
             [KEYS.ready]: resetReady ? false : next.ready,
-            [KEYS.profile]: next.profile === 'mobile' ? 'mobile' : 'macbook',
+            [KEYS.readyProfiles]: resetReady ? {} : next.readyProfiles,
+            [KEYS.profile]: next.profile,
             [KEYS.autosyncMacbook]: next.autosyncMacbook === true,
             [KEYS.autosyncMobile]: next.autosyncMobile === true
         };
@@ -96,6 +120,7 @@
         if (resetReady) {
             payload[KEYS.revision] = null;
             next.ready = false;
+            next.readyProfiles = {};
             next.revision = null;
         } else if (next.revision !== null) {
             payload[KEYS.revision] = next.revision;
@@ -121,8 +146,17 @@
         return revision;
     };
 
-    const markReady = async (revision) => {
-        const payload = { [KEYS.ready]: true };
+    const markReady = async (revision, profileId) => {
+        const settings = await loadSettings();
+        const activeProfile = normalizeProfileId(profileId || settings.profile);
+        const readyProfiles = {
+            ...settings.readyProfiles,
+            [activeProfile]: true
+        };
+        const payload = {
+            [KEYS.ready]: readyProfiles[settings.profile] === true,
+            [KEYS.readyProfiles]: readyProfiles
+        };
         if (Number.isSafeInteger(revision)) {
             payload[KEYS.revision] = revision;
         }
@@ -192,7 +226,7 @@
         const config = extractConfig(state, settings.profile);
         await setLocal({ [KEYS.skipNextConfigChange]: true });
         await ext.shared.storage.saveConfig(config);
-        await markReady(state.revision);
+        await markReady(state.revision, settings.profile);
         return { config, state };
     };
 
@@ -202,7 +236,7 @@
             ...overrideSettings
         };
         const state = await requestState('PUT', buildPayload(config, settings.revision, settings.profile), settings);
-        await markReady(state.revision);
+        await markReady(state.revision, settings.profile);
         return state;
     };
 
