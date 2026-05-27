@@ -122,8 +122,6 @@
     const backupApiCode = safeGetElementById('backup-api-code');
     const profileMacbook = safeGetElementById('profile-macbook');
     const profileMobile = safeGetElementById('profile-mobile');
-    const autosyncMacbook = safeGetElementById('autosync-macbook');
-    const autosyncMobile = safeGetElementById('autosync-mobile');
     const backupVerify = safeGetElementById('backup-verify');
     const backupPush = safeGetElementById('backup-push');
     const backupPull = safeGetElementById('backup-pull');
@@ -186,7 +184,7 @@
     const getSyncSettingsFromControls = () => ({
         workerUrl: backupWorkerUrl.value.trim(),
         apiCode: backupApiCode.value.trim(),
-        mode: (autosyncMacbook.checked || autosyncMobile.checked) ? 'auto' : 'manual'
+        profile: profileMobile.checked ? 'mobile' : 'macbook'
     });
 
     const renderSyncSettings = (settings) => {
@@ -197,8 +195,6 @@
         } else {
             profileMacbook.checked = true;
         }
-        autosyncMacbook.checked = settings.autosyncMacbook === true;
-        autosyncMobile.checked = settings.autosyncMobile === true;
     };
 
     const saveSyncSettingsFromControls = async (patch = {}) => {
@@ -216,6 +212,7 @@
             const syncSettings = await cloudflareSync.loadSettings();
             const currentProfile = syncSettings.profile;
             if (currentProfile === nextProfileId) return;
+            await cloudflareSync.saveSettings({ profile: nextProfileId });
 
             const result = await ext.shared.storage.getLocal(['gestureSyncProfiles']);
             const profiles = result.gestureSyncProfiles || {};
@@ -242,7 +239,7 @@
 
             config = await storage.saveConfig(nextConfig);
             
-            const nextSyncSettings = await cloudflareSync.saveSettings({ profile: nextProfileId });
+            const nextSyncSettings = await cloudflareSync.loadSettings();
             renderSyncSettings(nextSyncSettings);
             render();
             
@@ -658,41 +655,13 @@
         }
     });
 
-    autosyncMacbook?.addEventListener('change', () => {
-        saveSyncSettingsFromControls({
-            autosyncMacbook: autosyncMacbook.checked
-        }).then((settings) => {
-            if (settings.autosyncMacbook) {
-                setBackupStatus('Auto-sync for MacBook is enabled.', 'ok');
-            } else {
-                setBackupStatus('Auto-sync for MacBook is disabled.');
-            }
-        }).catch((error) => {
-            setBackupStatus(`Error saving auto-sync: ${error.message}`, 'err');
-        });
-    });
-
-    autosyncMobile?.addEventListener('change', () => {
-        saveSyncSettingsFromControls({
-            autosyncMobile: autosyncMobile.checked
-        }).then((settings) => {
-            if (settings.autosyncMobile) {
-                setBackupStatus('Auto-sync for Mobile is enabled.', 'ok');
-            } else {
-                setBackupStatus('Auto-sync for Mobile is disabled.');
-            }
-        }).catch((error) => {
-            setBackupStatus(`Error saving auto-sync: ${error.message}`, 'err');
-        });
-    });
-
     backupVerify?.addEventListener('click', async () => {
         backupVerify.disabled = true;
         setBackupStatus('Verifying Worker connection...');
         try {
             await saveSyncSettingsFromControls();
-            const remote = await cloudflareSync.verify(getSyncSettingsFromControls());
-            setBackupStatus(`Connected to Worker · revision ${remote.revision || 0}`, 'ok');
+            await cloudflareSync.verify(getSyncSettingsFromControls());
+            setBackupStatus('Connected to Worker', 'ok');
         } catch (error) {
             setBackupStatus(`Connection failed: ${error.message}`, 'err');
         } finally {
@@ -708,8 +677,8 @@
             if (pendingSave) {
                 await pendingSave;
             }
-            const remote = await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
-            setBackupStatus(`Push succeeded · revision ${remote.revision || 0}`, 'ok');
+            await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
+            setBackupStatus('Push succeeded', 'ok');
         } catch (error) {
             setBackupStatus(`Push failed: ${error.message}`, 'err');
         } finally {
@@ -725,7 +694,7 @@
             const result = await cloudflareSync.pullConfig(getSyncSettingsFromControls());
             config = result.config;
             render();
-            setBackupStatus(`Pull succeeded · revision ${result.state.revision || 0}`, 'ok');
+            setBackupStatus('Pull succeeded', 'ok');
         } catch (error) {
             setBackupStatus(`Pull failed: ${error.message}`, 'err');
         } finally {

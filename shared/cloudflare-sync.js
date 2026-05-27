@@ -11,8 +11,6 @@
         workerUrl: 'gestureSyncWorkerUrl',
         apiCode: 'gestureSyncApiCode',
         mode: 'gestureSyncMode',
-        autosyncMacbook: 'gestureSyncAutosyncMacbook',
-        autosyncMobile: 'gestureSyncAutosyncMobile',
         profile: 'gestureSyncProfile',
         profiles: 'gestureSyncProfiles',
         ready: 'gestureSyncReady',
@@ -66,9 +64,7 @@
             KEYS.ready,
             KEYS.readyProfiles,
             KEYS.revision,
-            KEYS.profile,
-            KEYS.autosyncMacbook,
-            KEYS.autosyncMobile
+            KEYS.profile
         ]);
         const profile = normalizeProfileId(result[KEYS.profile]);
         const readyProfiles = normalizeReadyProfiles(result[KEYS.readyProfiles], result[KEYS.ready], profile);
@@ -80,9 +76,7 @@
             ready: readyProfiles[profile] === true,
             readyProfiles,
             revision: isSafeRevision(result[KEYS.revision]),
-            profile,
-            autosyncMacbook: result[KEYS.autosyncMacbook] === true,
-            autosyncMobile: result[KEYS.autosyncMobile] === true
+            profile
         };
     };
 
@@ -112,9 +106,7 @@
             [KEYS.mode]: next.mode,
             [KEYS.ready]: resetReady ? false : next.ready,
             [KEYS.readyProfiles]: resetReady ? {} : next.readyProfiles,
-            [KEYS.profile]: next.profile,
-            [KEYS.autosyncMacbook]: next.autosyncMacbook === true,
-            [KEYS.autosyncMobile]: next.autosyncMobile === true
+            [KEYS.profile]: next.profile
         };
 
         if (resetReady) {
@@ -266,8 +258,7 @@
         }
 
         const settings = await loadSettings();
-        const isAutosyncEnabled = settings.profile === 'mobile' ? settings.autosyncMobile : settings.autosyncMacbook;
-        if (!isAutosyncEnabled || !settings.workerUrl || !settings.apiCode) return;
+        if (!settings.workerUrl || !settings.apiCode) return;
 
         autoSyncTimer = setTimeout(async () => {
             if (autoSyncRunning) return;
