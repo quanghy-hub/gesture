@@ -202,7 +202,9 @@
         });
 
         if (res.status === 409) {
-            throw new Error('Cloud has newer data. Please pull and verify first before pushing.');
+            const err = new Error('Revision conflict');
+            err.status = 409;
+            throw err;
         }
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
@@ -235,7 +237,17 @@
             ...await loadSettings(),
             ...overrideSettings
         };
-        const state = await requestState('PUT', buildPayload(config, settings.revision, settings.profile), settings);
+        let state;
+        try {
+            state = await requestState('PUT', buildPayload(config, settings.revision, settings.profile), settings);
+        } catch (error) {
+            if (error.status !== 409) throw error;
+            const latest = await requestState('GET', null, settings);
+            state = await requestState('PUT', buildPayload(config, latest.revision, settings.profile), {
+                ...settings,
+                revision: latest.revision
+            });
+        }
         await markReady(state.revision, settings.profile);
         return state;
     };
@@ -256,10 +268,6 @@
         const settings = await loadSettings();
         const isAutosyncEnabled = settings.profile === 'mobile' ? settings.autosyncMobile : settings.autosyncMacbook;
         if (!isAutosyncEnabled || !settings.workerUrl || !settings.apiCode) return;
-        if (!settings.ready) {
-            onStatus?.('Auto sync is waiting for the initial pull.', '');
-            return;
-        }
 
         autoSyncTimer = setTimeout(async () => {
             if (autoSyncRunning) return;

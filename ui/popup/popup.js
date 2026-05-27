@@ -207,10 +207,6 @@
             ...patch
         });
         renderSyncSettings(next);
-        const isAutosyncEnabled = next.profile === 'mobile' ? next.autosyncMobile : next.autosyncMacbook;
-        if (isAutosyncEnabled && !next.ready) {
-            setBackupStatus('Auto-sync will be enabled after the first successful pull.');
-        }
         return next;
     };
 
@@ -599,10 +595,6 @@
         return cloudflareSync.loadSettings();
     }).then((syncSettings) => {
         renderSyncSettings(syncSettings);
-        const isAutosyncEnabled = syncSettings.profile === 'mobile' ? syncSettings.autosyncMobile : syncSettings.autosyncMacbook;
-        if (isAutosyncEnabled && !syncSettings.ready) {
-            setBackupStatus('Auto-sync will be enabled after the first successful pull.');
-        }
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
     });
@@ -671,11 +663,7 @@
             autosyncMacbook: autosyncMacbook.checked
         }).then((settings) => {
             if (settings.autosyncMacbook) {
-                if (!settings.ready) {
-                    setBackupStatus('Auto-sync will be enabled after the first successful pull.');
-                } else {
-                    setBackupStatus('Auto-sync for MacBook is enabled.', 'ok');
-                }
+                setBackupStatus('Auto-sync for MacBook is enabled.', 'ok');
             } else {
                 setBackupStatus('Auto-sync for MacBook is disabled.');
             }
@@ -689,11 +677,7 @@
             autosyncMobile: autosyncMobile.checked
         }).then((settings) => {
             if (settings.autosyncMobile) {
-                if (!settings.ready) {
-                    setBackupStatus('Auto-sync will be enabled after the first successful pull.');
-                } else {
-                    setBackupStatus('Auto-sync for Mobile is enabled.', 'ok');
-                }
+                setBackupStatus('Auto-sync for Mobile is enabled.', 'ok');
             } else {
                 setBackupStatus('Auto-sync for Mobile is disabled.');
             }

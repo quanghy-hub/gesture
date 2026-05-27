@@ -38,7 +38,7 @@ Popup có panel **Cloudflare Sync** dùng chung Worker `extension` và app names
 - `MacBook` và `Mobile` là 2 profile config riêng trong `/sync/gesture/state`.
 - `Đẩy lên` chỉ lưu config của profile đang chọn.
 - `Kéo về` chỉ tải config của profile đang chọn.
-- `Auto sync` được bật và đánh dấu sẵn sàng riêng cho từng profile; profile mới phải `Kéo về` hoặc `Đẩy lên` một lần trước khi auto-sync để tránh ghi đè cloud bằng config mặc định.
+- `Auto sync` chạy ngay khi profile đang chọn bật auto-sync và đã có Worker URL/API code. Nếu cloud có revision mới hơn, extension tự lấy revision mới rồi đẩy lại đúng profile đang chọn.
 
 ## Ghi chú hiệu năng
 
