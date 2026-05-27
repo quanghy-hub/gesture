@@ -4,7 +4,7 @@
 
     const APP_ID = 'gesture';
     const DEFAULT_WORKER_URL = 'https://extension.quavav15-6.workers.dev';
-    const AUTO_SYNC_DELAY = 1200;
+    const AUTO_SYNC_DELAY = 10000;
     const PROFILE_IDS = ['macbook', 'mobile'];
 
     const KEYS = {

@@ -660,8 +660,8 @@
         setBackupStatus('Verifying Worker connection...');
         try {
             await saveSyncSettingsFromControls();
-            await cloudflareSync.verify(getSyncSettingsFromControls());
-            setBackupStatus('Connected to Worker', 'ok');
+            const remote = await cloudflareSync.verify(getSyncSettingsFromControls());
+            setBackupStatus(`Connected to Worker · revision ${remote.revision || 0}`, 'ok');
         } catch (error) {
             setBackupStatus(`Connection failed: ${error.message}`, 'err');
         } finally {
@@ -677,8 +677,8 @@
             if (pendingSave) {
                 await pendingSave;
             }
-            await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
-            setBackupStatus('Push succeeded', 'ok');
+            const remote = await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
+            setBackupStatus(`Push succeeded · revision ${remote.revision || 0}`, 'ok');
         } catch (error) {
             setBackupStatus(`Push failed: ${error.message}`, 'err');
         } finally {
@@ -694,7 +694,7 @@
             const result = await cloudflareSync.pullConfig(getSyncSettingsFromControls());
             config = result.config;
             render();
-            setBackupStatus('Pull succeeded', 'ok');
+            setBackupStatus(`Pull succeeded · revision ${result.state.revision || 0}`, 'ok');
         } catch (error) {
             setBackupStatus(`Pull failed: ${error.message}`, 'err');
         } finally {
