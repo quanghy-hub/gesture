@@ -197,6 +197,23 @@
         if (!backupStatus) return;
         backupStatus.textContent = message;
         backupStatus.className = `section-note backup-status${type ? ` ${type}` : ''}`;
+        ext.shared.storage.setLocal({
+            [cloudflareSync.KEYS.status]: message,
+            [cloudflareSync.KEYS.statusType]: type
+        }).catch((error) => {
+            console.error('[GestureExtension][popup] Failed to persist sync status', error);
+        });
+    };
+
+    const loadBackupStatus = async () => {
+        const result = await ext.shared.storage.getLocal([
+            cloudflareSync.KEYS.status,
+            cloudflareSync.KEYS.statusType
+        ]);
+        if (result[cloudflareSync.KEYS.status]) {
+            backupStatus.textContent = result[cloudflareSync.KEYS.status];
+            backupStatus.className = `section-note backup-status${result[cloudflareSync.KEYS.statusType] ? ` ${result[cloudflareSync.KEYS.statusType]}` : ''}`;
+        }
     };
 
     const formatSyncStamp = (date = new Date()) => date.toLocaleString('vi-VN', {
@@ -621,6 +638,7 @@
         return cloudflareSync.loadSettings();
     }).then((syncSettings) => {
         renderSyncSettings(syncSettings);
+        return loadBackupStatus();
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
     });

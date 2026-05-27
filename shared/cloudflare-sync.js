@@ -16,6 +16,8 @@
         ready: 'gestureSyncReady',
         readyProfiles: 'gestureSyncReadyProfiles',
         revision: 'gestureSyncRevision',
+        status: 'gestureSyncStatus',
+        statusType: 'gestureSyncStatusType',
         skipNextConfigChange: 'gestureSyncSkipNextConfigChange'
     };
 
