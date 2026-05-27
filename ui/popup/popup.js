@@ -150,6 +150,23 @@
         .map((card) => card.dataset.panelId)
         .filter((value) => typeof value === 'string' && value);
 
+    const getOrderedPanelCards = (order) => {
+        const requestedOrder = Array.isArray(order) && order.length ? order : DEFAULT_POPUP_PANEL_ORDER;
+        const usedPanelIds = new Set();
+        const orderedCards = requestedOrder
+            .map((panelId) => panelCards.find((entry) => entry.dataset.panelId === panelId))
+            .filter((card) => {
+                const panelId = card?.dataset?.panelId;
+                if (!panelId || usedPanelIds.has(panelId)) {
+                    return false;
+                }
+                usedPanelIds.add(panelId);
+                return true;
+            });
+        const missingCards = panelCards.filter((card) => !usedPanelIds.has(card.dataset.panelId));
+        return [...orderedCards, ...missingCards];
+    };
+
     const clearDropIndicators = () => {
         panelCards.forEach((card) => {
             card.classList.remove('drag-over-top', 'drag-over-bottom');
@@ -157,13 +174,14 @@
     };
 
     const applyPanelOrder = (order) => {
-        const normalizedOrder = Array.isArray(order) && order.length ? order : DEFAULT_POPUP_PANEL_ORDER;
-        normalizedOrder.forEach((panelId) => {
-            const card = panelCards.find((entry) => entry.dataset.panelId === panelId);
-            if (card) {
-                popupRoot.appendChild(card);
-            }
-        });
+        const orderedCards = getOrderedPanelCards(order);
+        const currentCards = Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'));
+        const isAlreadyApplied = orderedCards.length === currentCards.length
+            && orderedCards.every((card, index) => card === currentCards[index]);
+        if (isAlreadyApplied) {
+            return;
+        }
+        orderedCards.forEach((card) => popupRoot.appendChild(card));
     };
 
     fillProviderOptions(apiTranslateProvider, TRANSLATE_PROVIDER_OPTIONS);
@@ -180,6 +198,17 @@
         backupStatus.textContent = message;
         backupStatus.className = `section-note backup-status${type ? ` ${type}` : ''}`;
     };
+
+    const formatSyncStamp = (date = new Date()) => date.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+
+    const syncStatusSuffix = (revision) => `revision ${Number.isSafeInteger(revision) ? revision : 0} · ${formatSyncStamp()}`;
 
     const getSyncSettingsFromControls = () => ({
         workerUrl: backupWorkerUrl.value.trim(),
@@ -666,7 +695,7 @@
                 render();
             }
             setBackupStatus(
-                `${result.action === 'pulled' ? 'Pulled cloud profile' : 'Connected to Worker'} · revision ${result.state.revision || 0}`,
+                `${result.action === 'pulled' ? 'Pulled cloud profile' : 'Connected to Worker'} · ${syncStatusSuffix(result.state.revision)}`,
                 'ok'
             );
         } catch (error) {
@@ -685,7 +714,7 @@
                 await pendingSave;
             }
             const remote = await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
-            setBackupStatus(`Push succeeded · revision ${remote.revision || 0}`, 'ok');
+            setBackupStatus(`Push succeeded · ${syncStatusSuffix(remote.revision)}`, 'ok');
         } catch (error) {
             setBackupStatus(`Push failed: ${error.message}`, 'err');
         } finally {
@@ -701,7 +730,7 @@
             const result = await cloudflareSync.pullConfig(getSyncSettingsFromControls());
             config = result.config;
             render();
-            setBackupStatus(`Pull succeeded · revision ${result.state.revision || 0}`, 'ok');
+            setBackupStatus(`Pull succeeded · ${syncStatusSuffix(result.state.revision)}`, 'ok');
         } catch (error) {
             setBackupStatus(`Pull failed: ${error.message}`, 'err');
         } finally {

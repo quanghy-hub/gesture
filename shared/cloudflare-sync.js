@@ -28,6 +28,15 @@
     const normalizeMode = (value) => value === 'auto' ? 'auto' : 'manual';
     const normalizeProfileId = (value) => value === 'mobile' ? 'mobile' : 'macbook';
     const isSafeRevision = (value) => Number.isSafeInteger(value) ? value : null;
+    const formatSyncStamp = (date = new Date()) => date.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+    const statusSuffix = (revision) => `revision ${Number.isSafeInteger(revision) ? revision : 0} · ${formatSyncStamp()}`;
     const normalizeReadyProfiles = (value, legacyReady, activeProfile) => {
         const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
         const readyProfiles = {};
@@ -291,14 +300,14 @@
                 if (!settings.ready) {
                     const boot = await bootstrapProfile(settings);
                     if (boot.action === 'pulled') {
-                        onStatus?.(`Pulled cloud profile at ${new Date().toLocaleTimeString()}`, 'ok');
+                        onStatus?.(`Pulled cloud profile · ${statusSuffix(boot.state?.revision)}`, 'ok');
                         return;
                     }
                 }
                 const config = typeof getConfig === 'function' ? await getConfig() : null;
                 if (!config) return;
-                await pushConfig(config);
-                onStatus?.(`Auto sync succeeded at ${new Date().toLocaleTimeString()}`, 'ok');
+                const state = await pushConfig(config);
+                onStatus?.(`Auto sync succeeded · ${statusSuffix(state?.revision)}`, 'ok');
             } catch (error) {
                 onStatus?.(`Auto sync failed: ${error.message}`, 'err');
                 console.error('[GestureExtension] Cloudflare auto sync failed', error);
