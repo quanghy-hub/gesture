@@ -35,6 +35,21 @@
             || tracks[0];
     };
 
+    const getActiveCaptionTrack = (video, managedTrack) => {
+        const tracks = getSubtitleTracks(video);
+        if (!tracks.length) {
+            return null;
+        }
+        const showingTrack = tracks.find((track) => track.mode === 'showing');
+        if (showingTrack) {
+            return showingTrack;
+        }
+        if (managedTrack && tracks.includes(managedTrack) && managedTrack.mode === 'hidden') {
+            return managedTrack;
+        }
+        return null;
+    };
+
     const extractCaptionTextFromDom = () => {
         const captionRoots = queryAllDeep('.caption-window, .ytp-caption-window-container, .captions-text');
         for (const root of [...captionRoots].reverse()) {
@@ -70,6 +85,7 @@
     youtubeSubtitles.captionSource = {
         getSubtitleTracks,
         getPreferredTrack,
+        getActiveCaptionTrack,
         hideNativeCaptionTracks(video) {
             getSubtitleTracks(video).forEach((track) => {
                 try {
@@ -79,17 +95,21 @@
                 }
             });
         },
-        extractCaptionText(video) {
-            const track = getPreferredTrack(video);
+        hideNativeCaptionTrack(track) {
             if (!track) {
-                return extractCaptionTextFromDom();
+                return;
             }
             try {
-                if (track.mode === 'disabled') {
+                if (track.mode === 'showing') {
                     track.mode = 'hidden';
                 }
             } catch {
                 // Ignore track mode errors.
+            }
+        },
+        extractCaptionText(video, track = getPreferredTrack(video)) {
+            if (!track) {
+                return getSubtitleTracks(video).length ? '' : extractCaptionTextFromDom();
             }
             const activeCues = Array.from(track.activeCues || []);
             if (activeCues.length) {
@@ -107,6 +127,14 @@
         },
         bindTrackCueChange(video, onChange) {
             const removers = [];
+            if (typeof video?.textTracks?.addEventListener === 'function') {
+                video.textTracks.addEventListener('addtrack', onChange);
+                video.textTracks.addEventListener('change', onChange);
+                removers.push(() => {
+                    video.textTracks.removeEventListener('addtrack', onChange);
+                    video.textTracks.removeEventListener('change', onChange);
+                });
+            }
             getSubtitleTracks(video).forEach((track) => {
                 if (typeof track.addEventListener === 'function') {
                     track.addEventListener('cuechange', onChange);

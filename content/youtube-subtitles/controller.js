@@ -12,13 +12,40 @@
             lastSource: '',
             lastRenderedSource: '',
             consumedWordCount: 0,
+            renderGeneration: 0,
             mounted: false,
             pageEventsBound: false,
             video: null,
+            captionTrack: null,
             detachTrackListener: null,
             videoSyncHandler: null,
             navigateTimer: 0,
             locationPollTimer: 0
+        };
+
+        const NAVIGATION_RETRY_DELAY_MS = 500;
+        const MAX_NAVIGATION_RETRY_ATTEMPTS = 20;
+
+        const getCurrentVideo = () => ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
+        const getNativeCaptionButton = () => ext.shared.domUtils.queryDeep('.ytp-subtitles-button')
+            || document.querySelector('.ytp-subtitles-button');
+        const isNativeCaptionEnabled = () => {
+            const button = getNativeCaptionButton();
+            return button?.getAttribute('aria-pressed') === 'true';
+        };
+
+        const resetCaptionState = () => {
+            state.lastSource = '';
+            state.lastRenderedSource = '';
+            state.consumedWordCount = 0;
+        };
+
+        const releaseCaptionTrack = () => {
+            state.captionTrack = null;
+        };
+
+        const invalidatePendingRender = () => {
+            state.renderGeneration += 1;
         };
 
         const createCaptionObserver = (onChange) => {
@@ -33,6 +60,8 @@
                     mutationObserver.observe(target, {
                         childList: true,
                         subtree: true,
+                        attributes: true,
+                        attributeFilter: ['aria-pressed', 'class'],
                         characterData: true
                     });
                 },
@@ -68,24 +97,42 @@
         };
 
         const renderCurrentCaption = async () => {
-            const video = state.video || ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
+            const video = state.video || getCurrentVideo();
             if (!video) {
                 youtubeSubtitles.dom.removeSubtitleContainer();
                 youtubeSubtitles.dom.setPlayerTranslating(false);
-                state.lastSource = '';
-                state.lastRenderedSource = '';
-                state.consumedWordCount = 0;
+                resetCaptionState();
                 return;
             }
 
-            youtubeSubtitles.captionSource.hideNativeCaptionTracks(video);
-            const source = youtubeSubtitles.captionSource.extractCaptionText(video);
-            if (!source) {
+            if (!isNativeCaptionEnabled()) {
+                releaseCaptionTrack();
                 youtubeSubtitles.dom.removeSubtitleContainer();
                 youtubeSubtitles.dom.setPlayerTranslating(false);
-                state.lastSource = '';
-                state.lastRenderedSource = '';
-                state.consumedWordCount = 0;
+                resetCaptionState();
+                return;
+            }
+
+            let source = '';
+            const captionTrack = youtubeSubtitles.captionSource.getActiveCaptionTrack(video, state.captionTrack);
+            if (captionTrack) {
+                state.captionTrack = captionTrack;
+                youtubeSubtitles.captionSource.hideNativeCaptionTrack(captionTrack);
+                source = youtubeSubtitles.captionSource.extractCaptionText(video, captionTrack);
+            } else if (!youtubeSubtitles.captionSource.getSubtitleTracks(video).length) {
+                releaseCaptionTrack();
+                source = youtubeSubtitles.captionSource.extractCaptionText(video, null);
+            } else {
+                releaseCaptionTrack();
+                youtubeSubtitles.dom.removeSubtitleContainer();
+                youtubeSubtitles.dom.setPlayerTranslating(false);
+                resetCaptionState();
+                return;
+            }
+            if (!source) {
+                youtubeSubtitles.dom.removeSubtitleContainer();
+                youtubeSubtitles.dom.setPlayerTranslating(!!captionTrack);
+                resetCaptionState();
                 return;
             }
 
@@ -100,7 +147,11 @@
                 return;
             }
 
+            const renderGeneration = state.renderGeneration;
             const translation = await youtubeSubtitles.translator.translateCaption(displaySource, settings);
+            if (!state.enabled || renderGeneration !== state.renderGeneration) {
+                return;
+            }
             const translated = translation?.text || '';
             const errorMessage = translation?.error || '';
             if ((!translated || translated === displaySource) && !errorMessage) {
@@ -124,11 +175,11 @@
         const stopTranslationMode = () => {
             observer?.stop();
             state.enabled = false;
-            state.lastSource = '';
-            state.lastRenderedSource = '';
-            state.consumedWordCount = 0;
+            resetCaptionState();
+            invalidatePendingRender();
             state.detachTrackListener?.();
             state.detachTrackListener = null;
+            releaseCaptionTrack();
             if (state.video && state.videoSyncHandler) {
                 state.video.removeEventListener('timeupdate', state.videoSyncHandler);
                 state.video.removeEventListener('seeked', state.videoSyncHandler);
@@ -156,6 +207,7 @@
             }
             state.detachTrackListener?.();
             state.detachTrackListener = null;
+            releaseCaptionTrack();
             state.video = video;
             state.videoSyncHandler = () => {
                 if (state.enabled) {
@@ -169,16 +221,16 @@
         };
 
         const startTranslationMode = () => {
-            const video = ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
+            const video = getCurrentVideo();
             if (!video) {
-                return;
+                return false;
             }
             state.enabled = true;
             observer?.start();
             bindVideoSync(video);
             youtubeSubtitles.dom.setTranslateButtonState(true);
-            youtubeSubtitles.dom.setPlayerTranslating(true);
             renderCurrentCaption().catch(() => { });
+            return true;
         };
 
         const toggleTranslationMode = () => {
@@ -222,22 +274,30 @@
                 }
             };
 
-            const onNavigateFinish = () => {
-                stopTranslationMode();
-                youtubeSubtitles.translator.clearCache();
+            const scheduleNavigationResume = (shouldResume, attempt = 0) => {
                 window.clearTimeout(state.navigateTimer);
                 state.navigateTimer = window.setTimeout(() => {
                     state.navigateTimer = 0;
                     if (youtubeSubtitles.isWatchPage()) {
                         document.body.dataset.gestureYoutubeSubtitlesMounted = 'true';
                         youtubeSubtitles.dom.mountControlButtons({ onToggleTranslate: toggleTranslationMode });
-                        if (settings?.enabled) {
-                            startTranslationMode();
+                        youtubeSubtitles.dom.applySettingsStyles(settings);
+                        if (shouldResume && !startTranslationMode() && attempt < MAX_NAVIGATION_RETRY_ATTEMPTS) {
+                            scheduleNavigationResume(shouldResume, attempt + 1);
                         }
                     } else {
                         delete document.body.dataset.gestureYoutubeSubtitlesMounted;
+                        youtubeSubtitles.dom.removeTranslateButtons();
                     }
-                }, 300);
+                }, attempt === 0 ? 300 : NAVIGATION_RETRY_DELAY_MS);
+            };
+
+            const onNavigateFinish = () => {
+                locationHref = window.location.href;
+                const shouldResume = state.enabled || settings?.enabled;
+                stopTranslationMode();
+                youtubeSubtitles.translator.clearCache();
+                scheduleNavigationResume(shouldResume);
             };
 
             const onLocationMaybeChanged = () => {

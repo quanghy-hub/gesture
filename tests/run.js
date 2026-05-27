@@ -46,6 +46,11 @@ try {
     loadScript('shared/namespace.js');
     loadScript('shared/config.js');
     loadScript('background/api-service-registry.js');
+    sandbox.globalThis.GestureExtension.shared.domUtils = {
+        queryAllDeep: () => []
+    };
+    loadScript('content/youtube-subtitles/constants.js');
+    loadScript('content/youtube-subtitles/caption-source.js');
     console.log('\x1b[32m✔ Nạp các module thành công.\x1b[0m');
 } catch (error) {
     console.error('\x1b[31m✘ Thất bại khi nạp module:\x1b[0m', error);
@@ -54,6 +59,7 @@ try {
 
 const { normalizeHost, normalizeConfig } = sandbox.globalThis.GestureExtension.shared.config;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
+const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
 
 // Chuyển đổi dữ liệu từ ngữ cảnh VM sang ngữ cảnh Main để tránh lỗi lệch prototype Array
 const toMainContext = (val) => {
@@ -164,6 +170,42 @@ runTest('splitTranslateText: phân tách cứng nếu có từ quá dài vượt
     const chunks = toMainContext(splitTranslateText(longWord, 10));
     assert.equal(chunks.length, 5); // Tách làm 5 mảnh
     assert.equal(chunks.join(''), longWord);
+});
+
+
+// --- YouTube subtitles captionSource ---
+runTest('captionSource: không tự chọn track phụ đề khi YouTube chưa bật CC', () => {
+    const disabledTrack = {
+        kind: 'captions',
+        mode: 'disabled',
+        language: 'en',
+        activeCues: [{ text: 'Hello world' }],
+        cues: []
+    };
+    const video = { currentTime: 1, textTracks: [disabledTrack] };
+
+    assert.equal(captionSource.getActiveCaptionTrack(video, null), null);
+    assert.equal(captionSource.extractCaptionText(video, null), '');
+    assert.equal(disabledTrack.mode, 'disabled');
+});
+
+runTest('captionSource: giữ track đã bật để dịch sau khi ẩn native caption', () => {
+    const showingTrack = {
+        kind: 'subtitles',
+        mode: 'showing',
+        language: 'en',
+        activeCues: [{ text: 'Hello   world' }],
+        cues: []
+    };
+    const video = { currentTime: 1, textTracks: [showingTrack] };
+
+    const activeTrack = captionSource.getActiveCaptionTrack(video, null);
+    assert.equal(activeTrack, showingTrack);
+
+    captionSource.hideNativeCaptionTrack(activeTrack);
+    assert.equal(showingTrack.mode, 'hidden');
+    assert.equal(captionSource.getActiveCaptionTrack(video, showingTrack), showingTrack);
+    assert.equal(captionSource.extractCaptionText(video, showingTrack), 'Hello world');
 });
 
 
