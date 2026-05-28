@@ -166,7 +166,7 @@
             translatedNode.textContent = translated || errorMessage;
             translatedNode.classList.toggle('sub-error', !translated && !!errorMessage);
             translatedNode.style.display = translatedNode.textContent ? '' : 'none';
-            originalNode.style.display = settings.displayMode === 'compact' && !settings.showOriginal ? 'none' : '';
+            originalNode.style.display = settings.showOriginal ? '' : 'none';
             state.lastRenderedSource = displaySource;
             youtubeSubtitles.dom.applySettingsStyles(settings);
             youtubeSubtitles.dom.setPlayerTranslating(true);

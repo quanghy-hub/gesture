@@ -59,7 +59,6 @@
     const youtubeSubtitlesTargetLang = safeGetElementById('youtube-subtitles-target-lang');
     const youtubeSubtitlesFontSize = safeGetElementById('youtube-subtitles-font-size');
     const youtubeSubtitlesTranslatedFontSize = safeGetElementById('youtube-subtitles-translated-font-size');
-    const youtubeSubtitlesDisplayMode = safeGetElementById('youtube-subtitles-display-mode');
     const youtubeSubtitlesShowOriginal = safeGetElementById('youtube-subtitles-show-original');
     const youtubeSubtitlesOriginalColor = safeGetElementById('youtube-subtitles-original-color');
     const youtubeSubtitlesTranslatedColor = safeGetElementById('youtube-subtitles-translated-color');
@@ -99,6 +98,10 @@
     const gRcMode = safeGetElementById('g-rc-mode');
     const gPagerEnabled = safeGetElementById('g-pager-enabled');
     const gPagerHops = safeGetElementById('g-pager-hops');
+    const gEdgeEnabled = safeGetElementById('g-edge-enabled');
+    const gEdgeSide = safeGetElementById('g-edge-side');
+    const gEdgeWidth = safeGetElementById('g-edge-width');
+    const gEdgeSpeed = safeGetElementById('g-edge-speed');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
     const unblockCopyCard = featureUnblockCopyEnabled.closest('.card');
@@ -361,7 +364,6 @@
         youtubeSubtitlesTranslatedFontSize.value = config.youtubeSubtitles?.translatedFontSize || 16;
         youtubeSubtitlesOriginalColor.value = config.youtubeSubtitles?.originalColor || '#ffffff';
         youtubeSubtitlesTranslatedColor.value = config.youtubeSubtitles?.translatedColor || '#0e8cef';
-        youtubeSubtitlesDisplayMode.value = config.youtubeSubtitles?.displayMode || 'compact';
         youtubeSubtitlesShowOriginal.checked = config.youtubeSubtitles?.showOriginal !== false;
         apiTranslateProvider.value = config.apiServices?.translate?.activeProvider || 'google';
         apiTranslateFallbackEnabled.checked = !!config.apiServices?.translate?.fallbackEnabled;
@@ -397,6 +399,10 @@
         gRcMode.value = gestures.rightClick.mode;
         gPagerEnabled.checked = !!gestures.pager.enabled;
         gPagerHops.value = gestures.pager.hops;
+        gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
+        gEdgeSide.value = gestures.edgeSwipe.side;
+        gEdgeWidth.value = gestures.edgeSwipe.width;
+        gEdgeSpeed.value = gestures.edgeSwipe.speed;
         hostBlacklistToggle.disabled = !normalizedActiveHost;
         hostBlacklistToggle.checked = normalizedActiveHost ? isHostExcluded(config, normalizedActiveHost) : false;
         hostBlacklistLabel.textContent = normalizedActiveHost || 'No host';
@@ -436,6 +442,12 @@
             pager: {
                 enabled: gPagerEnabled.checked,
                 hops: Number(gPagerHops.value)
+            },
+            edgeSwipe: {
+                enabled: gEdgeEnabled.checked,
+                side: gEdgeSide.value,
+                width: Number(gEdgeWidth.value),
+                speed: Number(gEdgeSpeed.value)
             }
         });
         const nextWithHostBlacklist = activeHost ? setHostExcluded(next, activeHost, hostBlacklistToggle.checked) : next;
@@ -493,7 +505,6 @@
         nextWithHostBlacklist.youtubeSubtitles.translatedFontSize = Number(youtubeSubtitlesTranslatedFontSize.value);
         nextWithHostBlacklist.youtubeSubtitles.originalColor = youtubeSubtitlesOriginalColor.value;
         nextWithHostBlacklist.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
-        nextWithHostBlacklist.youtubeSubtitles.displayMode = youtubeSubtitlesDisplayMode.value;
         nextWithHostBlacklist.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
         let normalized = nextWithHostBlacklist;
         if (activeHost) {
@@ -776,7 +787,6 @@
         inlineTranslateSelectionTranslateEnabled,
         inlineTranslateSwipeEnabled,
         inlineTranslateSwipeDir,
-        youtubeSubtitlesDisplayMode,
         youtubeSubtitlesShowOriginal,
         quickSearchImageSearchEnabled,
         forumWide,
@@ -784,6 +794,8 @@
         gLpMode,
         gRcEnabled,
         gRcMode,
+        gEdgeEnabled,
+        gEdgeSide,
         gPagerEnabled,
         hostBlacklistToggle
     ].forEach((control) => {
@@ -841,7 +853,9 @@
         forumFade,
         forumDelay,
         gLpMs,
-        gPagerHops
+        gPagerHops,
+        gEdgeWidth,
+        gEdgeSpeed
     ].forEach((control) => {
         registerAutoSave(control, 'change', { restoreWhenEmpty: true });
     });

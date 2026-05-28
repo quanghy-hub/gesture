@@ -42,7 +42,6 @@ const CONTENT_SCRIPT_DEFINITIONS = [
             'content/forum/early-style.js',
             'content/forum/controller.js',
             'content/forum/index.js',
-            'content/gestures/scroll-core.js',
             'content/gestures/desktop.js',
             'content/gestures/mobile.js',
             'content/gestures/index.js',

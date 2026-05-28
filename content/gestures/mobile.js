@@ -4,14 +4,12 @@
     const touch = ext.shared.touchCore;
 
     gestures.createMobileController = (context) => {
-        const TOLERANCE = { move: 20, tap: 30 };
+        const TOLERANCE = { move: 20 };
         const listeners = [];
         const state = {
             suppressUntil: 0,
             lpFired: false,
             lp: { timer: null, active: false, x: 0, y: 0 },
-            dblTap: { last: null },
-            dblTapTimer: null,
             edge: {
                 active: false,
                 lastY: 0,
@@ -183,20 +181,25 @@
             if (touch.isExtensionUiTarget(event)) {
                 cancelLongPress();
                 state.edge.active = false;
-                state.dblTap.last = null;
                 return;
             }
             if (!cfg.enabled || isEditable(event.target)) return;
 
-            const now = Date.now();
-
             if (!event.touches || event.touches.length !== 1) {
                 cancelLongPress();
-                state.dblTap.last = null;
                 return;
             }
 
             const touchPoint = event.touches[0];
+            const edgeStrength = cfg.edge.enabled ? getEdgeStrength(touchPoint.clientX) : 0;
+            if (edgeStrength > 0) {
+                const element = document.scrollingElement || document.documentElement;
+                state.edge.active = true;
+                state.edge.lastY = touchPoint.clientY;
+                state.edge.lastTime = Date.now();
+                state.edge.velocity = 0;
+                state.edge.targetScrollTop = element.scrollTop;
+            }
 
             if (!cfg.lpress.enabled) return;
             const link = getValidLink(event);
@@ -223,13 +226,6 @@
                 const touchPoint = event.touches[0];
                 if (dist(touchPoint.clientX, touchPoint.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {
                     cancelLongPress();
-                }
-            }
-
-            if (state.dblTap.last && event.touches.length === 1) {
-                const touchPoint = event.touches[0];
-                if (dist(touchPoint.clientX, touchPoint.clientY, state.dblTap.last.x, state.dblTap.last.y) > TOLERANCE.tap) {
-                    state.dblTap.last = null;
                 }
             }
 
@@ -272,19 +268,6 @@
             }
 
             state.edge.active = false;
-            const cfg = getConfig();
-            if (state.dblTap.last && !state.dblTap.last.ended) {
-                state.dblTap.last.ended = true;
-                state.dblTap.last.time = Date.now();
-                const savedTime = state.dblTap.last.time;
-                clearTimeout(state.dblTapTimer);
-                state.dblTapTimer = setTimeout(() => {
-                    if (state.dblTap.last && state.dblTap.last.time === savedTime) {
-                        state.dblTap.last = null;
-                    }
-                    state.dblTapTimer = null;
-                }, cfg.dblTap.ms + 50);
-            }
         }, true);
 
         addListener(window, 'touchcancel', () => {
@@ -292,7 +275,6 @@
             state.edge.active = false;
             const element = document.scrollingElement || document.documentElement;
             state.edge.targetScrollTop = element.scrollTop;
-            state.dblTap.last = null;
         }, true);
 
         addListener(window, 'click', (event) => {
@@ -305,7 +287,6 @@
         return {
             destroy() {
                 cancelLongPress();
-                clearTimeout(state.dblTapTimer);
                 stopMomentum();
                 stopEdgeRender();
                 listeners.splice(0).forEach((remove) => remove());

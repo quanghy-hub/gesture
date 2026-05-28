@@ -61,7 +61,6 @@
             minSwipeDistance: 30, verticalTolerance: 80, diagonalThreshold: 1.5,
             realtimePreview: true, throttle: 15,
             forwardStep: 5, hotkeys: true,
-            boost: true, boostLevel: 1, maxBoost: 5,
             noticeFontSize: 14,
             layout: null
         },
@@ -97,7 +96,6 @@
             translatedFontSize: 16,
             originalColor: '#ffffff',
             translatedColor: '#0e8cef',
-            displayMode: 'compact',
             showOriginal: true,
             containerPosition: { x: '5%', y: '70px' },
             containerAlignment: 'left',
@@ -124,14 +122,11 @@
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
                 rclick: { enabled: true, mode: 'fg' },
-                dblRight: { enabled: false, ms: 500 },
-                fastScroll: { enabled: false, step: 0.92, wheelZone: 80 },
                 pager: { enabled: true, hops: 3 }
             },
             mobile: {
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
-                dblTap: { enabled: false, ms: 300 },
                 edge: { enabled: false, width: 40, speed: 3, side: 'both' }
             }
         }
@@ -325,9 +320,9 @@
         config.videoFloating.throttle = clampNumber(config.videoFloating.throttle, 15, 0, 100);
         config.videoFloating.forwardStep = clampNumber(config.videoFloating.forwardStep, 5, 1, 60);
         config.videoFloating.hotkeys = config.videoFloating.hotkeys !== false;
-        config.videoFloating.boost = config.videoFloating.boost !== false;
-        config.videoFloating.boostLevel = clampNumber(config.videoFloating.boostLevel, 1, 1, 10);
-        config.videoFloating.maxBoost = clampNumber(config.videoFloating.maxBoost, 5, 1, 20);
+        delete config.videoFloating.boost;
+        delete config.videoFloating.boostLevel;
+        delete config.videoFloating.maxBoost;
         config.videoFloating.noticeFontSize = clampNumber(config.videoFloating.noticeFontSize, 14, 8, 48);
         config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
         delete config.videoFloating.iconPos;
@@ -368,9 +363,7 @@
         config.youtubeSubtitles.translatedColor = typeof config.youtubeSubtitles.translatedColor === 'string' && config.youtubeSubtitles.translatedColor.trim()
             ? config.youtubeSubtitles.translatedColor.trim()
             : '#0e8cef';
-        config.youtubeSubtitles.displayMode = ['compact', 'full'].includes(config.youtubeSubtitles.displayMode)
-            ? config.youtubeSubtitles.displayMode
-            : 'compact';
+        delete config.youtubeSubtitles.displayMode;
         config.youtubeSubtitles.showOriginal = config.youtubeSubtitles.showOriginal !== false;
         config.youtubeSubtitles.containerPosition = config.youtubeSubtitles.containerPosition && typeof config.youtubeSubtitles.containerPosition === 'object'
             ? config.youtubeSubtitles.containerPosition
@@ -425,13 +418,8 @@
         config.gestures.desktop.lpress.ms = clampNumber(config.gestures.desktop.lpress.ms, 500, 200, 2000);
         config.gestures.desktop.rclick.enabled = !!config.gestures.desktop.rclick.enabled;
         config.gestures.desktop.rclick.mode = normalizeMode(config.gestures.desktop.rclick.mode, 'fg');
-        config.gestures.desktop.dblRight.enabled = !!config.gestures.desktop.dblRight.enabled;
-        config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
-        config.gestures.desktop.fastScroll = config.gestures.desktop.fastScroll && typeof config.gestures.desktop.fastScroll === 'object' ? config.gestures.desktop.fastScroll : {};
-        config.gestures.desktop.fastScroll.enabled = !!config.gestures.desktop.fastScroll.enabled;
-        config.gestures.desktop.fastScroll.step = clampNumber(config.gestures.desktop.fastScroll.step, 0.92, 0.5, 1);
-        config.gestures.desktop.fastScroll.wheelZone = clampNumber(config.gestures.desktop.fastScroll.wheelZone, 80, 40, 240);
-        delete config.gestures.desktop.fastScroll.touchpadBoost;
+        delete config.gestures.desktop.dblRight;
+        delete config.gestures.desktop.fastScroll;
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
         config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 5);
 
@@ -439,8 +427,7 @@
         config.gestures.mobile.lpress.enabled = !!config.gestures.mobile.lpress.enabled;
         config.gestures.mobile.lpress.mode = normalizeMode(config.gestures.mobile.lpress.mode, 'bg');
         config.gestures.mobile.lpress.ms = clampNumber(config.gestures.mobile.lpress.ms, 500, 200, 2000);
-        config.gestures.mobile.dblTap.enabled = !!config.gestures.mobile.dblTap.enabled;
-        config.gestures.mobile.dblTap.ms = clampNumber(config.gestures.mobile.dblTap.ms, 300, 150, 500);
+        delete config.gestures.mobile.dblTap;
         delete config.gestures.mobile.fastScroll;
         config.gestures.mobile.edge.enabled = !!config.gestures.mobile.edge.enabled;
         config.gestures.mobile.edge.width = clampNumber(config.gestures.mobile.edge.width, 40, 20, 120);
@@ -482,19 +469,6 @@
                 enabled: !!normalized.gestures.desktop.rclick.enabled,
                 mode: normalized.gestures.desktop.rclick.mode
             },
-            doubleRight: {
-                enabled: !!normalized.gestures.desktop.dblRight.enabled,
-                ms: normalized.gestures.desktop.dblRight.ms,
-            },
-            doubleTap: {
-                enabled: !!normalized.gestures.mobile.dblTap.enabled,
-                ms: normalized.gestures.mobile.dblTap.ms
-            },
-            fastScroll: {
-                enabled: !!normalized.gestures.desktop.fastScroll.enabled,
-                step: normalized.gestures.desktop.fastScroll.step,
-                wheelZone: normalized.gestures.desktop.fastScroll.wheelZone
-            },
             edgeSwipe: {
                 enabled: !!normalized.gestures.mobile.edge.enabled,
                 side: normalized.gestures.mobile.edge.side,
@@ -521,18 +495,6 @@
             rightClick: {
                 ...current.rightClick,
                 ...(patch?.rightClick || {})
-            },
-            doubleRight: {
-                ...current.doubleRight,
-                ...(patch?.doubleRight || {})
-            },
-            doubleTap: {
-                ...current.doubleTap,
-                ...(patch?.doubleTap || {})
-            },
-            fastScroll: {
-                ...current.fastScroll,
-                ...(patch?.fastScroll || {})
             },
             edgeSwipe: {
                 ...current.edgeSwipe,
@@ -562,19 +524,9 @@
             enabled: !!merged.rightClick.enabled,
             mode: merged.rightClick.mode
         };
-        next.gestures.desktop.dblRight = {
-            enabled: !!merged.doubleRight.enabled,
-            ms: merged.doubleRight.ms
-        };
-        next.gestures.mobile.dblTap = {
-            enabled: !!merged.doubleTap.enabled,
-            ms: merged.doubleTap.ms
-        };
-        next.gestures.desktop.fastScroll = {
-            enabled: !!merged.fastScroll.enabled,
-            step: merged.fastScroll.step,
-            wheelZone: merged.fastScroll.wheelZone
-        };
+        delete next.gestures.desktop.dblRight;
+        delete next.gestures.desktop.fastScroll;
+        delete next.gestures.mobile.dblTap;
         delete next.gestures.mobile.fastScroll;
         next.gestures.mobile.edge = {
             enabled: !!merged.edgeSwipe.enabled,
