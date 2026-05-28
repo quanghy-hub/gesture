@@ -136,7 +136,6 @@
     let isReady = false;
     let saveTimer = 0;
     let pendingSave = null;
-    let dragArmedCard = null;
     let draggingCard = null;
 
     const fillProviderOptions = (select, options) => {
@@ -168,12 +167,6 @@
             });
         const missingCards = panelCards.filter((card) => !usedPanelIds.has(card.dataset.panelId));
         return [...orderedCards, ...missingCards];
-    };
-
-    const clearDropIndicators = () => {
-        panelCards.forEach((card) => {
-            card.classList.remove('drag-over-top', 'drag-over-bottom');
-        });
     };
 
     const applyPanelOrder = (order) => {
@@ -586,13 +579,9 @@
 
     const setupPanelReorder = () => {
         panelCards.forEach((card) => {
-            card.draggable = true;
+            card.draggable = false;
 
             card.addEventListener('dragstart', (event) => {
-                if (dragArmedCard !== card) {
-                    event.preventDefault();
-                    return;
-                }
                 draggingCard = card;
                 card.classList.add('is-dragging');
                 event.dataTransfer.effectAllowed = 'move';
@@ -604,40 +593,37 @@
                 event.preventDefault();
                 const bounds = card.getBoundingClientRect();
                 const before = event.clientY < bounds.top + bounds.height / 2;
-                clearDropIndicators();
-                card.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
-            });
-
-            card.addEventListener('drop', (event) => {
-                if (!draggingCard || draggingCard === card) return;
-                event.preventDefault();
-                const bounds = card.getBoundingClientRect();
-                const before = event.clientY < bounds.top + bounds.height / 2;
-                popupRoot.insertBefore(draggingCard, before ? card : card.nextSibling);
-                clearDropIndicators();
-                savePanelOrder();
+                
+                const nextSibling = before ? card : card.nextSibling;
+                if (draggingCard.nextSibling !== nextSibling && draggingCard !== nextSibling) {
+                    popupRoot.insertBefore(draggingCard, nextSibling);
+                }
             });
 
             card.addEventListener('dragend', () => {
-                clearDropIndicators();
                 card.classList.remove('is-dragging');
                 draggingCard = null;
-                dragArmedCard = null;
+                card.draggable = false;
+                savePanelOrder();
             });
         });
 
         dragHandles.forEach((handle) => {
+            const card = handle.closest('.card[data-panel-id]');
+            if (!card) return;
+
             handle.addEventListener('pointerdown', () => {
-                dragArmedCard = handle.closest('.card[data-panel-id]');
+                card.draggable = true;
             });
-            handle.addEventListener('pointerup', () => {
-                dragArmedCard = null;
-            });
-            handle.addEventListener('mouseleave', () => {
+
+            const resetDraggable = () => {
                 if (!draggingCard) {
-                    dragArmedCard = null;
+                    card.draggable = false;
                 }
-            });
+            };
+
+            handle.addEventListener('pointerup', resetDraggable);
+            handle.addEventListener('pointercancel', resetDraggable);
         });
     };
 
