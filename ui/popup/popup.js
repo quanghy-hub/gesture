@@ -97,6 +97,7 @@
     const gRcEnabled = safeGetElementById('g-rc-enabled');
     const gRcMode = safeGetElementById('g-rc-mode');
     const gCloseTabEnabled = safeGetElementById('g-close-tab-enabled');
+    const gCloseTabMs = safeGetElementById('g-close-tab-ms');
     const gPagerEnabled = safeGetElementById('g-pager-enabled');
     const gPagerHops = safeGetElementById('g-pager-hops');
     const gEdgeEnabled = safeGetElementById('g-edge-enabled');
@@ -392,6 +393,7 @@
         gRcEnabled.checked = !!gestures.rightClick.enabled;
         gRcMode.value = gestures.rightClick.mode;
         gCloseTabEnabled.checked = !!gestures.closeTab?.enabled;
+        gCloseTabMs.value = gestures.closeTab?.ms || 150;
         gPagerEnabled.checked = !!gestures.pager.enabled;
         gPagerHops.value = gestures.pager.hops;
         gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
@@ -435,7 +437,8 @@
                 mode: gRcMode.value
             },
             closeTab: {
-                enabled: gCloseTabEnabled.checked
+                enabled: gCloseTabEnabled.checked,
+                ms: Number(gCloseTabMs.value)
             },
             pager: {
                 enabled: gPagerEnabled.checked,
@@ -845,6 +848,7 @@
         forumFade,
         forumDelay,
         gLpMs,
+        gCloseTabMs,
         gPagerHops,
         gEdgeWidth,
         gEdgeSpeed

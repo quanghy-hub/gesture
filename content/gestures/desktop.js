@@ -10,6 +10,7 @@
             suppressUntil: 0,
             lpFired: false,
             rcHandled: false,
+            closeClick: { last: null },
             lp: { timer: null, active: false, x: 0, y: 0 },
             pager: { acc: 0, timer: null, dir: 0, hops: 0 },
             pointer: { active: false, x: 0, y: 0 },
@@ -270,15 +271,24 @@
             state.lpFired = false;
         }, true);
 
-        addListener(window, 'dblclick', (event) => {
+        addListener(window, 'click', (event) => {
             const cfg = getConfig();
             if (!cfg.enabled || !cfg.closeTab?.enabled) return;
             if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
             if (touch.isExtensionUiTarget(event) || isEditable(event.target) || isInteractive(event.target)) return;
 
-            event.preventDefault();
-            event.stopPropagation();
-            closeCurrentTab();
+            const now = Date.now();
+            const lastClick = state.closeClick.last;
+            const maxMs = Number(cfg.closeTab.ms) || 150;
+            if (lastClick && now - lastClick.time <= maxMs && dist(event.clientX, event.clientY, lastClick.x, lastClick.y) <= 32) {
+                event.preventDefault();
+                event.stopPropagation();
+                state.closeClick.last = null;
+                closeCurrentTab();
+                return;
+            }
+
+            state.closeClick.last = { x: event.clientX, y: event.clientY, time: now };
         }, true);
 
         const pageLoadTime = Date.now();

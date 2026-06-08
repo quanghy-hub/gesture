@@ -322,7 +322,8 @@
             ) {
                 const now = Date.now();
                 const lastTap = state.tap.last;
-                if (lastTap && now - lastTap.time <= 320 && dist(touchPoint.clientX, touchPoint.clientY, lastTap.x, lastTap.y) <= 32) {
+                const maxMs = Number(cfg.closeTab.ms) || 150;
+                if (lastTap && now - lastTap.time <= maxMs && dist(touchPoint.clientX, touchPoint.clientY, lastTap.x, lastTap.y) <= 32) {
                     preventDefaultIfCancelable(event);
                     event.stopPropagation();
                     state.tap.last = null;

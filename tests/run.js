@@ -161,6 +161,7 @@ runTest('getGestureSettings: chịu được config cũ chưa có closeTab', () 
         }
     });
     assert.equal(settings.closeTab.enabled, false);
+    assert.equal(settings.closeTab.ms, 150);
 });
 
 
