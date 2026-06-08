@@ -217,12 +217,16 @@
                 },
                 {
                     label: 'Copy',
-                    title: 'Copy image URL',
-                    glyph: QUICK_GLYPHS.copyUrl,
+                    title: 'Copy image',
+                    glyph: QUICK_GLYPHS.copyImage,
                     onClick: () => {
-                        actions.copyImageUrl(session.url).then(() => {
-                            ext.shared.toastCore.createToast('Đã chép URL', session.x, session.y, 1200);
-                        });
+                        actions.copyImage(session.image, session.url)
+                            .then(() => {
+                                ext.shared.toastCore.createToast('Đã chép ảnh', session.x, session.y, 1200);
+                            })
+                            .catch(() => {
+                                ext.shared.toastCore.createToast('Không chép được ảnh', session.x, session.y, 1500);
+                            });
                         hideImageBubble();
                     }
                 },

@@ -57,7 +57,7 @@ try {
     process.exit(1);
 }
 
-const { normalizeHost, normalizeConfig } = sandbox.globalThis.GestureExtension.shared.config;
+const { normalizeHost, normalizeConfig, getGestureSettings } = sandbox.globalThis.GestureExtension.shared.config;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
 const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
 
@@ -141,6 +141,26 @@ runTest('normalizeConfig: tối ưu hóa cờ _isNormalized hoạt động đún
     const raw = { _isNormalized: true, customKey: 'hello' };
     const config = normalizeConfig(raw);
     assert.equal(config, raw); // Trả về trực tiếp chính tham chiếu đó (bỏ qua deepClone)
+});
+
+runTest('getGestureSettings: chịu được config cũ chưa có closeTab', () => {
+    const settings = getGestureSettings({
+        _isNormalized: true,
+        gestures: {
+            desktop: {
+                enabled: true,
+                lpress: { enabled: true, mode: 'bg', ms: 500 },
+                rclick: { enabled: true, mode: 'fg' },
+                pager: { enabled: true, hops: 3 }
+            },
+            mobile: {
+                enabled: true,
+                lpress: { enabled: true, mode: 'bg', ms: 500 },
+                edge: { enabled: false, width: 40, speed: 3, side: 'both' }
+            }
+        }
+    });
+    assert.equal(settings.closeTab.enabled, false);
 });
 
 

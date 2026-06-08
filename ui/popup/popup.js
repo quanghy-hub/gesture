@@ -96,6 +96,7 @@
     const gLpMs = safeGetElementById('g-lp-ms');
     const gRcEnabled = safeGetElementById('g-rc-enabled');
     const gRcMode = safeGetElementById('g-rc-mode');
+    const gCloseTabEnabled = safeGetElementById('g-close-tab-enabled');
     const gPagerEnabled = safeGetElementById('g-pager-enabled');
     const gPagerHops = safeGetElementById('g-pager-hops');
     const gEdgeEnabled = safeGetElementById('g-edge-enabled');
@@ -390,6 +391,7 @@
         gLpMs.value = gestures.longPress.ms;
         gRcEnabled.checked = !!gestures.rightClick.enabled;
         gRcMode.value = gestures.rightClick.mode;
+        gCloseTabEnabled.checked = !!gestures.closeTab?.enabled;
         gPagerEnabled.checked = !!gestures.pager.enabled;
         gPagerHops.value = gestures.pager.hops;
         gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
@@ -431,6 +433,9 @@
             rightClick: {
                 enabled: gRcEnabled.checked,
                 mode: gRcMode.value
+            },
+            closeTab: {
+                enabled: gCloseTabEnabled.checked
             },
             pager: {
                 enabled: gPagerEnabled.checked,
@@ -780,6 +785,7 @@
         gLpMode,
         gRcEnabled,
         gRcMode,
+        gCloseTabEnabled,
         gEdgeEnabled,
         gEdgeSide,
         gPagerEnabled,

@@ -44,7 +44,7 @@
         translate: '文',
         saveImage: '↓',
         ocr: 'T',
-        copyUrl: '⧉'
+        copyImage: '▣'
     });
 
     quickSearch.encodeQuery = (value) => encodeURIComponent(String(value || '').trim().replace(/\s+/g, ' '));

@@ -10,6 +10,7 @@
             suppressUntil: 0,
             lpFired: false,
             lp: { timer: null, active: false, x: 0, y: 0 },
+            tap: { start: null, last: null },
             edge: {
                 active: false,
                 lastY: 0,
@@ -37,6 +38,7 @@
             }
         };
         const isEditable = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+        const isInteractive = (el) => el instanceof Element && !!el.closest('a[href], button, input, textarea, select, summary, video, audio, [role="button"], [role="link"]');
 
         const getValidLink = (event) => {
             for (const node of (event.composedPath?.() || [])) {
@@ -55,6 +57,11 @@
             suppress(800);
         };
 
+        const closeCurrentTab = async () => {
+            suppress(800);
+            await context.tabActions.closeCurrentTab();
+        };
+
         const cancelLongPress = () => {
             clearTimeout(state.lp.timer);
             state.lp.timer = null;
@@ -71,6 +78,10 @@
             cancelAnimationFrame(state.edge.renderRAF);
             state.edge.renderRAF = null;
             state.edge.renderTime = 0;
+        };
+
+        const clearTapStart = () => {
+            state.tap.start = null;
         };
 
         const clampScrollTop = (value, element) => Math.max(0, Math.min(value, element.scrollHeight - element.clientHeight));
@@ -187,10 +198,18 @@
 
             if (!event.touches || event.touches.length !== 1) {
                 cancelLongPress();
+                clearTapStart();
                 return;
             }
 
             const touchPoint = event.touches[0];
+            state.tap.start = {
+                x: touchPoint.clientX,
+                y: touchPoint.clientY,
+                time: Date.now(),
+                target: event.target,
+                cancelled: false
+            };
             const edgeStrength = cfg.edge.enabled ? getEdgeStrength(touchPoint.clientX) : 0;
             if (edgeStrength > 0) {
                 const element = document.scrollingElement || document.documentElement;
@@ -218,15 +237,28 @@
             if (touch.isExtensionUiTarget(event)) {
                 cancelLongPress();
                 state.edge.active = false;
+                clearTapStart();
                 return;
             }
-            if (!event.touches) return;
+            if (!event.touches) {
+                clearTapStart();
+                return;
+            }
 
             if (state.lp.active && event.touches.length === 1) {
                 const touchPoint = event.touches[0];
                 if (dist(touchPoint.clientX, touchPoint.clientY, state.lp.x, state.lp.y) > TOLERANCE.move) {
                     cancelLongPress();
                 }
+            }
+
+            if (state.tap.start && event.touches.length === 1) {
+                const touchPoint = event.touches[0];
+                if (dist(touchPoint.clientX, touchPoint.clientY, state.tap.start.x, state.tap.start.y) > TOLERANCE.move) {
+                    state.tap.start.cancelled = true;
+                }
+            } else {
+                clearTapStart();
             }
 
             if (!state.edge.active || event.touches.length !== 1) {
@@ -255,7 +287,12 @@
             preventDefaultIfCancelable(event);
         }, { capture: true, passive: false });
 
-        addListener(window, 'touchend', () => {
+        addListener(window, 'touchend', (event) => {
+            const cfg = getConfig();
+            const tapStart = state.tap.start;
+            const touchPoint = event.changedTouches?.[0] || null;
+            const wasEdgeActive = state.edge.active;
+
             cancelLongPress();
             if (state.edge.active) {
                 const element = document.scrollingElement || document.documentElement;
@@ -268,10 +305,41 @@
             }
 
             state.edge.active = false;
+
+            if (
+                cfg.enabled
+                && cfg.closeTab?.enabled
+                && tapStart
+                && touchPoint
+                && !tapStart.cancelled
+                && !wasEdgeActive
+                && !state.lpFired
+                && !touch.isExtensionUiTarget(event)
+                && !isEditable(tapStart.target)
+                && !isInteractive(tapStart.target)
+                && Date.now() - tapStart.time <= 260
+                && dist(touchPoint.clientX, touchPoint.clientY, tapStart.x, tapStart.y) <= TOLERANCE.move
+            ) {
+                const now = Date.now();
+                const lastTap = state.tap.last;
+                if (lastTap && now - lastTap.time <= 320 && dist(touchPoint.clientX, touchPoint.clientY, lastTap.x, lastTap.y) <= 32) {
+                    preventDefaultIfCancelable(event);
+                    event.stopPropagation();
+                    state.tap.last = null;
+                    clearTapStart();
+                    closeCurrentTab();
+                    return;
+                }
+                state.tap.last = { x: touchPoint.clientX, y: touchPoint.clientY, time: now };
+            } else if (tapStart) {
+                state.tap.last = null;
+            }
+            clearTapStart();
         }, true);
 
         addListener(window, 'touchcancel', () => {
             cancelLongPress();
+            clearTapStart();
             state.edge.active = false;
             const element = document.scrollingElement || document.documentElement;
             state.edge.targetScrollTop = element.scrollTop;

@@ -122,11 +122,13 @@
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
                 rclick: { enabled: true, mode: 'fg' },
+                closeTab: { enabled: false },
                 pager: { enabled: true, hops: 3 }
             },
             mobile: {
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },
+                closeTab: { enabled: false },
                 edge: { enabled: false, width: 40, speed: 3, side: 'both' }
             }
         }
@@ -418,6 +420,7 @@
         config.gestures.desktop.lpress.ms = clampNumber(config.gestures.desktop.lpress.ms, 500, 200, 2000);
         config.gestures.desktop.rclick.enabled = !!config.gestures.desktop.rclick.enabled;
         config.gestures.desktop.rclick.mode = normalizeMode(config.gestures.desktop.rclick.mode, 'fg');
+        config.gestures.desktop.closeTab.enabled = !!config.gestures.desktop.closeTab.enabled;
         delete config.gestures.desktop.dblRight;
         delete config.gestures.desktop.fastScroll;
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
@@ -427,6 +430,7 @@
         config.gestures.mobile.lpress.enabled = !!config.gestures.mobile.lpress.enabled;
         config.gestures.mobile.lpress.mode = normalizeMode(config.gestures.mobile.lpress.mode, 'bg');
         config.gestures.mobile.lpress.ms = clampNumber(config.gestures.mobile.lpress.ms, 500, 200, 2000);
+        config.gestures.mobile.closeTab.enabled = !!config.gestures.mobile.closeTab.enabled;
         delete config.gestures.mobile.dblTap;
         delete config.gestures.mobile.fastScroll;
         config.gestures.mobile.edge.enabled = !!config.gestures.mobile.edge.enabled;
@@ -469,6 +473,9 @@
                 enabled: !!normalized.gestures.desktop.rclick.enabled,
                 mode: normalized.gestures.desktop.rclick.mode
             },
+            closeTab: {
+                enabled: !!(normalized.gestures.desktop.closeTab?.enabled || normalized.gestures.mobile.closeTab?.enabled)
+            },
             edgeSwipe: {
                 enabled: !!normalized.gestures.mobile.edge.enabled,
                 side: normalized.gestures.mobile.edge.side,
@@ -495,6 +502,10 @@
             rightClick: {
                 ...current.rightClick,
                 ...(patch?.rightClick || {})
+            },
+            closeTab: {
+                ...current.closeTab,
+                ...(patch?.closeTab || {})
             },
             edgeSwipe: {
                 ...current.edgeSwipe,
@@ -523,6 +534,12 @@
         next.gestures.desktop.rclick = {
             enabled: !!merged.rightClick.enabled,
             mode: merged.rightClick.mode
+        };
+        next.gestures.desktop.closeTab = {
+            enabled: !!merged.closeTab.enabled
+        };
+        next.gestures.mobile.closeTab = {
+            enabled: !!merged.closeTab.enabled
         };
         delete next.gestures.desktop.dblRight;
         delete next.gestures.desktop.fastScroll;

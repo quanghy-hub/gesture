@@ -27,6 +27,7 @@
         const getForumConfig = () => ext.shared.config.getForumConfig(context.getConfig(), location.host);
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
         const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
+        const isInteractive = (el) => el instanceof Element && !!el.closest('a[href], button, input, textarea, select, summary, video, audio, [role="button"], [role="link"]');
         const isMacOS = () => context.runtime?.isMacOS?.() || false;
         const shouldRunPagerForForum = () => {
             const forumConfig = getForumConfig();
@@ -58,6 +59,11 @@
                 window.open(url, '_blank', mode === 'fg' ? '' : 'noopener');
             }
             suppress(800);
+        };
+
+        const closeCurrentTab = async () => {
+            suppress(800);
+            await context.tabActions.closeCurrentTab();
         };
 
         const cancelLongPress = () => {
@@ -262,6 +268,17 @@
             event.preventDefault();
             event.stopPropagation();
             state.lpFired = false;
+        }, true);
+
+        addListener(window, 'dblclick', (event) => {
+            const cfg = getConfig();
+            if (!cfg.enabled || !cfg.closeTab?.enabled) return;
+            if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            if (touch.isExtensionUiTarget(event) || isEditable(event.target) || isInteractive(event.target)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            closeCurrentTab();
         }, true);
 
         const pageLoadTime = Date.now();

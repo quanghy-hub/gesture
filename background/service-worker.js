@@ -97,6 +97,15 @@ const CONTENT_SCRIPT_DEFINITIONS = [
     }
 ];
 const CONTENT_SCRIPT_IDS = CONTENT_SCRIPT_DEFINITIONS.map((definition) => definition.id);
+const arrayBufferToBase64 = (buffer) => {
+    const bytes = new Uint8Array(buffer);
+    const chunks = [];
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize)));
+    }
+    return btoa(chunks.join(''));
+};
 const getRuntimeErrorMessage = () => chrome.runtime?.lastError?.message || '';
 const isTransientSyncError = (error) => {
     const message = String(error?.message || error || '').trim();
@@ -289,6 +298,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     saveAs: false
                 });
                 sendResponse({ ok: true, downloadId });
+                return;
+            }
+
+            case 'gesture-ext/fetch-image-data-url': {
+                const url = String(message.payload?.url ?? '').trim();
+                if (!url) {
+                    sendResponse({ ok: false, error: 'Missing image url' });
+                    return;
+                }
+
+                const response = await fetch(url, { credentials: 'include', cache: 'force-cache' });
+                if (!response.ok) {
+                    sendResponse({ ok: false, error: `Image request failed: ${response.status}` });
+                    return;
+                }
+
+                const blob = await response.blob();
+                if (!blob.type.startsWith('image/')) {
+                    sendResponse({ ok: false, error: 'Response is not an image' });
+                    return;
+                }
+
+                const dataUrl = `data:${blob.type};base64,${arrayBufferToBase64(await blob.arrayBuffer())}`;
+                sendResponse({ ok: true, dataUrl });
                 return;
             }
 
