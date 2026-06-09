@@ -59,6 +59,77 @@
         return results;
     };
 
+    const getViewportIntersection = (rect) => {
+        if (!rect?.width || !rect?.height) {
+            return { area: 0, ratio: 0 };
+        }
+        const left = Math.max(0, rect.left);
+        const right = Math.min(window.innerWidth || 0, rect.right);
+        const top = Math.max(0, rect.top);
+        const bottom = Math.min(window.innerHeight || 0, rect.bottom);
+        const width = Math.max(0, right - left);
+        const height = Math.max(0, bottom - top);
+        const area = width * height;
+        return {
+            area,
+            ratio: area / Math.max(1, rect.width * rect.height)
+        };
+    };
+
+    const getViewportCenterDistance = (rect) => {
+        const centerX = (window.innerWidth || 0) / 2;
+        const centerY = (window.innerHeight || 0) / 2;
+        const videoX = rect.left + (rect.width / 2);
+        const videoY = rect.top + (rect.height / 2);
+        return Math.hypot(videoX - centerX, videoY - centerY);
+    };
+
+    const getTopVideoAtPoint = (x, y) => {
+        if (typeof document.elementsFromPoint !== 'function') return null;
+        for (const node of document.elementsFromPoint(x, y)) {
+            if (!(node instanceof Element)) continue;
+            const video = node.tagName === 'VIDEO' ? node : node.closest?.('video');
+            if (video?.isConnected && !video.closest('#fvp-wrapper')) return video;
+        }
+        return null;
+    };
+
+    const isTopVideoCandidate = (video, rect = getRect(video)) => {
+        if (!rect?.width || !rect?.height) return false;
+        const points = [
+            [rect.left + rect.width / 2, rect.top + rect.height / 2],
+            [rect.left + rect.width / 2, rect.top + Math.min(rect.height * 0.35, rect.height - 1)],
+            [rect.left + rect.width / 2, rect.top + Math.min(rect.height * 0.65, rect.height - 1)]
+        ];
+        return points.some(([x, y]) => {
+            if (x < 0 || y < 0 || x > (window.innerWidth || 0) || y > (window.innerHeight || 0)) return false;
+            return getTopVideoAtPoint(x, y) === video;
+        });
+    };
+
+    const isVideoActivelyPlaying = (video) => !!(video && !video.paused && !video.ended && video.readyState > 1);
+
+    const getVideoPriority = (video) => {
+        const rect = getRect(video);
+        const viewport = getViewportIntersection(rect);
+        const visibleArea = viewport.area || Math.max(0, rect.width * rect.height);
+        const fullscreenEl = getFullscreenEl();
+        let score = visibleArea;
+
+        if (isVideoActivelyPlaying(video)) score += 1000000000;
+        else if (video?.paused === false) score += 500000000;
+        if (video === document.pictureInPictureElement) score += 900000000;
+        if (fullscreenEl && (fullscreenEl === video || fullscreenEl.contains?.(video))) score += 900000000;
+        if (isTopVideoCandidate(video, rect)) score += 120000000;
+        score += viewport.ratio * 80000000;
+        if (video?.currentTime > 0) score += 10000000;
+        if (video?.readyState > 0) score += video.readyState * 1000000;
+        score -= getViewportCenterDistance(rect) * 1000;
+        return score;
+    };
+
+    const compareVideoPriority = (left, right) => getVideoPriority(right) - getVideoPriority(left);
+
     const isDetectableVideo = (video) => {
         if (!video || !video.isConnected) return false;
         if (hasVisibleSize) return hasVisibleSize(video);
@@ -98,7 +169,7 @@
     };
 
     const getDirectVideos = () => {
-        const unique = new Map();
+        const unique = new Set();
         for (const video of queryAllDeep('video')) {
             if (!video?.isConnected || video.closest('#fvp-wrapper')) continue;
 
@@ -121,24 +192,10 @@
             const largeEnough = rect.width >= 160 && rect.height >= 90;
             if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
 
-            const key = [
-                video.currentSrc || video.src || '',
-                Math.round(rect.left),
-                Math.round(rect.top),
-                Math.round(rect.width),
-                Math.round(rect.height)
-            ].join('|');
-
-            if (!unique.has(key)) {
-                unique.set(key, video);
-            }
+            unique.add(video);
         }
 
-        return [...unique.values()].sort((left, right) => {
-            const leftRect = getRect(left);
-            const rightRect = getRect(right);
-            return (rightRect.width * rightRect.height) - (leftRect.width * leftRect.height);
-        });
+        return [...unique].sort(compareVideoPriority);
     };
 
     const getOverlapRatio = (firstRect, secondRect) => {
@@ -188,6 +245,7 @@
 
     const getFeatureConfig = () => ({ ...DEFAULT_VIDEO_FLOATING_CONFIG, ...(cfgCache?.videoFloating || {}) });
     const isFeatureEnabled = () => getFeatureConfig().enabled !== false;
+    const isBackgroundSeekExcluded = () => configUtils?.isVideoFloatingBackgroundSeekExcluded?.(cfgCache, location.hostname) === true;
 
     const loadLayout = () => {
         if (layoutCache) return layoutCache;
@@ -416,6 +474,7 @@
                     && point.clientY >= floatingBoxRect.top
                     && point.clientY <= floatingBoxRect.bottom);
                 if (startedInsideFloatingBox && isFloatingGestureBlockedTarget(event.target)) return;
+                if (!startedInsideFloatingBox && isBackgroundSeekExcluded()) return;
 
                 const wrapper = startedInsideFloatingBox ? $('fvp-wrapper') : null;
                 const wrapperRect = wrapper ? getRect(wrapper) : null;
@@ -600,8 +659,9 @@
             const absY = Math.abs(event.deltaY || 0);
             if (!absX || absX < absY * 0.8) return;
 
-            const video = getSeekableVideoAtPoint(event.clientX || 0, event.clientY || 0);
+            const video = getSeekableVideoAtPoint(event.clientX || 0, event.clientY || 0, { includeFloating: true });
             if (!video) return;
+            if (isBackgroundSeekExcluded() && !video.closest?.('#fvp-wrapper')) return;
 
             stopSeekEvent(event);
             scheduleWheelReset();
@@ -615,6 +675,7 @@
 
             const video = getSeekableVideoAtPoint(pointer.x, pointer.y, { includeFloating: true });
             if (!video) return;
+            if (isBackgroundSeekExcluded() && !video.closest?.('#fvp-wrapper')) return;
 
             const step = Math.max(1, Number(getFeatureConfig().forwardStep) || 5);
             stopSeekEvent(event);
@@ -652,6 +713,8 @@
         getIframeSrc,
         isLikelyVideoIframe,
         getTrackedIframeEntries,
+        compareVideoPriority,
+        isVideoActivelyPlaying,
         getFeatureConfig,
         isFeatureEnabled,
         loadLayout,

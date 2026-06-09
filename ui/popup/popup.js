@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, normalizeHost, normalizeConfig, DEFAULT_CONFIG, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
+    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, normalizeHost, normalizeConfig, DEFAULT_CONFIG, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
     const safeGetElementById = (id) => {
@@ -86,6 +86,8 @@
     const videoFloatingDiagonalThreshold = safeGetElementById('video-floating-diagonal-threshold');
     const videoFloatingThrottle = safeGetElementById('video-floating-throttle');
     const videoFloatingNoticeFontSize = safeGetElementById('video-floating-notice-font-size');
+    const videoFloatingBackgroundSeekHost = safeGetElementById('video-floating-background-seek-host');
+    const videoFloatingBackgroundSeekBlocked = safeGetElementById('video-floating-background-seek-blocked');
     const forumWide = safeGetElementById('forum-wide');
     const forumMinWidth = safeGetElementById('forum-min-width');
     const forumGap = safeGetElementById('forum-gap');
@@ -387,6 +389,11 @@
         videoFloatingDiagonalThreshold.value = config.videoFloating?.diagonalThreshold || 1.5;
         videoFloatingThrottle.value = config.videoFloating?.throttle ?? 15;
         videoFloatingNoticeFontSize.value = config.videoFloating?.noticeFontSize || 14;
+        videoFloatingBackgroundSeekHost.textContent = normalizedActiveHost || 'No host';
+        videoFloatingBackgroundSeekBlocked.disabled = !normalizedActiveHost;
+        videoFloatingBackgroundSeekBlocked.checked = normalizedActiveHost
+            ? isVideoFloatingBackgroundSeekExcluded(config, normalizedActiveHost)
+            : false;
         gLpEnabled.checked = !!gestures.longPress.enabled;
         gLpMode.value = gestures.longPress.mode;
         gLpMs.value = gestures.longPress.ms;
@@ -451,65 +458,68 @@
                 speed: Number(gEdgeSpeed.value)
             }
         });
-        const nextWithHostBlacklist = activeHost ? setHostExcluded(next, activeHost, hostBlacklistToggle.checked) : next;
+        let nextScoped = activeHost ? setHostExcluded(next, activeHost, hostBlacklistToggle.checked) : next;
+        nextScoped = activeHost
+            ? setVideoFloatingBackgroundSeekExcluded(nextScoped, activeHost, videoFloatingBackgroundSeekBlocked.checked)
+            : nextScoped;
 
-        nextWithHostBlacklist.unblockCopy.enabled = featureUnblockCopyEnabled.checked;
-        nextWithHostBlacklist.clipboard.enabled = featureClipboardEnabled.checked;
-        nextWithHostBlacklist.clipboard.maxHistory = Number(clipboardMaxHistory.value);
-        nextWithHostBlacklist.videoFloating.enabled = featureVideoFloatingEnabled.checked;
-        nextWithHostBlacklist.videoScreenshot.enabled = featureVideoScreenshotEnabled.checked;
-        nextWithHostBlacklist.videoFloating.minSwipeDistance = Number(videoFloatingMinDistance.value);
-        nextWithHostBlacklist.videoFloating.swipeShort = Number(videoFloatingSwipeShort.value);
-        nextWithHostBlacklist.videoFloating.swipeLong = Number(videoFloatingSwipeLong.value);
-        nextWithHostBlacklist.videoFloating.shortThreshold = Number(videoFloatingShortThreshold.value);
-        nextWithHostBlacklist.videoFloating.verticalTolerance = Number(videoFloatingVerticalTolerance.value);
-        nextWithHostBlacklist.videoFloating.diagonalThreshold = Number(videoFloatingDiagonalThreshold.value);
-        nextWithHostBlacklist.videoFloating.throttle = Number(videoFloatingThrottle.value);
-        nextWithHostBlacklist.videoFloating.noticeFontSize = Number(videoFloatingNoticeFontSize.value);
-        nextWithHostBlacklist.googleSearch.enabled = nextWithHostBlacklist.googleSearch?.enabled !== false;
-        nextWithHostBlacklist.quickSearch.enabled = featureQuickSearchEnabled.checked;
-        nextWithHostBlacklist.quickSearch.columns = Number(quickSearchColumns.value);
-        nextWithHostBlacklist.quickSearch.imageSearchEnabled = quickSearchImageSearchEnabled.checked;
-        nextWithHostBlacklist.quickSearch.enabledProviderIds = quickSearchProviderIds.filter((providerId) => quickSearchProviderInputs[providerId]?.checked);
-        nextWithHostBlacklist.inlineTranslate.enabled = featureInlineTranslateEnabled.checked;
-        nextWithHostBlacklist.inlineTranslate.hotkeyEnabled = inlineTranslateHotkeyEnabled.checked;
-        nextWithHostBlacklist.inlineTranslate.hotkey = inlineTranslateHotkey.value;
-        nextWithHostBlacklist.inlineTranslate.selectionTranslateEnabled = inlineTranslateSelectionTranslateEnabled.checked;
-        nextWithHostBlacklist.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
-        nextWithHostBlacklist.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
-        nextWithHostBlacklist.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
-        nextWithHostBlacklist.inlineTranslate.swipeMaxDurationMs = Number(inlineTranslateSwipeMaxDurationMs.value);
-        nextWithHostBlacklist.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
-        nextWithHostBlacklist.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
-        nextWithHostBlacklist.apiServices.translate.activeProvider = apiTranslateProvider.value;
-        nextWithHostBlacklist.apiServices.translate.fallbackEnabled = apiTranslateFallbackEnabled.checked;
-        nextWithHostBlacklist.apiServices.translate.fallbackProvider = apiTranslateFallbackProvider.value;
-        nextWithHostBlacklist.apiServices.translate.providers[apiTranslateProvider.value].enabled = true;
-        nextWithHostBlacklist.apiServices.translate.providers[apiTranslateProvider.value].apiKey = apiTranslateApiKey.value.trim();
-        if (nextWithHostBlacklist.apiServices.translate.providers[apiTranslateFallbackProvider.value]) {
-            nextWithHostBlacklist.apiServices.translate.providers[apiTranslateFallbackProvider.value].enabled = true;
-            nextWithHostBlacklist.apiServices.translate.providers[apiTranslateFallbackProvider.value].apiKey = apiTranslateFallbackApiKey.value.trim();
+        nextScoped.unblockCopy.enabled = featureUnblockCopyEnabled.checked;
+        nextScoped.clipboard.enabled = featureClipboardEnabled.checked;
+        nextScoped.clipboard.maxHistory = Number(clipboardMaxHistory.value);
+        nextScoped.videoFloating.enabled = featureVideoFloatingEnabled.checked;
+        nextScoped.videoScreenshot.enabled = featureVideoScreenshotEnabled.checked;
+        nextScoped.videoFloating.minSwipeDistance = Number(videoFloatingMinDistance.value);
+        nextScoped.videoFloating.swipeShort = Number(videoFloatingSwipeShort.value);
+        nextScoped.videoFloating.swipeLong = Number(videoFloatingSwipeLong.value);
+        nextScoped.videoFloating.shortThreshold = Number(videoFloatingShortThreshold.value);
+        nextScoped.videoFloating.verticalTolerance = Number(videoFloatingVerticalTolerance.value);
+        nextScoped.videoFloating.diagonalThreshold = Number(videoFloatingDiagonalThreshold.value);
+        nextScoped.videoFloating.throttle = Number(videoFloatingThrottle.value);
+        nextScoped.videoFloating.noticeFontSize = Number(videoFloatingNoticeFontSize.value);
+        nextScoped.googleSearch.enabled = nextScoped.googleSearch?.enabled !== false;
+        nextScoped.quickSearch.enabled = featureQuickSearchEnabled.checked;
+        nextScoped.quickSearch.columns = Number(quickSearchColumns.value);
+        nextScoped.quickSearch.imageSearchEnabled = quickSearchImageSearchEnabled.checked;
+        nextScoped.quickSearch.enabledProviderIds = quickSearchProviderIds.filter((providerId) => quickSearchProviderInputs[providerId]?.checked);
+        nextScoped.inlineTranslate.enabled = featureInlineTranslateEnabled.checked;
+        nextScoped.inlineTranslate.hotkeyEnabled = inlineTranslateHotkeyEnabled.checked;
+        nextScoped.inlineTranslate.hotkey = inlineTranslateHotkey.value;
+        nextScoped.inlineTranslate.selectionTranslateEnabled = inlineTranslateSelectionTranslateEnabled.checked;
+        nextScoped.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
+        nextScoped.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
+        nextScoped.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
+        nextScoped.inlineTranslate.swipeMaxDurationMs = Number(inlineTranslateSwipeMaxDurationMs.value);
+        nextScoped.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
+        nextScoped.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
+        nextScoped.apiServices.translate.activeProvider = apiTranslateProvider.value;
+        nextScoped.apiServices.translate.fallbackEnabled = apiTranslateFallbackEnabled.checked;
+        nextScoped.apiServices.translate.fallbackProvider = apiTranslateFallbackProvider.value;
+        nextScoped.apiServices.translate.providers[apiTranslateProvider.value].enabled = true;
+        nextScoped.apiServices.translate.providers[apiTranslateProvider.value].apiKey = apiTranslateApiKey.value.trim();
+        if (nextScoped.apiServices.translate.providers[apiTranslateFallbackProvider.value]) {
+            nextScoped.apiServices.translate.providers[apiTranslateFallbackProvider.value].enabled = true;
+            nextScoped.apiServices.translate.providers[apiTranslateFallbackProvider.value].apiKey = apiTranslateFallbackApiKey.value.trim();
         }
-        nextWithHostBlacklist.apiServices.ocr.activeProvider = apiOcrProvider.value;
-        nextWithHostBlacklist.apiServices.ocr.fallbackEnabled = apiOcrFallbackEnabled.checked;
-        nextWithHostBlacklist.apiServices.ocr.fallbackProvider = apiOcrFallbackProvider.value;
-        nextWithHostBlacklist.apiServices.ocr.providers[apiOcrProvider.value].enabled = true;
-        nextWithHostBlacklist.apiServices.ocr.providers[apiOcrProvider.value].apiKey = apiOcrApiKey.value.trim();
-        if (nextWithHostBlacklist.apiServices.ocr.providers[apiOcrFallbackProvider.value]) {
-            nextWithHostBlacklist.apiServices.ocr.providers[apiOcrFallbackProvider.value].enabled = true;
-            nextWithHostBlacklist.apiServices.ocr.providers[apiOcrFallbackProvider.value].apiKey = apiOcrFallbackApiKey.value.trim();
+        nextScoped.apiServices.ocr.activeProvider = apiOcrProvider.value;
+        nextScoped.apiServices.ocr.fallbackEnabled = apiOcrFallbackEnabled.checked;
+        nextScoped.apiServices.ocr.fallbackProvider = apiOcrFallbackProvider.value;
+        nextScoped.apiServices.ocr.providers[apiOcrProvider.value].enabled = true;
+        nextScoped.apiServices.ocr.providers[apiOcrProvider.value].apiKey = apiOcrApiKey.value.trim();
+        if (nextScoped.apiServices.ocr.providers[apiOcrFallbackProvider.value]) {
+            nextScoped.apiServices.ocr.providers[apiOcrFallbackProvider.value].enabled = true;
+            nextScoped.apiServices.ocr.providers[apiOcrFallbackProvider.value].apiKey = apiOcrFallbackApiKey.value.trim();
         }
-        nextWithHostBlacklist.inlineTranslate.provider = nextWithHostBlacklist.apiServices.translate.activeProvider;
-        nextWithHostBlacklist.youtubeSubtitles.enabled = featureYoutubeSubtitlesEnabled.checked;
-        nextWithHostBlacklist.youtubeSubtitles.targetLang = youtubeSubtitlesTargetLang.value;
-        nextWithHostBlacklist.youtubeSubtitles.fontSize = Number(youtubeSubtitlesFontSize.value);
-        nextWithHostBlacklist.youtubeSubtitles.translatedFontSize = Number(youtubeSubtitlesTranslatedFontSize.value);
-        nextWithHostBlacklist.youtubeSubtitles.originalColor = youtubeSubtitlesOriginalColor.value;
-        nextWithHostBlacklist.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
-        nextWithHostBlacklist.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
-        let normalized = nextWithHostBlacklist;
+        nextScoped.inlineTranslate.provider = nextScoped.apiServices.translate.activeProvider;
+        nextScoped.youtubeSubtitles.enabled = featureYoutubeSubtitlesEnabled.checked;
+        nextScoped.youtubeSubtitles.targetLang = youtubeSubtitlesTargetLang.value;
+        nextScoped.youtubeSubtitles.fontSize = Number(youtubeSubtitlesFontSize.value);
+        nextScoped.youtubeSubtitles.translatedFontSize = Number(youtubeSubtitlesTranslatedFontSize.value);
+        nextScoped.youtubeSubtitles.originalColor = youtubeSubtitlesOriginalColor.value;
+        nextScoped.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
+        nextScoped.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
+        let normalized = nextScoped;
         if (activeHost) {
-            normalized = updateForumHostConfig(nextWithHostBlacklist, activeHost, {
+            normalized = updateForumHostConfig(nextScoped, activeHost, {
                 enabled: featureForumEnabled.checked,
                 wide: forumWide.checked,
                 minWidth: Number(forumMinWidth.value),
@@ -792,7 +802,8 @@
         gEdgeEnabled,
         gEdgeSide,
         gPagerEnabled,
-        hostBlacklistToggle
+        hostBlacklistToggle,
+        videoFloatingBackgroundSeekBlocked
     ].forEach((control) => {
         registerAutoSave(control, 'change');
     });

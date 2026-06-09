@@ -181,6 +181,17 @@ body {
     accent-color: #22c55e;
 }
 
+.host-chip {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #e5e7eb;
+    font-size: 11px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .section-note {
     margin: -2px 0 8px;
     color: #9ca3af;

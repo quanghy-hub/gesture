@@ -62,6 +62,7 @@
             realtimePreview: true, throttle: 15,
             forwardStep: 5, hotkeys: true,
             noticeFontSize: 14,
+            backgroundSeekExcludedHosts: [],
             layout: null
         },
         videoScreenshot: {
@@ -225,6 +226,29 @@
         next.runtime.excludedHosts = [...current];
         return normalizeConfig(next);
     };
+    const getVideoFloatingBackgroundSeekExcludedHosts = (config) => (
+        normalizeExcludedHosts(config?.videoFloating?.backgroundSeekExcludedHosts)
+    );
+    const isVideoFloatingBackgroundSeekExcluded = (config, host) => {
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) return false;
+        return getVideoFloatingBackgroundSeekExcludedHosts(config)
+            .some((entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`));
+    };
+    const setVideoFloatingBackgroundSeekExcluded = (config, host, excluded) => {
+        const next = normalizeConfig(config);
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) return next;
+        next.videoFloating = next.videoFloating && typeof next.videoFloating === 'object' ? next.videoFloating : {};
+        const current = new Set(getVideoFloatingBackgroundSeekExcludedHosts(next));
+        if (excluded) {
+            current.add(normalizedHost);
+        } else {
+            current.delete(normalizedHost);
+        }
+        next.videoFloating.backgroundSeekExcludedHosts = [...current];
+        return normalizeConfig(next);
+    };
     const getExcludedMatchPatterns = (excludedHosts) => {
         return normalizeExcludedHosts(excludedHosts).flatMap((host) => ([`*://${host}/*`, `*://*.${host}/*`]));
     };
@@ -326,6 +350,7 @@
         delete config.videoFloating.boostLevel;
         delete config.videoFloating.maxBoost;
         config.videoFloating.noticeFontSize = clampNumber(config.videoFloating.noticeFontSize, 14, 8, 48);
+        config.videoFloating.backgroundSeekExcludedHosts = normalizeExcludedHosts(config.videoFloating.backgroundSeekExcludedHosts);
         config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
         delete config.videoFloating.iconPos;
 
@@ -577,6 +602,9 @@
         normalizeExcludedHosts,
         isHostExcluded,
         setHostExcluded,
+        getVideoFloatingBackgroundSeekExcludedHosts,
+        isVideoFloatingBackgroundSeekExcluded,
+        setVideoFloatingBackgroundSeekExcluded,
         getExcludedMatchPatterns,
         getGestureSettings,
         applyGestureSettings

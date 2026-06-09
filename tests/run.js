@@ -57,7 +57,13 @@ try {
     process.exit(1);
 }
 
-const { normalizeHost, normalizeConfig, getGestureSettings } = sandbox.globalThis.GestureExtension.shared.config;
+const {
+    normalizeHost,
+    normalizeConfig,
+    getGestureSettings,
+    isVideoFloatingBackgroundSeekExcluded,
+    setVideoFloatingBackgroundSeekExcluded
+} = sandbox.globalThis.GestureExtension.shared.config;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
 const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
 
@@ -135,6 +141,19 @@ runTest('normalizeConfig: giới hạn (clamp) các số cấu hình ngoài tầ
     }));
     assert.equal(config.clipboard.maxHistory, 20);
     assert.equal(config.quickSearch.columns, 3);
+});
+
+runTest('videoFloating: chặn riêng background seek theo host và subdomain', () => {
+    const config = normalizeConfig({
+        videoFloating: {
+            backgroundSeekExcludedHosts: ['https://www.tiktok.com/foryou']
+        }
+    });
+    assert.equal(isVideoFloatingBackgroundSeekExcluded(config, 'm.tiktok.com'), true);
+    assert.equal(isVideoFloatingBackgroundSeekExcluded(config, 'youtube.com'), false);
+
+    const next = setVideoFloatingBackgroundSeekExcluded(config, 'https://example.com/watch', true);
+    assert.equal(isVideoFloatingBackgroundSeekExcluded(next, 'www.example.com'), true);
 });
 
 runTest('normalizeConfig: tối ưu hóa cờ _isNormalized hoạt động đúng', () => {

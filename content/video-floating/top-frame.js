@@ -343,6 +343,38 @@
             return [...videoItems, ...iframeItems];
         };
 
+        let lastAutoSyncAt = 0;
+        const canAutoSyncFloatingVideo = () => (
+            isFeatureEnabled()
+            && !ctx.floatedIframe
+            && !!ctx.curVid
+            && ctx.box?.style.display !== 'none'
+            && !ctx.state.isSwitchingVideo
+            && !ctx.state.isDrag
+            && !ctx.state.isResize
+            && !ctx.state.isSeeking
+            && !ctx.state.seekDragActive
+        );
+        const getPlaybackEventVideo = (event) => {
+            const directTarget = event.target instanceof HTMLVideoElement ? event.target : null;
+            if (directTarget) return directTarget;
+            const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+            return path.find((node) => node instanceof HTMLVideoElement) || null;
+        };
+        const syncFloatingWithPlayingDirectVideo = (candidate = null) => {
+            if (!canAutoSyncFloatingVideo()) return;
+            if (candidate && (!candidate.isConnected || candidate.closest?.('#fvp-wrapper'))) return;
+            const preferredVideo = candidate || videoFloating.helpers.getDirectVideos()[0];
+            if (!preferredVideo || preferredVideo === ctx.curVid) return;
+            if (!videoFloating.helpers.isDetectableVideo(preferredVideo)) return;
+            if (!videoFloating.helpers.isVideoActivelyPlaying(preferredVideo)) return;
+
+            const now = performance.now();
+            if (now - lastAutoSyncAt < 350) return;
+            lastAutoSyncAt = now;
+            floatingSession.float(preferredVideo);
+        };
+
         const openMenuAtAnchor = (anchor) => {
             if (!ctx.menuRef || !anchor) return;
             if (!isFeatureEnabled()) {
@@ -394,6 +426,16 @@
             if (!isFeatureEnabled()) floatingSession.restore();
             floatingSession.updateVideoDetectionUI();
         }));
+
+        const onDirectVideoPlayback = (event) => {
+            const video = getPlaybackEventVideo(event);
+            if (!video) return;
+            window.setTimeout(() => syncFloatingWithPlayingDirectVideo(video), 80);
+        };
+        ['play', 'playing'].forEach((eventName) => {
+            window.addEventListener(eventName, onDirectVideoPlayback, true);
+            ctx.cleanup.push(() => window.removeEventListener(eventName, onDirectVideoPlayback, true));
+        });
 
         const onTouchSwitchVideo = (event) => {
             if (!isFeatureEnabled()) return;
@@ -817,9 +859,12 @@
         ctx.cleanup.push(() => window.removeEventListener('message', onWindowMessage));
 
         resetIdle();
+        const autoSyncTimer = window.setInterval(() => syncFloatingWithPlayingDirectVideo(), 750);
+        ctx.cleanup.push(() => window.clearInterval(autoSyncTimer));
         const detectionTimer = window.setInterval(() => floatingSession.updateVideoDetectionUI(), VIDEO_CHECK_INTERVAL);
         ctx.cleanup.push(() => window.clearInterval(detectionTimer));
         loadCfgAsync();
+        syncFloatingWithPlayingDirectVideo();
         floatingSession.updateVideoDetectionUI();
 
         return {

@@ -20,29 +20,18 @@
             postToFloatedIframe
         } = deps;
 
-        const getVideoKey = (video) => {
-            if (!video) return '';
-            const rect = video.getBoundingClientRect?.() || { left: 0, top: 0, width: 0, height: 0 };
-            return [
-                video.currentSrc || video.src || '',
-                Math.round(rect.left),
-                Math.round(rect.top),
-                Math.round(rect.width),
-                Math.round(rect.height)
-            ].join('|');
-        };
-
         const getVideos = () => {
             const liveVideos = getDirectVideos();
-            const snapshot = Array.isArray(ctx.videoSequence) ? ctx.videoSequence.filter((video) => video?.isConnected) : [];
+            const snapshot = Array.isArray(ctx.videoSequence)
+                ? ctx.videoSequence.filter((video) => video?.isConnected && !video.closest?.('#fvp-wrapper'))
+                : [];
             const merged = [];
             const seen = new Set();
-            for (const video of [...snapshot, ...liveVideos]) {
-                const key = getVideoKey(video);
-                if (!key || seen.has(key)) {
+            for (const video of [...liveVideos, ...snapshot]) {
+                if (!video || seen.has(video)) {
                     continue;
                 }
-                seen.add(key);
+                seen.add(video);
                 merged.push(video);
             }
             if (ctx.curVid?.isConnected && !merged.includes(ctx.curVid)) {

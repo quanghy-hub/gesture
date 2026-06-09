@@ -27,6 +27,7 @@
         throttle: 15,
         forwardStep: 5,
         hotkeys: true,
-        noticeFontSize: 14
+        noticeFontSize: 14,
+        backgroundSeekExcludedHosts: []
     });
 })();

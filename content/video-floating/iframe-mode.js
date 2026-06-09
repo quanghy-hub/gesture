@@ -14,6 +14,8 @@
         queryAllDeep,
         isDetectableVideo,
         getVideo,
+        compareVideoPriority,
+        isVideoActivelyPlaying,
         TOUCH_SWITCH_VIDEO_EVENT,
     } = videoFloating.helpers;
 
@@ -35,7 +37,7 @@
 
         const getOwnVideoCount = () => getIframeVideos().length;
         const getIframeVideos = () => {
-            const unique = new Map();
+            const unique = new Set();
             for (const video of queryAllDeep('video')) {
                 if (!video?.isConnected) continue;
 
@@ -58,19 +60,9 @@
                 const largeEnough = rect.width >= 160 && rect.height >= 90;
                 if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
 
-                const key = [
-                    video.currentSrc || video.src || '',
-                    Math.round(rect.left),
-                    Math.round(rect.top),
-                    Math.round(rect.width),
-                    Math.round(rect.height)
-                ].join('|');
-
-                if (!unique.has(key)) {
-                    unique.set(key, video);
-                }
+                unique.add(video);
             }
-            return [...unique.values()];
+            return [...unique].sort(compareVideoPriority);
         };
 
         const postIframeBridgeMessage = (payload) => {
@@ -86,11 +78,15 @@
         };
 
         const getCurrentIframeVideo = () => {
+            const preferredVideo = getIframeVideos()[0] || null;
+            if (preferredVideo && (!activeIframeVideo?.isConnected || (preferredVideo !== activeIframeVideo && isVideoActivelyPlaying(preferredVideo)))) {
+                activeIframeVideo = preferredVideo;
+            }
             if (activeIframeVideo?.isConnected) {
                 bindActiveIframeState(activeIframeVideo);
                 return activeIframeVideo;
             }
-            activeIframeVideo = getVideo() || getIframeVideos()[0] || null;
+            activeIframeVideo = getVideo() || preferredVideo;
             bindActiveIframeState(activeIframeVideo);
             return activeIframeVideo;
         };
@@ -307,6 +303,15 @@
 
         window.addEventListener('message', onMessage);
         window.addEventListener('wheel', onWheel, { capture: true, passive: false });
+        const onVideoPlay = (event) => {
+            const video = event.target;
+            if (!(video instanceof HTMLVideoElement) || !video.isConnected) return;
+            activeIframeVideo = video;
+            bindActiveIframeState(activeIframeVideo);
+            applyIframePresentation(activeIframeVideo);
+            postIframeState();
+        };
+        window.addEventListener('play', onVideoPlay, true);
         const onTouchSwitchVideo = (event) => {
             const dir = Number(event.detail?.dir) || 0;
             if (!dir) return;
@@ -324,6 +329,7 @@
                 unbindActiveIframeState();
                 window.removeEventListener('message', onMessage);
                 window.removeEventListener('wheel', onWheel, { capture: true, passive: false });
+                window.removeEventListener('play', onVideoPlay, true);
                 window.removeEventListener(TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
                 window.clearInterval(reportTimer);
                 clearTimeout(wheelGestureResetTimer);
