@@ -129,12 +129,50 @@
     };
 
     const compareVideoPriority = (left, right) => getVideoPriority(right) - getVideoPriority(left);
+    const AUTO_SYNC_MIN_VISIBLE_AREA = 42000;
+    const AUTO_SYNC_MIN_SHORT_SIDE = 128;
+    const AUTO_SYNC_MIN_LONG_SIDE = 220;
+    const AUTO_SYNC_REFERENCE_AREA_RATIO = 0.45;
+    const AUTO_SYNC_REFERENCE_AREA_FLOOR = 90000;
 
     const isDetectableVideo = (video) => {
         if (!video || !video.isConnected) return false;
         if (hasVisibleSize) return hasVisibleSize(video);
         const rect = getRect(video);
         return rect.width > 0 && rect.height > 0;
+    };
+
+    const isVideoAutoSyncCandidate = (video, { referenceRect = null } = {}) => {
+        if (!isDetectableVideo(video)) return false;
+        try {
+            const style = window.getComputedStyle(video);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+        } catch (e) {}
+
+        const rect = getRect(video);
+        const elementArea = Math.max(0, rect.width * rect.height);
+        const viewport = getViewportIntersection(rect);
+        const visibleArea = viewport.area || (viewport.ratio > 0 ? elementArea : 0);
+        const shortSide = Math.min(rect.width, rect.height);
+        const longSide = Math.max(rect.width, rect.height);
+        if (
+            visibleArea < AUTO_SYNC_MIN_VISIBLE_AREA
+            || shortSide < AUTO_SYNC_MIN_SHORT_SIDE
+            || longSide < AUTO_SYNC_MIN_LONG_SIDE
+        ) return false;
+
+        const referenceArea = referenceRect?.width && referenceRect?.height
+            ? Math.max(0, referenceRect.width * referenceRect.height)
+            : 0;
+        if (
+            referenceArea
+            && visibleArea < AUTO_SYNC_REFERENCE_AREA_FLOOR
+            && visibleArea < referenceArea * AUTO_SYNC_REFERENCE_AREA_RATIO
+        ) {
+            return false;
+        }
+
+        return true;
     };
 
     const isVisibleIframe = (iframe) => {
@@ -744,6 +782,7 @@
         getRect,
         queryAllDeep,
         isDetectableVideo,
+        isVideoAutoSyncCandidate,
         getDirectVideoSequence,
         getDirectVideos,
         isVisibleIframe,

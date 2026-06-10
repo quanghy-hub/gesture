@@ -362,6 +362,12 @@
             const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
             return path.find((node) => node instanceof HTMLVideoElement) || null;
         };
+        const getFloatingSyncReferenceRect = () => {
+            const wrapper = $('fvp-wrapper');
+            const wrapperRect = wrapper ? getRect(wrapper) : null;
+            if (wrapperRect?.width && wrapperRect?.height) return wrapperRect;
+            return ctx.curVid ? getRect(ctx.curVid) : null;
+        };
         const syncFloatingWithPlayingDirectVideo = (candidate = null) => {
             if (!canAutoSyncFloatingVideo()) return;
             if (candidate && (!candidate.isConnected || candidate.closest?.('#fvp-wrapper'))) return;
@@ -369,6 +375,7 @@
             if (!preferredVideo || preferredVideo === ctx.curVid) return;
             if (!videoFloating.helpers.isDetectableVideo(preferredVideo)) return;
             if (!videoFloating.helpers.isVideoActivelyPlaying(preferredVideo)) return;
+            if (!videoFloating.helpers.isVideoAutoSyncCandidate?.(preferredVideo, { referenceRect: getFloatingSyncReferenceRect() })) return;
 
             const now = performance.now();
             if (now - lastAutoSyncAt < 350) return;
