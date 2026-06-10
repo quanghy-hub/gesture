@@ -19,6 +19,7 @@
             updatePlaybackOverlayUI,
             postToFloatedIframe
         } = deps;
+        const originalVideoStyles = new WeakMap();
 
         const getVideos = () => {
             const liveVideos = getDirectVideos();
@@ -189,6 +190,12 @@
             return layer;
         };
 
+        const captureVideoPresentation = (video) => {
+            if (video && !originalVideoStyles.has(video)) {
+                originalVideoStyles.set(video, video.getAttribute('style'));
+            }
+        };
+
         const resetVideoPresentation = (video) => {
             if (!video) return;
             Object.assign(video.style, {
@@ -198,6 +205,47 @@
                 objectPosition: '',
                 transform: '',
                 transition: ''
+            });
+        };
+
+        const restoreVideoPresentation = (video) => {
+            if (!video) return;
+            if (!originalVideoStyles.has(video)) {
+                resetVideoPresentation(video);
+                return;
+            }
+            const originalStyle = originalVideoStyles.get(video);
+            if (originalStyle === null) {
+                video.removeAttribute('style');
+            } else {
+                video.setAttribute('style', originalStyle);
+            }
+            originalVideoStyles.delete(video);
+        };
+
+        const restoreVideoNode = (video, parent, placeholder) => {
+            if (!video) return false;
+            if (parent?.isConnected) {
+                if (placeholder?.parentNode === parent) {
+                    parent.replaceChild(video, placeholder);
+                } else {
+                    parent.appendChild(video);
+                }
+                return true;
+            }
+            if (placeholder?.parentNode) {
+                placeholder.parentNode.replaceChild(video, placeholder);
+                return true;
+            }
+            video.remove();
+            return false;
+        };
+
+        const clearWrapper = (wrapper, keepNodes = []) => {
+            if (!wrapper) return;
+            const keep = new Set(keepNodes.filter(Boolean));
+            [...wrapper.childNodes].forEach((node) => {
+                if (!keep.has(node)) node.remove();
             });
         };
 
@@ -212,14 +260,10 @@
                 nextPlaceholder,
                 nextParent
             } = transition;
-            if (previousParent?.isConnected && previousPlaceholder?.parentNode === previousParent) {
-                previousParent.replaceChild(currentVideo, previousPlaceholder);
-            }
-            if (nextParent?.isConnected && nextPlaceholder?.parentNode === nextParent) {
-                nextParent.replaceChild(nextVideo, nextPlaceholder);
-            }
-            resetVideoPresentation(currentVideo);
-            resetVideoPresentation(nextVideo);
+            restoreVideoNode(currentVideo, previousParent, previousPlaceholder);
+            restoreVideoNode(nextVideo, nextParent, nextPlaceholder);
+            restoreVideoPresentation(currentVideo);
+            restoreVideoPresentation(nextVideo);
             currentVideo.onplay = currentVideo.onpause = currentVideo.onended = null;
             nextVideo.onplay = nextVideo.onpause = nextVideo.onended = null;
             currentVideo.pause?.();
@@ -250,12 +294,12 @@
                 restoreFloatedIframe({ clearRefs: true });
             } else if (!transitionRestored && ctx.curVid) {
                 // Restore the original DOM position of the video node to avoid leaving detached media behind.
-                ctx.origPar?.replaceChild(ctx.curVid, ctx.ph);
-                resetVideoPresentation(ctx.curVid);
+                restoreVideoNode(ctx.curVid, ctx.origPar, ctx.ph);
+                restoreVideoPresentation(ctx.curVid);
                 ctx.curVid.onplay = ctx.curVid.onpause = ctx.curVid.onended = null;
                 ctx.curVid = null;
             }
-            $('fvp-wrapper')?.querySelectorAll('.fvp-transition-layer').forEach((node) => node.remove());
+            clearWrapper($('fvp-wrapper'));
             if (ctx.box) ctx.box.style.display = 'none';
             ctx.videoSequence = [];
             ctx.zoomIdx = 0;
@@ -297,6 +341,7 @@
             currentVideo.onplay = currentVideo.onpause = currentVideo.onended = null;
             currentVideo.pause?.();
 
+            captureVideoPresentation(nextVideo);
             const nextPlaceholder = el('div', 'fvp-ph', '<div style="font-size:20px;opacity:.5">📺</div>');
             nextPlaceholder.style.cssText = `width:${nextVideo.offsetWidth || 300}px;height:${nextVideo.offsetHeight || 200}px`;
             nextParent.replaceChild(nextPlaceholder, nextVideo);
@@ -309,12 +354,13 @@
                 nextParent
             };
 
-            wrapper.innerHTML = '';
+            clearWrapper(wrapper, [currentVideo]);
             const outgoingLayer = createTransitionLayer(currentVideo, dir > 0 ? 'is-outgoing-up' : 'is-outgoing-down');
             const incomingLayer = createTransitionLayer(nextVideo, dir > 0 ? 'is-incoming-from-bottom' : 'is-incoming-from-top');
             if (!outgoingLayer || !incomingLayer) {
                 ctx.state.switchTransition = null;
-                nextParent.replaceChild(nextVideo, nextPlaceholder);
+                restoreVideoNode(nextVideo, nextParent, nextPlaceholder);
+                restoreVideoPresentation(nextVideo);
                 ctx.state.isSwitchingVideo = false;
                 float(nextVideo);
                 return;
@@ -338,14 +384,16 @@
                 clearTimeout(ctx.state.transitionTimer);
                 ctx.state.transitionTimer = 0;
                 ctx.state.isSwitchingVideo = false;
-                wrapper.innerHTML = '';
-                previousParent.replaceChild(currentVideo, previousPlaceholder);
-                resetVideoPresentation(currentVideo);
+                restoreVideoNode(currentVideo, previousParent, previousPlaceholder);
+                restoreVideoPresentation(currentVideo);
                 currentVideo.pause?.();
                 ctx.state.switchTransition = null;
                 ctx.origPar = nextParent;
                 ctx.ph = nextPlaceholder;
                 wrapper.appendChild(nextVideo);
+                outgoingLayer.remove();
+                incomingLayer.remove();
+                clearWrapper(wrapper, [nextVideo]);
                 activateCurrentVideo(nextVideo);
             };
 
@@ -367,7 +415,7 @@
             ctx.iframePh.style.cssText = `width:${iframe.offsetWidth || 300}px;height:${iframe.offsetHeight || 200}px`;
             ctx.iframeOrigPar?.replaceChild(ctx.iframePh, iframe);
             const wrapper = $('fvp-wrapper');
-            wrapper.innerHTML = '';
+            clearWrapper(wrapper);
             iframe.style.cssText = 'width:100%!important;height:100%!important;border:none!important;position:absolute;top:0;left:0;';
             wrapper.appendChild(iframe);
             ctx.box.style.display = 'flex';
@@ -394,11 +442,12 @@
             ctx.videoSequence = getDirectVideos();
             ctx.origPar = video.parentNode;
             ctx.curVid = video;
+            captureVideoPresentation(video);
             ctx.ph = el('div', 'fvp-ph', '<div style="font-size:20px;opacity:.5">📺</div>');
             ctx.ph.style.cssText = `width:${video.offsetWidth || 300}px;height:${video.offsetHeight || 200}px`;
             ctx.origPar?.replaceChild(ctx.ph, video);
             const wrapper = $('fvp-wrapper');
-            wrapper.innerHTML = '';
+            clearWrapper(wrapper);
             wrapper.appendChild(video);
             video.style.objectFit = FIT_MODES[ctx.fitIdx];
             ctx.box.style.display = 'flex';
