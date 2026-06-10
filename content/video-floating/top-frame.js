@@ -282,6 +282,7 @@
             el,
             $,
             getDirectVideos: videoFloating.helpers.getDirectVideos,
+            getDirectVideoSequence: videoFloating.helpers.getDirectVideoSequence,
             getTrackedIframeEntries: videoFloating.helpers.getTrackedIframeEntries,
             isFeatureEnabled,
             loadLayout,
@@ -393,6 +394,12 @@
 
         const floatFirstAvailableMedia = () => {
             if (!isFeatureEnabled()) return;
+            const preferredVideo = videoFloating.helpers.getDirectVideos()[0];
+            if (preferredVideo) {
+                ctx.menuRef?.hide();
+                floatingSession.float(preferredVideo);
+                return;
+            }
             const [firstItem] = getAvailableMediaItems();
             if (!firstItem) {
                 ctx.menuRef?.hide();
@@ -829,8 +836,17 @@
 
         const onResize = () => {
             if (ctx.box?.style.display === 'none') return;
-            applyBoxLayout(loadLayout());
-            persistCurrentBoxLayout();
+            const width = ctx.box.offsetWidth;
+            const height = ctx.box.offsetHeight;
+            const next = clampBoxPosition({
+                left: ctx.box.offsetLeft,
+                top: ctx.box.offsetTop,
+                width,
+                height
+            });
+            ctx.box.style.left = `${Math.round(next.left)}px`;
+            ctx.box.style.top = `${Math.round(next.top)}px`;
+            updateLeftPanelLayout();
         };
         window.addEventListener('resize', onResize);
         ctx.cleanup.push(() => window.removeEventListener('resize', onResize));

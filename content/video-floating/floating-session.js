@@ -8,6 +8,7 @@
             el,
             $,
             getDirectVideos,
+            getDirectVideoSequence,
             getTrackedIframeEntries,
             isFeatureEnabled,
             loadLayout,
@@ -21,14 +22,23 @@
         } = deps;
         const originalVideoStyles = new WeakMap();
 
+        const getSwitchVideos = () => (
+            typeof getDirectVideoSequence === 'function'
+                ? getDirectVideoSequence()
+                : getDirectVideos()
+        );
+
         const getVideos = () => {
-            const liveVideos = getDirectVideos();
+            const liveVideos = getSwitchVideos();
             const snapshot = Array.isArray(ctx.videoSequence)
-                ? ctx.videoSequence.filter((video) => video?.isConnected && !video.closest?.('#fvp-wrapper'))
+                ? ctx.videoSequence.filter((video) => (
+                    video?.isConnected
+                    && (video === ctx.curVid || !video.closest?.('#fvp-wrapper'))
+                ))
                 : [];
             const merged = [];
             const seen = new Set();
-            for (const video of [...liveVideos, ...snapshot]) {
+            for (const video of [...snapshot, ...liveVideos]) {
                 if (!video || seen.has(video)) {
                     continue;
                 }
@@ -119,6 +129,21 @@
             ctx.iframeOrigPar = null;
             ctx.iframePh = null;
             resetIframePlaybackState();
+        };
+
+        const isFloatingShellOpen = () => !!(ctx.box && ctx.box.style.display !== 'none');
+
+        const showFloatingShell = ({ applySavedLayout = false, isCurrent = () => true } = {}) => {
+            if (!ctx.box) return;
+            ctx.box.style.display = 'flex';
+            if (!applySavedLayout) {
+                updateLeftPanelLayout?.();
+                return;
+            }
+            applyBoxLayout(loadLayout());
+            ensureLayoutReady().then((layout) => {
+                if (layout && isFloatingShellOpen() && isCurrent()) applyBoxLayout(layout);
+            });
         };
 
         const applyTransform = () => {
@@ -402,6 +427,7 @@
 
         const floatIframe = (iframe) => {
             if (!isFeatureEnabled()) return;
+            const shouldApplyLayout = !isFloatingShellOpen();
             if (ctx.floatedIframe) {
                 restoreFloatedIframe();
             }
@@ -418,14 +444,13 @@
             clearWrapper(wrapper);
             iframe.style.cssText = 'width:100%!important;height:100%!important;border:none!important;position:absolute;top:0;left:0;';
             wrapper.appendChild(iframe);
-            ctx.box.style.display = 'flex';
+            showFloatingShell({
+                applySavedLayout: shouldApplyLayout,
+                isCurrent: () => ctx.floatedIframe === iframe
+            });
             ctx.menuRef?.hide();
-            applyBoxLayout(loadLayout());
             updateVideoOrderUI(null);
             updatePlaybackOverlayUI?.();
-            ensureLayoutReady().then((layout) => {
-                if (ctx.floatedIframe === iframe && layout) applyBoxLayout(layout);
-            });
             postToFloatedIframe({ command: 'set-floating-active', active: true });
             postToFloatedIframe({ command: 'get-state' });
             ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 350);
@@ -433,13 +458,14 @@
 
         const float = (video) => {
             if (!isFeatureEnabled()) return;
+            const shouldApplyLayout = !isFloatingShellOpen();
             if (ctx.floatedIframe) {
                 restoreFloatedIframe({ clearRefs: true });
             }
             if (ctx.curVid && ctx.curVid !== video) restore();
             if (ctx.curVid === video) return;
             deps.ensureInitialized();
-            ctx.videoSequence = getDirectVideos();
+            ctx.videoSequence = getSwitchVideos();
             ctx.origPar = video.parentNode;
             ctx.curVid = video;
             captureVideoPresentation(video);
@@ -450,13 +476,12 @@
             clearWrapper(wrapper);
             wrapper.appendChild(video);
             video.style.objectFit = FIT_MODES[ctx.fitIdx];
-            ctx.box.style.display = 'flex';
-            ctx.menuRef?.hide();
-            applyBoxLayout(loadLayout());
-            updatePlaybackOverlayUI?.();
-            ensureLayoutReady().then((layout) => {
-                if (ctx.curVid === video && layout) applyBoxLayout(layout);
+            showFloatingShell({
+                applySavedLayout: shouldApplyLayout,
+                isCurrent: () => ctx.curVid === video
             });
+            ctx.menuRef?.hide();
+            updatePlaybackOverlayUI?.();
             activateCurrentVideo(video);
         };
 

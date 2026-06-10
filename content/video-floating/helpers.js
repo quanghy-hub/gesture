@@ -168,8 +168,37 @@
         return VIDEO_IFRAME_PATTERN.test(attrs);
     };
 
-    const getDirectVideos = () => {
-        const unique = new Set();
+    const getVideoSourceCandidate = (video) => {
+        const source = video?.querySelector?.('source[src], source[data-source], source[data-src], source[data-video-src]');
+        return video?.currentSrc
+            || video?.src
+            || video?.getAttribute?.('src')
+            || video?.dataset?.source
+            || video?.dataset?.src
+            || video?.dataset?.videoSrc
+            || video?.getAttribute?.('data-source')
+            || video?.getAttribute?.('data-src')
+            || video?.getAttribute?.('data-video-src')
+            || source?.src
+            || source?.dataset?.source
+            || source?.dataset?.src
+            || source?.dataset?.videoSrc
+            || source?.getAttribute?.('data-source')
+            || source?.getAttribute?.('data-src')
+            || source?.getAttribute?.('data-video-src')
+            || '';
+    };
+
+    const getDirectVideoKey = (video, rect = getRect(video), sourceCandidate = getVideoSourceCandidate(video)) => [
+        sourceCandidate,
+        Math.round(rect.left),
+        Math.round(rect.top),
+        Math.round(rect.width),
+        Math.round(rect.height)
+    ].join('|');
+
+    const collectDirectVideos = () => {
+        const unique = new Map();
         for (const video of queryAllDeep('video')) {
             if (!video?.isConnected || video.closest('#fvp-wrapper')) continue;
 
@@ -187,16 +216,23 @@
             }
 
             const rect = getRect(video);
-            const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
+            const sourceCandidate = getVideoSourceCandidate(video);
+            const hasMediaSource = Boolean(sourceCandidate);
             const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
             const largeEnough = rect.width >= 160 && rect.height >= 90;
             if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
 
-            unique.add(video);
+            const key = getDirectVideoKey(video, rect, sourceCandidate);
+            if (!unique.has(key)) {
+                unique.set(key, video);
+            }
         }
 
-        return [...unique].sort(compareVideoPriority);
+        return [...unique.values()];
     };
+
+    const getDirectVideoSequence = () => collectDirectVideos();
+    const getDirectVideos = () => collectDirectVideos().sort(compareVideoPriority);
 
     const getOverlapRatio = (firstRect, secondRect) => {
         const left = Math.max(firstRect.left, secondRect.left);
@@ -708,6 +744,7 @@
         getRect,
         queryAllDeep,
         isDetectableVideo,
+        getDirectVideoSequence,
         getDirectVideos,
         isVisibleIframe,
         getIframeSrc,
