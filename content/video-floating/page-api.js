@@ -8,7 +8,7 @@
 
     const FVP_IFRAME_BRIDGE = 'fvp-page-bridge';
 
-    const getFloatingVideo = () => document.querySelector('#fvp-wrapper video') || document.querySelector('video');
+    const getFloatingVideo = () => document.querySelector('#fvp-wrapper video, #fvp-wrapper audio') || document.querySelector('video, audio');
     const emitQualityResult = levels => {
         window.dispatchEvent(new CustomEvent('fvp-quality-result', { detail: levels }));
     };

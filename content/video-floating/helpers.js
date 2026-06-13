@@ -85,11 +85,12 @@
     };
 
     const getTopVideoAtPoint = (x, y) => {
-        if (typeof document.elementsFromPoint !== 'function') return null;
-        for (const node of document.elementsFromPoint(x, y)) {
-            if (!(node instanceof Element)) continue;
-            const video = node.tagName === 'VIDEO' ? node : node.closest?.('video');
-            if (video?.isConnected && !video.closest('#fvp-wrapper')) return video;
+        if (typeof document.elementsFromPoint === 'function') {
+            for (const node of document.elementsFromPoint(x, y)) {
+                if (!(node instanceof Element)) continue;
+                const video = (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') ? node : node.closest?.('video, audio');
+                if (video?.isConnected && !video.closest('#fvp-wrapper')) return video;
+            }
         }
         return null;
     };
@@ -137,6 +138,9 @@
 
     const isDetectableVideo = (video) => {
         if (!video || !video.isConnected) return false;
+        if (video.tagName === 'AUDIO') return true;
+        if (location.hostname.includes('music.youtube.com')) return true;
+        if (video.currentTime > 0 || (Number.isFinite(video.duration) && video.duration > 0 && !video.paused)) return true;
         if (hasVisibleSize) return hasVisibleSize(video);
         const rect = getRect(video);
         return rect.width > 0 && rect.height > 0;
@@ -237,7 +241,7 @@
 
     const collectDirectVideos = () => {
         const unique = new Map();
-        for (const video of queryAllDeep('video')) {
+        for (const video of queryAllDeep('video, audio')) {
             if (!video?.isConnected || video.closest('#fvp-wrapper')) continue;
 
             if (!isDetectableVideo(video)) continue;
@@ -388,8 +392,8 @@
     const getVideo = () => {
         const fs = getFullscreenEl();
         if (fs) {
-            if (fs.tagName === 'VIDEO') return fs;
-            const video = fs.querySelector('video');
+            if (fs.tagName === 'VIDEO' || fs.tagName === 'AUDIO') return fs;
+            const video = fs.querySelector('video, audio');
             if (video) return video;
         }
         const wrapper = $('fvp-wrapper');
@@ -425,7 +429,7 @@
         if (typeof document.elementsFromPoint === 'function') {
             for (const node of document.elementsFromPoint(x, y)) {
                 if (!(node instanceof Element)) continue;
-                const video = node.tagName === 'VIDEO' ? node : node.closest?.('video');
+                const video = (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') ? node : node.closest?.('video, audio');
                 if (!video || !video.isConnected || video.closest('#fvp-wrapper')) continue;
                 if (isDetectableVideo(video)) return video;
             }
@@ -552,16 +556,33 @@
 
                 const wrapper = startedInsideFloatingBox ? $('fvp-wrapper') : null;
                 const wrapperRect = wrapper ? getRect(wrapper) : null;
-                const video = (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height)
+                let video = (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height)
                     ? getFloatingActiveVideo(wrapper)
                     : getVideoAtPoint(point.clientX, point.clientY);
+
+                if (!video && !startedInsideFloatingBox) {
+                    const activeMedia = getVideo();
+                    if (activeMedia) {
+                        const isAudio = activeMedia.tagName === 'AUDIO';
+                        const isYtMusic = location.hostname.includes('music.youtube.com');
+                        const isPlaying = !activeMedia.paused && activeMedia.currentTime > 0;
+                        if (isAudio || isYtMusic || isPlaying) {
+                            video = activeMedia;
+                        }
+                    }
+                }
+
                 if (!video?.isConnected || !Number.isFinite(video.duration) || video.duration <= 0) return;
                 const rect = (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height) ? wrapperRect : getRect(video);
-                if (!rect.width || !rect.height) return;
-                const bottomGuard = startedInsideFloatingBox
-                    ? 60
-                    : Math.min(44, Math.max(18, rect.height * 0.1));
-                if (point.clientY > rect.bottom - bottomGuard) return;
+
+                const isAudioOrHidden = video.tagName === 'AUDIO' || location.hostname.includes('music.youtube.com') || !rect.width || !rect.height;
+                if (!isAudioOrHidden) {
+                    if (!rect.width || !rect.height) return;
+                    const bottomGuard = startedInsideFloatingBox
+                        ? 60
+                        : Math.min(44, Math.max(18, rect.height * 0.1));
+                    if (point.clientY > rect.bottom - bottomGuard) return;
+                }
                 if (startedInsideFloatingBox) {
                     stopTouchEventForFloating(event);
                 }
@@ -733,7 +754,13 @@
             const absY = Math.abs(event.deltaY || 0);
             if (!absX || absX < absY * 0.8) return;
 
-            const video = getSeekableVideoAtPoint(event.clientX || 0, event.clientY || 0, { includeFloating: true });
+            let video = getSeekableVideoAtPoint(event.clientX || 0, event.clientY || 0, { includeFloating: true });
+            if (!video) {
+                const activeMedia = getVideo();
+                if (activeMedia && (activeMedia.tagName === 'AUDIO' || location.hostname.includes('music.youtube.com'))) {
+                    video = activeMedia;
+                }
+            }
             if (!video) return;
             if (isBackgroundSeekExcluded() && !video.closest?.('#fvp-wrapper')) return;
 
@@ -747,7 +774,13 @@
             if (event.altKey || event.ctrlKey || event.metaKey) return;
             if (!pointer.active || isVideoSeekEditableTarget(event.target)) return;
 
-            const video = getSeekableVideoAtPoint(pointer.x, pointer.y, { includeFloating: true });
+            let video = getSeekableVideoAtPoint(pointer.x, pointer.y, { includeFloating: true });
+            if (!video) {
+                const activeMedia = getVideo();
+                if (activeMedia && (activeMedia.tagName === 'AUDIO' || location.hostname.includes('music.youtube.com'))) {
+                    video = activeMedia;
+                }
+            }
             if (!video) return;
             if (isBackgroundSeekExcluded() && !video.closest?.('#fvp-wrapper')) return;
 

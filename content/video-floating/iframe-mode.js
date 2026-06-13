@@ -38,7 +38,7 @@
         const getOwnVideoCount = () => getIframeVideos().length;
         const getIframeVideos = () => {
             const unique = new Set();
-            for (const video of queryAllDeep('video')) {
+            for (const video of queryAllDeep('video, audio')) {
                 if (!video?.isConnected) continue;
 
                 if (!isDetectableVideo(video)) continue;
