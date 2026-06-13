@@ -117,6 +117,7 @@
             popupPanelOrder: DEFAULT_POPUP_PANEL_ORDER
         },
         gestures: {
+            excludedHosts: [],
             desktop: {
                 enabled: true,
                 lpress: { enabled: true, mode: 'bg', ms: 500 },

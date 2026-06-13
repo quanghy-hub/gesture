@@ -67,7 +67,9 @@ const {
     normalizeConfig,
     getGestureSettings,
     isVideoFloatingBackgroundSeekExcluded,
-    setVideoFloatingBackgroundSeekExcluded
+    setVideoFloatingBackgroundSeekExcluded,
+    isGestureHostExcluded,
+    setGestureHostExcluded
 } = sandbox.globalThis.GestureExtension.shared.config;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
 const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
@@ -159,6 +161,19 @@ runTest('videoFloating: chặn riêng background seek theo host và subdomain', 
 
     const next = setVideoFloatingBackgroundSeekExcluded(config, 'https://example.com/watch', true);
     assert.equal(isVideoFloatingBackgroundSeekExcluded(next, 'www.example.com'), true);
+});
+
+runTest('gestures: chặn riêng cử chỉ theo host và subdomain', () => {
+    const config = normalizeConfig({
+        gestures: {
+            excludedHosts: ['https://www.tiktok.com/foryou']
+        }
+    });
+    assert.equal(isGestureHostExcluded(config, 'm.tiktok.com'), true);
+    assert.equal(isGestureHostExcluded(config, 'youtube.com'), false);
+
+    const next = setGestureHostExcluded(config, 'https://example.com/watch', true);
+    assert.equal(isGestureHostExcluded(next, 'www.example.com'), true);
 });
 
 runTest('normalizeConfig: tối ưu hóa cờ _isNormalized hoạt động đúng', () => {

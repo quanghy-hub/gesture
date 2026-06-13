@@ -203,11 +203,11 @@ body {
     opacity: 0.55;
 }
 
-.card.is-disabled .table {
+.card.is-disabled .provider-picker {
     pointer-events: none;
 }
 
-.card.is-disabled .provider-picker {
+.card.is-disabled .table .item:not(.host-scope-toggle) {
     pointer-events: none;
 }
 

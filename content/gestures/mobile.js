@@ -29,7 +29,13 @@
             addListenerHelper(listeners, target, event, handler, options);
         };
 
-        const getConfig = () => context.getConfig().gestures.mobile;
+        const getConfig = () => {
+            const cfg = context.getConfig().gestures.mobile;
+            if (ext.shared.config.isGestureHostExcluded?.(context.getConfig(), location.hostname)) {
+                return { ...cfg, enabled: false };
+            }
+            return cfg;
+        };
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
         const preventDefaultIfCancelable = (event) => {
             if (event.cancelable) {

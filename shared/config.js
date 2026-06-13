@@ -48,6 +48,29 @@
         next.videoFloating.backgroundSeekExcludedHosts = [...current];
         return normalizeConfig(next);
     };
+    const getGestureExcludedHosts = (config) => (
+        normalizeExcludedHosts(config?.gestures?.excludedHosts)
+    );
+    const isGestureHostExcluded = (config, host) => {
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) return false;
+        return getGestureExcludedHosts(config)
+            .some((entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`));
+    };
+    const setGestureHostExcluded = (config, host, excluded) => {
+        const next = normalizeConfig(config);
+        const normalizedHost = normalizeHost(host);
+        if (!normalizedHost) return next;
+        next.gestures = next.gestures && typeof next.gestures === 'object' ? next.gestures : {};
+        const current = new Set(getGestureExcludedHosts(next));
+        if (excluded) {
+            current.add(normalizedHost);
+        } else {
+            current.delete(normalizedHost);
+        }
+        next.gestures.excludedHosts = [...current];
+        return normalizeConfig(next);
+    };
     const getExcludedMatchPatterns = (excludedHosts) => {
         return normalizeExcludedHosts(excludedHosts).flatMap((host) => ([`*://${host}/*`, `*://*.${host}/*`]));
     };
@@ -188,6 +211,8 @@
         getVideoFloatingBackgroundSeekExcludedHosts,
         isVideoFloatingBackgroundSeekExcluded,
         setVideoFloatingBackgroundSeekExcluded,
+        isGestureHostExcluded,
+        setGestureHostExcluded,
         getExcludedMatchPatterns,
         getGestureSettings,
         applyGestureSettings

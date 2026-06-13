@@ -22,7 +22,13 @@
             addListenerHelper(listeners, target, event, handler, options);
         };
 
-        const getConfig = () => context.getConfig().gestures.desktop;
+        const getConfig = () => {
+            const cfg = context.getConfig().gestures.desktop;
+            if (ext.shared.config.isGestureHostExcluded?.(context.getConfig(), location.hostname)) {
+                return { ...cfg, enabled: false };
+            }
+            return cfg;
+        };
         const getForumConfig = () => ext.shared.config.getForumConfig(context.getConfig(), location.host);
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
         const shouldRunPagerForForum = () => {

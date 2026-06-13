@@ -226,6 +226,10 @@
         config.runtime.excludedHosts = normalizeExcludedHosts(config.runtime.excludedHosts);
         config.runtime.popupPanelOrder = normalizePopupPanelOrder(config.runtime.popupPanelOrder);
 
+        config.gestures = config.gestures && typeof config.gestures === 'object' ? config.gestures : {};
+        config.gestures.excludedHosts = normalizeExcludedHosts(config.gestures.excludedHosts);
+
+        config.gestures.desktop = config.gestures.desktop && typeof config.gestures.desktop === 'object' ? config.gestures.desktop : {};
         config.gestures.desktop.enabled = !!config.gestures.desktop.enabled;
         config.gestures.desktop.lpress.enabled = !!config.gestures.desktop.lpress.enabled;
         config.gestures.desktop.lpress.mode = normalizeMode(config.gestures.desktop.lpress.mode, 'bg');
@@ -239,6 +243,7 @@
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
         config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 5);
 
+        config.gestures.mobile = config.gestures.mobile && typeof config.gestures.mobile === 'object' ? config.gestures.mobile : {};
         config.gestures.mobile.enabled = !!config.gestures.mobile.enabled;
         config.gestures.mobile.lpress.enabled = !!config.gestures.mobile.lpress.enabled;
         config.gestures.mobile.lpress.mode = normalizeMode(config.gestures.mobile.lpress.mode, 'bg');

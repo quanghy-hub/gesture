@@ -41,6 +41,12 @@
       <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-gestures" aria-expanded="false" aria-label="Open Gestures settings" role="button" tabindex="0"><span>Gestures</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Gestures"></button><input id="feature-gestures-enabled" type="checkbox" aria-label="Enable Gestures"></span></h2>
       <div id="panel-gestures" class="panel-body is-collapsed">
       <div class="table">
+        <div class="item host-scope-toggle">
+          <span class="label-main">Gestures</span>
+          <span class="label-sub">Block site</span>
+          <span class="param"><span id="gesture-block-host-label" class="host-chip">No host</span></span>
+          <span class="toggle"><input id="gesture-block-host-toggle" type="checkbox"></span>
+        </div>
         <div class="item">
           <span class="label-main">Long press</span>
           <span class="label-sub">Mode</span>
@@ -196,7 +202,7 @@
               min="8" max="48" step="1"></span>
           <span class="toggle toggle-empty"></span>
         </div>
-        <div class="item">
+        <div class="item host-scope-toggle">
           <span class="label-main">Background seek</span>
           <span class="label-sub">Block site</span>
           <span class="param"><span id="video-floating-background-seek-host" class="host-chip">No host</span></span>

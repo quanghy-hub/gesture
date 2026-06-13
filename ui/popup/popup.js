@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, normalizeHost, normalizeConfig, deepClone } = ext.shared.config;
+    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, isGestureHostExcluded, setGestureHostExcluded, normalizeHost, normalizeConfig, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
     const { safeGetElementById, fillProviderOptions, getHostFromUrl, setCardState, setHostControlsState } = ext.ui.popupUtils;
@@ -52,6 +52,8 @@
     const gEdgeWidth = safeGetElementById('g-edge-width');
     const gEdgeSpeed = safeGetElementById('g-edge-speed');
     const clipboardClear = safeGetElementById('clipboard-clear');
+    const gestureBlockHostToggle = safeGetElementById('gesture-block-host-toggle');
+    const gestureBlockHostLabel = safeGetElementById('gesture-block-host-label');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
     const unblockCopyCard = featureUnblockCopyEnabled.closest('.card');
@@ -169,6 +171,9 @@
         hostBlacklistToggle.disabled = !normalizedActiveHost;
         hostBlacklistToggle.checked = normalizedActiveHost ? isHostExcluded(config, normalizedActiveHost) : false;
         hostBlacklistLabel.textContent = normalizedActiveHost || 'No host';
+        gestureBlockHostToggle.disabled = !normalizedActiveHost;
+        gestureBlockHostToggle.checked = normalizedActiveHost ? isGestureHostExcluded(config, normalizedActiveHost) : false;
+        gestureBlockHostLabel.textContent = normalizedActiveHost || 'No host';
 
         // Complex fields: forum (host-scoped)
         featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
@@ -204,6 +209,9 @@
             edgeSwipe: { enabled: gEdgeEnabled.checked, side: gEdgeSide.value, width: Number(gEdgeWidth.value), speed: Number(gEdgeSpeed.value) }
         });
         let nextScoped = activeHost ? setHostExcluded(next, activeHost, hostBlacklistToggle.checked) : next;
+        nextScoped = activeHost
+            ? setGestureHostExcluded(nextScoped, activeHost, gestureBlockHostToggle.checked)
+            : nextScoped;
         nextScoped = activeHost
             ? setVideoFloatingBackgroundSeekExcluded(nextScoped, activeHost, videoFloatingBackgroundSeekBlocked.checked)
             : nextScoped;
@@ -376,7 +384,7 @@
         forumWide,
         gLpEnabled, gLpMode, gRcEnabled, gRcMode, gCloseTabEnabled,
         gEdgeEnabled, gEdgeSide, gPagerEnabled,
-        hostBlacklistToggle, videoFloatingBackgroundSeekBlocked
+        hostBlacklistToggle, videoFloatingBackgroundSeekBlocked, gestureBlockHostToggle
     ].forEach((control) => {
         registerAutoSave(control, 'change');
     });
