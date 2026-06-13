@@ -2,6 +2,7 @@
     const ext = globalThis.GestureExtension;
     const gestures = ext.gestures = ext.gestures || {};
     const touch = ext.shared.touchCore;
+    const { isEditable, isInteractive, getValidLink, dist, openTab, closeCurrentTab, addListenerHelper } = gestures.gestureUtils;
 
     gestures.createMobileController = (context) => {
         const TOLERANCE = { move: 20 };
@@ -25,47 +26,15 @@
         };
 
         const addListener = (target, event, handler, options) => {
-            target.addEventListener(event, handler, options);
-            listeners.push(() => target.removeEventListener(event, handler, options));
+            addListenerHelper(listeners, target, event, handler, options);
         };
 
         const getConfig = () => context.getConfig().gestures.mobile;
-        const dist = (x1, y1, x2, y2) => touch.getDistance({ x: x1, y: y1 }, { x: x2, y: y2 });
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
         const preventDefaultIfCancelable = (event) => {
             if (event.cancelable) {
                 event.preventDefault();
             }
-        };
-        const isEditable = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
-        const isInteractive = (el) => el instanceof Element && !!el.closest('a[href], button, input, textarea, select, summary, video, audio, [role="button"], [role="link"]');
-
-        const getValidLink = (event) => {
-            for (const node of (event.composedPath?.() || [])) {
-                if (node?.tagName === 'A' && node.href && !/^(javascript|mailto|tel|sms|#):/i.test(node.href)) {
-                    return node;
-                }
-            }
-            return null;
-        };
-
-        const openTab = async (url, mode) => {
-            const response = await context.tabActions.openTab(url, mode);
-            if (!response?.ok) {
-                window.open(url, '_blank');
-            }
-            suppress(800);
-        };
-
-        const closeCurrentTab = async () => {
-            suppress(800);
-            await context.tabActions.closeCurrentTab();
-        };
-
-        const cancelLongPress = () => {
-            clearTimeout(state.lp.timer);
-            state.lp.timer = null;
-            state.lp.active = false;
         };
 
         const stopMomentum = () => {
@@ -174,6 +143,12 @@
             return false;
         };
 
+        const cancelLongPress = () => {
+            clearTimeout(state.lp.timer);
+            state.lp.timer = null;
+            state.lp.active = false;
+        };
+
         ['click', 'auxclick'].forEach((eventName) => {
             addListener(window, eventName, guard, true);
         });
@@ -229,7 +204,7 @@
                 if (!state.lp.active) return;
                 state.lp.active = false;
                 state.lpFired = true;
-                openTab(link.href, getConfig().lpress.mode);
+                openTab(link.href, getConfig().lpress.mode, context, suppress);
             }, cfg.lpress.ms);
         }, { capture: true, passive: false });
 
@@ -252,114 +227,91 @@
                 }
             }
 
-            if (state.tap.start && event.touches.length === 1) {
-                const touchPoint = event.touches[0];
-                if (dist(touchPoint.clientX, touchPoint.clientY, state.tap.start.x, state.tap.start.y) > TOLERANCE.move) {
-                    state.tap.start.cancelled = true;
-                }
-            } else {
+            if (!state.edge.active || event.touches.length !== 1) {
                 clearTapStart();
+                return;
             }
 
-            if (!state.edge.active || event.touches.length !== 1) {
+            const touchPoint = event.touches[0];
+            const deltaY = state.edge.lastY - touchPoint.clientY;
+            const now = Date.now();
+            const deltaTime = Math.max(1, now - state.edge.lastTime);
+
+            const strength = getEdgeStrength(touchPoint.clientX);
+            if (strength <= 0) {
                 state.edge.active = false;
+                clearTapStart();
                 return;
             }
 
             const cfg = getConfig();
-            const touchPoint = event.touches[0];
-            const now = Date.now();
-            const deltaY = state.edge.lastY - touchPoint.clientY;
-            const deltaTime = Math.min(Math.max(now - state.edge.lastTime, 8), 32);
-            if (deltaTime > 0) {
-                const edgeStrength = 1 + (getEdgeStrength(touchPoint.clientX) * 1.1);
-                const moveBoost = 1 + Math.min(Math.abs(deltaY) / 14, 1.8);
-                const scrollDelta = deltaY * cfg.edge.speed * edgeStrength * moveBoost * 1.35;
-                const instantVelocity = (scrollDelta / deltaTime) * 1000;
-                state.edge.velocity = (state.edge.velocity * 0.7) + (instantVelocity * 0.3);
-                const element = document.scrollingElement || document.documentElement;
-                state.edge.targetScrollTop = clampScrollTop(state.edge.targetScrollTop + scrollDelta, element);
-                requestEdgeRender();
-            }
+            const speedMultiplier = Math.max(1, Number(cfg.edge.speed) || 3);
+            const scrollDelta = deltaY * strength * speedMultiplier;
+            state.edge.targetScrollTop += scrollDelta;
+            requestEdgeRender();
 
+            state.edge.velocity = (scrollDelta * 1000) / deltaTime;
             state.edge.lastY = touchPoint.clientY;
             state.edge.lastTime = now;
+
+            if (state.tap.start && dist(touchPoint.clientX, touchPoint.clientY, state.tap.start.x, state.tap.start.y) > 12) {
+                state.tap.start.cancelled = true;
+            }
+
             preventDefaultIfCancelable(event);
         }, { capture: true, passive: false });
 
         addListener(window, 'touchend', (event) => {
-            const cfg = getConfig();
-            const tapStart = state.tap.start;
-            const touchPoint = event.changedTouches?.[0] || null;
-            const wasEdgeActive = state.edge.active;
-
             cancelLongPress();
             if (state.edge.active) {
-                const element = document.scrollingElement || document.documentElement;
-                const settledScrollTop = clampScrollTop(state.edge.targetScrollTop, element);
-                element.scrollTop = settledScrollTop;
-                state.edge.targetScrollTop = settledScrollTop;
-            }
-            if (state.edge.active && Math.abs(state.edge.velocity) > 120) {
-                startMomentum(state.edge.velocity);
-            }
-
-            state.edge.active = false;
-
-            if (
-                cfg.enabled
-                && cfg.closeTab?.enabled
-                && tapStart
-                && touchPoint
-                && !tapStart.cancelled
-                && !wasEdgeActive
-                && !state.lpFired
-                && !touch.isExtensionUiTarget(event)
-                && !isEditable(tapStart.target)
-                && !isInteractive(tapStart.target)
-                && Date.now() - tapStart.time <= 260
-                && dist(touchPoint.clientX, touchPoint.clientY, tapStart.x, tapStart.y) <= TOLERANCE.move
-            ) {
-                const now = Date.now();
-                const lastTap = state.tap.last;
-                const maxMs = Number(cfg.closeTab.ms) || 150;
-                if (lastTap && now - lastTap.time <= maxMs && dist(touchPoint.clientX, touchPoint.clientY, lastTap.x, lastTap.y) <= 32) {
-                    preventDefaultIfCancelable(event);
-                    event.stopPropagation();
-                    state.tap.last = null;
-                    clearTapStart();
-                    closeCurrentTab();
-                    return;
+                state.edge.active = false;
+                if (Math.abs(state.edge.velocity) > 120) {
+                    startMomentum(state.edge.velocity);
                 }
-                state.tap.last = { x: touchPoint.clientX, y: touchPoint.clientY, time: now };
-            } else if (tapStart) {
-                state.tap.last = null;
             }
+
+            const start = state.tap.start;
             clearTapStart();
-        }, true);
+            if (!start || start.cancelled || Date.now() - start.time > 250) {
+                return;
+            }
+
+            const cfg = getConfig();
+            if (!cfg.enabled || !cfg.closeTab?.enabled) return;
+
+            const target = start.target;
+            if (isEditable(target) || isInteractive(target)) {
+                return;
+            }
+
+            const now = Date.now();
+            const lastTap = state.tap.last;
+            const maxMs = Number(cfg.closeTab.ms) || 150;
+            if (lastTap && now - lastTap.time <= maxMs && dist(start.x, start.y, lastTap.x, lastTap.y) <= 40) {
+                preventDefaultIfCancelable(event);
+                event.stopPropagation();
+                state.tap.last = null;
+                closeCurrentTab(context, suppress);
+                return;
+            }
+
+            state.tap.last = { x: start.x, y: start.y, time: now };
+        }, { capture: true, passive: false });
 
         addListener(window, 'touchcancel', () => {
             cancelLongPress();
-            clearTapStart();
             state.edge.active = false;
-            const element = document.scrollingElement || document.documentElement;
-            state.edge.targetScrollTop = element.scrollTop;
-        }, true);
-
-        addListener(window, 'click', (event) => {
-            if (!state.lpFired) return;
-            preventDefaultIfCancelable(event);
-            event.stopPropagation();
-            state.lpFired = false;
-        }, true);
+            clearTapStart();
+        }, { capture: true, passive: false });
 
         return {
             destroy() {
                 cancelLongPress();
                 stopMomentum();
                 stopEdgeRender();
+                clearTapStart();
                 listeners.splice(0).forEach((remove) => remove());
             }
         };
     };
-})();
+};

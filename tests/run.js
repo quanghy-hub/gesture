@@ -48,6 +48,8 @@ try {
     loadScript('shared/config-schema.js');
     loadScript('shared/config-normalize.js');
     loadScript('shared/config.js');
+    loadScript('background/api-services/translate-api.js');
+    loadScript('background/api-services/ocr-api.js');
     loadScript('background/api-service-registry.js');
     sandbox.globalThis.GestureExtension.shared.domUtils = {
         queryAllDeep: () => []

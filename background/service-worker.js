@@ -7,7 +7,10 @@ importScripts(
     chrome.runtime.getURL('shared/config.js'),
     chrome.runtime.getURL('shared/storage.js'),
     chrome.runtime.getURL('shared/cloudflare-sync.js'),
-    chrome.runtime.getURL('background/api-service-registry.js')
+    chrome.runtime.getURL('background/api-services/translate-api.js'),
+    chrome.runtime.getURL('background/api-services/ocr-api.js'),
+    chrome.runtime.getURL('background/api-service-registry.js'),
+    chrome.runtime.getURL('background/message-handlers.js')
 );
 
 const { STORAGE_KEY, normalizeConfig, getExcludedMatchPatterns } = GestureExtension.shared.config;
@@ -48,6 +51,7 @@ const CONTENT_SCRIPT_DEFINITIONS = [
             'content/forum/early-style.js',
             'content/forum/controller.js',
             'content/forum/index.js',
+            'content/gestures/gesture-utils.js',
             'content/gestures/desktop.js',
             'content/gestures/mobile.js',
             'content/gestures/index.js',
@@ -63,6 +67,7 @@ const CONTENT_SCRIPT_DEFINITIONS = [
             'content/quick-search/text-session.js',
             'content/quick-search/image-session.js',
             'content/quick-search/actions.js',
+            'content/quick-search/event-manager.js',
             'content/quick-search/controller.js',
             'content/quick-search/index.js',
             'shared/translate-core.js',
@@ -80,6 +85,7 @@ const CONTENT_SCRIPT_DEFINITIONS = [
             'content/video-floating/constants.js',
             'content/video-floating/helpers.js',
             'content/video-floating/iframe-mode.js',
+            'content/video-floating/video-presentation-helper.js',
             'content/video-floating/floating-session.js',
             'content/video-floating/seek-controller.js',
             'content/video-floating/ui-controls.js',
@@ -215,148 +221,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     (async () => {
+        const handlers = GestureExtension.background.messageHandlers;
         switch (message.type) {
-            case 'gesture-ext/open-tab': {
-                const url = message.payload?.url;
-                if (!url) {
-                    sendResponse({ ok: false, error: 'Missing url' });
-                    return;
-                }
-
-                const active = message.payload?.mode === 'fg';
-                const openerTabId = sender.tab?.id;
-                const index = typeof sender.tab?.index === 'number' ? sender.tab.index + 1 : undefined;
-
-                const tab = await chrome.tabs.create({
-                    url,
-                    active,
-                    openerTabId,
-                    index
-                });
-
-                sendResponse({ ok: true, tabId: tab.id });
-                return;
-            }
-
-            case 'gesture-ext/open-new-tab': {
-                const openerTabId = sender.tab?.id;
-                const index = typeof sender.tab?.index === 'number' ? sender.tab.index + 1 : undefined;
-
-                const tab = await chrome.tabs.create({
-                    active: true,
-                    openerTabId,
-                    index
-                });
-
-                sendResponse({ ok: true, tabId: tab.id });
-                return;
-            }
-
-            case 'gesture-ext/close-current-tab': {
-                if (!sender.tab?.id) {
-                    sendResponse({ ok: false, error: 'No sender tab' });
-                    return;
-                }
-
-                await chrome.tabs.remove(sender.tab.id);
-                sendResponse({ ok: true });
-                return;
-            }
-
-            case 'gesture-ext/translate-text': {
-                const text = String(message.payload?.text ?? '').trim();
-                if (!text) {
-                    sendResponse({ ok: false, error: 'Missing text for translation' });
-                    return;
-                }
-
-                const targetLanguage = message.payload?.targetLanguage ?? GestureExtension.background.apiServiceRegistry.detectTargetLanguage(text);
-
-                const result = await GestureExtension.background.apiServiceRegistry.executeTranslate({
-                    text,
-                    targetLanguage,
-                    provider: message.payload?.provider || ''
-                });
-
-                sendResponse({
-                    ok: true,
-                    result: {
-                        provider: result.provider,
-                        text,
-                        translatedText: result.translatedText,
-                        sourceLanguage: result.sourceLanguage || message.payload?.sourceLanguage || 'auto',
-                        targetLanguage,
-                        fallbackReason: result.fallbackReason || ''
-                    }
-                });
-                return;
-            }
-
-            case 'gesture-ext/download-data-url': {
-                const url = String(message.payload?.url ?? '').trim();
-                const filename = String(message.payload?.filename ?? '').trim();
-                if (!url) {
-                    sendResponse({ ok: false, error: 'Missing url for download' });
-                    return;
-                }
-
-                const downloadId = await chrome.downloads.download({
-                    url,
-                    filename: filename || undefined,
-                    saveAs: false
-                });
-                sendResponse({ ok: true, downloadId });
-                return;
-            }
-
-            case 'gesture-ext/fetch-image-data-url': {
-                const url = String(message.payload?.url ?? '').trim();
-                if (!url) {
-                    sendResponse({ ok: false, error: 'Missing image url' });
-                    return;
-                }
-
-                const response = await fetch(url, { credentials: 'include', cache: 'force-cache' });
-                if (!response.ok) {
-                    sendResponse({ ok: false, error: `Image request failed: ${response.status}` });
-                    return;
-                }
-
-                const blob = await response.blob();
-                if (!blob.type.startsWith('image/')) {
-                    sendResponse({ ok: false, error: 'Response is not an image' });
-                    return;
-                }
-
-                const dataUrl = `data:${blob.type};base64,${arrayBufferToBase64(await blob.arrayBuffer())}`;
-                sendResponse({ ok: true, dataUrl });
-                return;
-            }
-
-            case 'gesture-ext/capture-visible-tab': {
-                const windowId = sender.tab?.windowId;
-                if (typeof windowId !== 'number') {
-                    sendResponse({ ok: false, error: 'No sender window' });
-                    return;
-                }
-
-                const url = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
-                sendResponse({ ok: true, url });
-                return;
-            }
-
-            case 'gesture-ext/perform-ocr': {
-                const imageUrl = message.payload?.imageUrl;
-                if (!imageUrl) {
-                    sendResponse({ ok: false, error: 'Missing imageUrl' });
-                    return;
-                }
-
-                const result = await GestureExtension.background.apiServiceRegistry.executeOcr({ imageUrl });
-                sendResponse({ ok: true, text: result.text, provider: result.provider });
-                return;
-            }
-
+            case 'gesture-ext/open-tab':
+                sendResponse(await handlers.handleOpenTab(message.payload, sender));
+                break;
+            case 'gesture-ext/open-new-tab':
+                sendResponse(await handlers.handleOpenNewTab(sender));
+                break;
+            case 'gesture-ext/close-current-tab':
+                sendResponse(await handlers.handleCloseCurrentTab(sender));
+                break;
+            case 'gesture-ext/translate-text':
+                sendResponse(await handlers.handleTranslateText(message.payload));
+                break;
+            case 'gesture-ext/download-data-url':
+                sendResponse(await handlers.handleDownloadDataUrl(message.payload));
+                break;
+            case 'gesture-ext/fetch-image-data-url':
+                sendResponse(await handlers.handleFetchImageDataUrl(message.payload));
+                break;
+            case 'gesture-ext/capture-visible-tab':
+                sendResponse(await handlers.handleCaptureVisibleTab(sender));
+                break;
+            case 'gesture-ext/perform-ocr':
+                sendResponse(await handlers.handlePerformOcr(message.payload));
+                break;
             default:
                 sendResponse({ ok: false, error: `Unsupported message type: ${message.type}` });
         }

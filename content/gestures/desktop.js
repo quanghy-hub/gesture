@@ -2,10 +2,10 @@
     const ext = globalThis.GestureExtension;
     const gestures = ext.gestures = ext.gestures || {};
     const touch = ext.shared.touchCore;
+    const { isEditable, isInteractive, getValidLink, dist, openTab, closeCurrentTab, addListenerHelper } = gestures.gestureUtils;
 
     gestures.createDesktopController = (context) => {
         const TOLERANCE = { move: 20 };
-        const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
         const state = {
             suppressUntil: 0,
             lpFired: false,
@@ -19,17 +19,12 @@
         const listeners = [];
 
         const addListener = (target, event, handler, options) => {
-            target.addEventListener(event, handler, options);
-            listeners.push(() => target.removeEventListener(event, handler, options));
+            addListenerHelper(listeners, target, event, handler, options);
         };
 
-        const dist = (x1, y1, x2, y2) => touch.getDistance({ x: x1, y: y1 }, { x: x2, y: y2 });
         const getConfig = () => context.getConfig().gestures.desktop;
         const getForumConfig = () => ext.shared.config.getForumConfig(context.getConfig(), location.host);
         const suppress = (ms = 500) => { state.suppressUntil = Date.now() + ms; };
-        const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
-        const isInteractive = (el) => el instanceof Element && !!el.closest('a[href], button, input, textarea, select, summary, video, audio, [role="button"], [role="link"]');
-        const isMacOS = () => context.runtime?.isMacOS?.() || false;
         const shouldRunPagerForForum = () => {
             const forumConfig = getForumConfig();
             return forumConfig.enabled;
@@ -43,34 +38,6 @@
             if (!state.pointer.active) return false;
             const helpers = globalThis.GestureExtension?.videoFloating?.helpers;
             return !!helpers?.getSeekableVideoAtPoint?.(state.pointer.x, state.pointer.y, { includeFloating: true });
-        };
-
-        const getValidLink = (event) => {
-            for (const node of (event.composedPath?.() || [])) {
-                if (node?.tagName === 'A' && node.href && !/^(javascript|mailto|tel|sms|#):/i.test(node.href)) {
-                    return node;
-                }
-            }
-            return null;
-        };
-
-        const openTab = async (url, mode) => {
-            const response = await context.tabActions.openTab(url, mode);
-            if (!response?.ok) {
-                window.open(url, '_blank', mode === 'fg' ? '' : 'noopener');
-            }
-            suppress(800);
-        };
-
-        const closeCurrentTab = async () => {
-            suppress(800);
-            await context.tabActions.closeCurrentTab();
-        };
-
-        const cancelLongPress = () => {
-            clearTimeout(state.lp.timer);
-            state.lp.timer = null;
-            state.lp.active = false;
         };
 
         const findLink = (keywords, relType) => {
@@ -184,6 +151,12 @@
             return false;
         };
 
+        const cancelLongPress = () => {
+            clearTimeout(state.lp.timer);
+            state.lp.timer = null;
+            state.lp.active = false;
+        };
+
         ensurePagerStyles();
 
         ['click', 'auxclick'].forEach((eventName) => {
@@ -249,7 +222,7 @@
                 if (!state.lp.active) return;
                 state.lp.active = false;
                 state.lpFired = true;
-                openTab(link.href, getConfig().lpress.mode);
+                openTab(link.href, getConfig().lpress.mode, context, suppress);
             }, getConfig().lpress.ms);
         }, true);
 
@@ -284,7 +257,7 @@
                 event.preventDefault();
                 event.stopPropagation();
                 state.closeClick.last = null;
-                closeCurrentTab();
+                closeCurrentTab(context, suppress);
                 return;
             }
 
@@ -306,7 +279,7 @@
                 event.preventDefault();
                 event.stopPropagation();
                 state.rcHandled = true;
-                openTab(link.href, cfg.rclick.mode);
+                openTab(link.href, cfg.rclick.mode, context, suppress);
                 return;
             }
         }, true);
@@ -329,7 +302,7 @@
             event.preventDefault();
             event.stopPropagation();
             state.rcHandled = true;
-            openTab(link.href, cfg.rclick.mode);
+            openTab(link.href, cfg.rclick.mode, context, suppress);
         }, true);
 
         return {

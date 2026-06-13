@@ -20,7 +20,13 @@
             updatePlaybackOverlayUI,
             postToFloatedIframe
         } = deps;
-        const originalVideoStyles = new WeakMap();
+
+        const {
+            captureVideoPresentation,
+            restoreVideoPresentation,
+            restoreVideoNode,
+            createTransitionLayer
+        } = videoFloating.presentationHelper;
 
         const getSwitchVideos = () => (
             typeof getDirectVideoSequence === 'function'
@@ -208,64 +214,6 @@
             });
         };
 
-        const createTransitionLayer = (video, className) => {
-            if (!video) return null;
-            const layer = el('div', `fvp-transition-layer ${className}`);
-            layer.appendChild(video);
-            return layer;
-        };
-
-        const captureVideoPresentation = (video) => {
-            if (video && !originalVideoStyles.has(video)) {
-                originalVideoStyles.set(video, video.getAttribute('style'));
-            }
-        };
-
-        const resetVideoPresentation = (video) => {
-            if (!video) return;
-            Object.assign(video.style, {
-                width: '',
-                height: '',
-                objectFit: '',
-                objectPosition: '',
-                transform: '',
-                transition: ''
-            });
-        };
-
-        const restoreVideoPresentation = (video) => {
-            if (!video) return;
-            if (!originalVideoStyles.has(video)) {
-                resetVideoPresentation(video);
-                return;
-            }
-            const originalStyle = originalVideoStyles.get(video);
-            if (originalStyle === null) {
-                video.removeAttribute('style');
-            } else {
-                video.setAttribute('style', originalStyle);
-            }
-            originalVideoStyles.delete(video);
-        };
-
-        const restoreVideoNode = (video, parent, placeholder) => {
-            if (!video) return false;
-            if (parent?.isConnected) {
-                if (placeholder?.parentNode === parent) {
-                    parent.replaceChild(video, placeholder);
-                } else {
-                    parent.appendChild(video);
-                }
-                return true;
-            }
-            if (placeholder?.parentNode) {
-                placeholder.parentNode.replaceChild(video, placeholder);
-                return true;
-            }
-            video.remove();
-            return false;
-        };
-
         const clearWrapper = (wrapper, keepNodes = []) => {
             if (!wrapper) return;
             const keep = new Set(keepNodes.filter(Boolean));
@@ -380,8 +328,8 @@
             };
 
             clearWrapper(wrapper, [currentVideo]);
-            const outgoingLayer = createTransitionLayer(currentVideo, dir > 0 ? 'is-outgoing-up' : 'is-outgoing-down');
-            const incomingLayer = createTransitionLayer(nextVideo, dir > 0 ? 'is-incoming-from-bottom' : 'is-incoming-from-top');
+            const outgoingLayer = createTransitionLayer(currentVideo, dir > 0 ? 'is-outgoing-up' : 'is-outgoing-down', el);
+            const incomingLayer = createTransitionLayer(nextVideo, dir > 0 ? 'is-incoming-from-bottom' : 'is-incoming-from-top', el);
             if (!outgoingLayer || !incomingLayer) {
                 ctx.state.switchTransition = null;
                 restoreVideoNode(nextVideo, nextParent, nextPlaceholder);
