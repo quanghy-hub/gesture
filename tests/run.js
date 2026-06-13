@@ -44,6 +44,9 @@ const loadScript = (filePath) => {
 // Nạp các script cần thiết
 try {
     loadScript('shared/namespace.js');
+    loadScript('shared/config-utils.js');
+    loadScript('shared/config-schema.js');
+    loadScript('shared/config-normalize.js');
     loadScript('shared/config.js');
     loadScript('background/api-service-registry.js');
     sandbox.globalThis.GestureExtension.shared.domUtils = {

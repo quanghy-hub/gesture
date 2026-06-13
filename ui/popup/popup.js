@@ -1,40 +1,14 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, normalizeHost, normalizeConfig, DEFAULT_CONFIG, DEFAULT_POPUP_PANEL_ORDER, deepClone } = ext.shared.config;
+    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, normalizeHost, normalizeConfig, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
-    const safeGetElementById = (id) => {
-        const el = document.getElementById(id);
-        if (el) return el;
-        console.warn(`[GestureExtension][popup] Element with id "${id}" not found. Returning a fallback dummy element.`);
-        return {
-            addEventListener() {},
-            removeEventListener() {},
-            closest() { return null; },
-            setAttribute() {},
-            getAttribute() { return null; },
-            removeAttribute() {},
-            classList: {
-                add() {},
-                remove() {},
-                toggle() {},
-                contains() { return false; }
-            },
-            style: {},
-            dataset: {},
-            querySelector() { return null; },
-            querySelectorAll() { return []; },
-            replaceChildren() {},
-            appendChild() {},
-            insertBefore() {},
-            value: '',
-            checked: false,
-            disabled: false,
-            textContent: '',
-            tagName: 'DIV'
-        };
-    };
+    const { safeGetElementById, fillProviderOptions, getHostFromUrl, setCardState, setHostControlsState } = ext.ui.popupUtils;
+    const { FIELD_MAP, renderFields, collectFields, applyPatches } = ext.ui.popupFieldMap;
+    const { initSyncPanel } = ext.ui.popupSyncPanel;
+    const { initPanelReorder } = ext.ui.popupPanelReorder;
 
+    // ── Element lookups ──
     const hostLabel = safeGetElementById('current-host');
     const closeButton = safeGetElementById('close-popup');
     const hostBlacklistLabel = safeGetElementById('host-blacklist-label');
@@ -49,43 +23,14 @@
     const featureYoutubeSubtitlesEnabled = safeGetElementById('feature-youtube-subtitles-enabled');
     const featureForumEnabled = safeGetElementById('feature-forum-enabled');
     const forumScopeLabel = safeGetElementById('forum-scope');
-    const inlineTranslateHotkeyEnabled = safeGetElementById('inline-translate-hotkey-enabled');
-    const inlineTranslateHotkey = safeGetElementById('inline-translate-hotkey');
-    const inlineTranslateSelectionTranslateEnabled = safeGetElementById('inline-translate-selection-translate-enabled');
-    const inlineTranslateSwipeEnabled = safeGetElementById('inline-translate-swipe-enabled');
-    const inlineTranslateSwipeDir = safeGetElementById('inline-translate-swipe-dir');
-    const inlineTranslateFontScale = safeGetElementById('inline-translate-font-scale');
-    const inlineTranslateMutedColor = safeGetElementById('inline-translate-muted-color');
-    const youtubeSubtitlesTargetLang = safeGetElementById('youtube-subtitles-target-lang');
-    const youtubeSubtitlesFontSize = safeGetElementById('youtube-subtitles-font-size');
-    const youtubeSubtitlesTranslatedFontSize = safeGetElementById('youtube-subtitles-translated-font-size');
-    const youtubeSubtitlesShowOriginal = safeGetElementById('youtube-subtitles-show-original');
-    const youtubeSubtitlesOriginalColor = safeGetElementById('youtube-subtitles-original-color');
-    const youtubeSubtitlesTranslatedColor = safeGetElementById('youtube-subtitles-translated-color');
     const apiTranslateProvider = safeGetElementById('api-translate-provider');
-    const apiTranslateFallbackEnabled = safeGetElementById('api-translate-fallback-enabled');
     const apiTranslateFallbackProvider = safeGetElementById('api-translate-fallback-provider');
     const apiTranslateApiKey = safeGetElementById('api-translate-api-key');
     const apiTranslateFallbackApiKey = safeGetElementById('api-translate-fallback-api-key');
     const apiOcrProvider = safeGetElementById('api-ocr-provider');
-    const apiOcrFallbackEnabled = safeGetElementById('api-ocr-fallback-enabled');
     const apiOcrFallbackProvider = safeGetElementById('api-ocr-fallback-provider');
     const apiOcrApiKey = safeGetElementById('api-ocr-api-key');
     const apiOcrFallbackApiKey = safeGetElementById('api-ocr-fallback-api-key');
-    const quickSearchColumns = safeGetElementById('quick-search-columns');
-    const quickSearchImageSearchEnabled = safeGetElementById('quick-search-image-search-enabled');
-    const inlineTranslateSwipePx = safeGetElementById('inline-translate-swipe-px');
-    const inlineTranslateSwipeMaxDurationMs = safeGetElementById('inline-translate-swipe-max-duration-ms');
-    const clipboardMaxHistory = safeGetElementById('clipboard-max-history');
-    const clipboardClear = safeGetElementById('clipboard-clear');
-    const videoFloatingMinDistance = safeGetElementById('video-floating-min-distance');
-    const videoFloatingSwipeShort = safeGetElementById('video-floating-swipe-short');
-    const videoFloatingSwipeLong = safeGetElementById('video-floating-swipe-long');
-    const videoFloatingShortThreshold = safeGetElementById('video-floating-short-threshold');
-    const videoFloatingVerticalTolerance = safeGetElementById('video-floating-vertical-tolerance');
-    const videoFloatingDiagonalThreshold = safeGetElementById('video-floating-diagonal-threshold');
-    const videoFloatingThrottle = safeGetElementById('video-floating-throttle');
-    const videoFloatingNoticeFontSize = safeGetElementById('video-floating-notice-font-size');
     const videoFloatingBackgroundSeekHost = safeGetElementById('video-floating-background-seek-host');
     const videoFloatingBackgroundSeekBlocked = safeGetElementById('video-floating-background-seek-blocked');
     const forumWide = safeGetElementById('forum-wide');
@@ -106,6 +51,7 @@
     const gEdgeSide = safeGetElementById('g-edge-side');
     const gEdgeWidth = safeGetElementById('g-edge-width');
     const gEdgeSpeed = safeGetElementById('g-edge-speed');
+    const clipboardClear = safeGetElementById('clipboard-clear');
     const hostOnlyRows = Array.from(document.querySelectorAll('.host-only'));
     const hostBoundControls = [forumWide, forumMinWidth, forumGap, forumFade, forumDelay];
     const unblockCopyCard = featureUnblockCopyEnabled.closest('.card');
@@ -125,199 +71,40 @@
     const panelCards = Array.from(document.querySelectorAll('.card[data-panel-id]'));
     const panelHeaderTriggers = Array.from(document.querySelectorAll('[data-panel-header]'));
     const dragHandles = Array.from(document.querySelectorAll('[data-drag-handle]'));
-    const backupWorkerUrl = safeGetElementById('backup-worker-url');
-    const backupApiCode = safeGetElementById('backup-api-code');
-    const profileMacbook = safeGetElementById('profile-macbook');
-    const profileMobile = safeGetElementById('profile-mobile');
-    const backupVerify = safeGetElementById('backup-verify');
-    const backupPush = safeGetElementById('backup-push');
-    const backupPull = safeGetElementById('backup-pull');
-    const backupStatus = safeGetElementById('backup-status');
-    const cloudflareSync = ext.shared.cloudflareSync;
 
+    // Build elements lookup for field map
+    const fieldMapElements = Object.fromEntries(
+        FIELD_MAP.map((f) => [f.elementId, safeGetElementById(f.elementId)])
+    );
+
+    // ── State ──
     let activeHost = null;
     let config = null;
     let isReady = false;
     let saveTimer = 0;
     let pendingSave = null;
-    let draggingCard = null;
 
-    const fillProviderOptions = (select, options) => {
-        if (!select) return;
-        select.replaceChildren(...options.map(({ id, label }) => {
-            const option = document.createElement('option');
-            option.value = id;
-            option.textContent = label;
-            return option;
-        }));
-    };
-
-    const getPanelOrder = () => Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'))
-        .map((card) => card.dataset.panelId)
-        .filter((value) => typeof value === 'string' && value);
-
-    const getOrderedPanelCards = (order) => {
-        const requestedOrder = Array.isArray(order) && order.length ? order : DEFAULT_POPUP_PANEL_ORDER;
-        const usedPanelIds = new Set();
-        const orderedCards = requestedOrder
-            .map((panelId) => panelCards.find((entry) => entry.dataset.panelId === panelId))
-            .filter((card) => {
-                const panelId = card?.dataset?.panelId;
-                if (!panelId || usedPanelIds.has(panelId)) {
-                    return false;
-                }
-                usedPanelIds.add(panelId);
-                return true;
-            });
-        const missingCards = panelCards.filter((card) => !usedPanelIds.has(card.dataset.panelId));
-        return [...orderedCards, ...missingCards];
-    };
-
-    const applyPanelOrder = (order) => {
-        const orderedCards = getOrderedPanelCards(order);
-        const currentCards = Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'));
-        const isAlreadyApplied = orderedCards.length === currentCards.length
-            && orderedCards.every((card, index) => card === currentCards[index]);
-        if (isAlreadyApplied) {
-            return;
-        }
-        orderedCards.forEach((card) => popupRoot.appendChild(card));
-    };
-
+    // ── Fill provider select options ──
     fillProviderOptions(apiTranslateProvider, TRANSLATE_PROVIDER_OPTIONS);
     fillProviderOptions(apiTranslateFallbackProvider, TRANSLATE_PROVIDER_OPTIONS);
     fillProviderOptions(apiOcrProvider, OCR_PROVIDER_OPTIONS);
     fillProviderOptions(apiOcrFallbackProvider, OCR_PROVIDER_OPTIONS);
 
-    const getActiveTab = () => new Promise((resolve) => {
-        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
+    // ── Init submodules ──
+    const panelReorder = initPanelReorder({
+        popupRoot, panelCards, dragHandles,
+        getConfig: () => config,
+        scheduleAutoSave: () => scheduleAutoSave()
     });
 
-    const setBackupStatus = (message, type = '') => {
-        if (!backupStatus) return;
-        backupStatus.textContent = message;
-        backupStatus.className = `section-note backup-status${type ? ` ${type}` : ''}`;
-        ext.shared.storage.setLocal({
-            [cloudflareSync.KEYS.status]: message,
-            [cloudflareSync.KEYS.statusType]: type
-        }).catch((error) => {
-            console.error('[GestureExtension][popup] Failed to persist sync status', error);
-        });
-    };
-
-    const loadBackupStatus = async () => {
-        const result = await ext.shared.storage.getLocal([
-            cloudflareSync.KEYS.status,
-            cloudflareSync.KEYS.statusType
-        ]);
-        if (result[cloudflareSync.KEYS.status]) {
-            backupStatus.textContent = result[cloudflareSync.KEYS.status];
-            backupStatus.className = `section-note backup-status${result[cloudflareSync.KEYS.statusType] ? ` ${result[cloudflareSync.KEYS.statusType]}` : ''}`;
-        }
-    };
-
-    const formatSyncStamp = (date = new Date()) => date.toLocaleString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+    const syncPanel = initSyncPanel({
+        getConfig: () => config,
+        setConfig: (c) => { config = c; },
+        render: () => render(),
+        getPendingSave: () => pendingSave
     });
 
-    const syncStatusSuffix = (revision) => `revision ${Number.isSafeInteger(revision) ? revision : 0} · ${formatSyncStamp()}`;
-
-    const getSyncSettingsFromControls = () => ({
-        workerUrl: backupWorkerUrl.value.trim(),
-        apiCode: backupApiCode.value.trim(),
-        profile: profileMobile.checked ? 'mobile' : 'macbook'
-    });
-
-    const renderSyncSettings = (settings) => {
-        backupWorkerUrl.value = settings.workerUrl || cloudflareSync.DEFAULT_WORKER_URL;
-        backupApiCode.value = settings.apiCode || '';
-        if (settings.profile === 'mobile') {
-            profileMobile.checked = true;
-        } else {
-            profileMacbook.checked = true;
-        }
-    };
-
-    const saveSyncSettingsFromControls = async (patch = {}) => {
-        const next = await cloudflareSync.saveSettings({
-            ...getSyncSettingsFromControls(),
-            ...patch
-        });
-        renderSyncSettings(next);
-        return next;
-    };
-
-    const switchProfile = async (nextProfileId) => {
-        if (!config || !nextProfileId) return;
-        try {
-            const syncSettings = await cloudflareSync.loadSettings();
-            const currentProfile = syncSettings.profile;
-            if (currentProfile === nextProfileId) return;
-            await cloudflareSync.saveSettings({ profile: nextProfileId });
-
-            const result = await ext.shared.storage.getLocal(['gestureSyncProfiles']);
-            const profiles = result.gestureSyncProfiles || {};
-            
-            profiles[currentProfile] = {
-                settings: {
-                    schema: 1,
-                    config: deepClone(config)
-                }
-            };
-            
-            const targetProfile = profiles[nextProfileId];
-            let nextConfig;
-            if (targetProfile?.settings?.config) {
-                nextConfig = normalizeConfig(targetProfile.settings.config);
-            } else {
-                nextConfig = normalizeConfig(DEFAULT_CONFIG);
-            }
-
-            await ext.shared.storage.setLocal({
-                gestureSyncProfile: nextProfileId,
-                gestureSyncProfiles: profiles
-            });
-
-            config = await storage.saveConfig(nextConfig);
-            
-            const nextSyncSettings = await cloudflareSync.loadSettings();
-            renderSyncSettings(nextSyncSettings);
-            render();
-            
-            setBackupStatus(`Switched to active profile: ${nextProfileId === 'mobile' ? 'Mobile' : 'MacBook'}`);
-        } catch (error) {
-            console.error('[GestureExtension][popup] Failed to switch profile', error);
-            setBackupStatus(`Failed to switch profile: ${error.message}`, 'err');
-        }
-    };
-
-    const getHostFromUrl = (url) => {
-        try {
-            return new URL(url).host;
-        } catch {
-            return null;
-        }
-    };
-
-    const setHostControlsState = (enabled) => {
-        hostBoundControls.forEach((control) => {
-            control.disabled = !enabled;
-        });
-        hostOnlyRows.forEach((row) => {
-            row.style.opacity = enabled ? '1' : '.55';
-        });
-    };
-
-    const setCardState = (card, enabled) => {
-        if (!card) return;
-        card.classList.toggle('is-disabled', !enabled);
-    };
-
+    // ── Feature card sync ──
     const syncFeatureCards = () => {
         const canUseForumControls = !!activeHost && featureForumEnabled.checked;
         setCardState(unblockCopyCard, featureUnblockCopyEnabled.checked);
@@ -329,71 +116,21 @@
         setCardState(inlineTranslateCard, featureInlineTranslateEnabled.checked);
         setCardState(youtubeSubtitlesCard, featureYoutubeSubtitlesEnabled.checked);
         setCardState(forumCard, featureForumEnabled.checked);
-        setHostControlsState(canUseForumControls);
+        setHostControlsState(hostBoundControls, hostOnlyRows, canUseForumControls);
     };
 
+    // ── Render ──
     const render = () => {
         if (!config) return;
 
-        applyPanelOrder(config.runtime?.popupPanelOrder);
+        panelReorder.applyPanelOrder(config.runtime?.popupPanelOrder);
+
+        // Declarative fields
+        renderFields(FIELD_MAP, fieldMapElements, config);
+
+        // Complex fields: gestures (read from getGestureSettings)
         const gestures = getGestureSettings(config);
-        const normalizedActiveHost = normalizeHost(activeHost);
-        featureUnblockCopyEnabled.checked = config.unblockCopy?.enabled !== false;
         featureGesturesEnabled.checked = !!gestures.enabled;
-        featureClipboardEnabled.checked = config.clipboard?.enabled !== false;
-        featureVideoFloatingEnabled.checked = config.videoFloating?.enabled !== false;
-        featureVideoScreenshotEnabled.checked = config.videoScreenshot?.enabled !== false;
-        featureQuickSearchEnabled.checked = config.quickSearch?.enabled !== false;
-        featureInlineTranslateEnabled.checked = config.inlineTranslate?.enabled !== false;
-        inlineTranslateHotkeyEnabled.checked = config.inlineTranslate?.hotkeyEnabled !== false;
-        featureYoutubeSubtitlesEnabled.checked = !!config.youtubeSubtitles?.enabled;
-        featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
-        inlineTranslateHotkey.value = config.inlineTranslate?.hotkey || 'ctrl+d';
-        inlineTranslateSwipeEnabled.checked = config.inlineTranslate?.swipeEnabled !== false;
-        inlineTranslateSelectionTranslateEnabled.checked = config.inlineTranslate?.selectionTranslateEnabled !== false;
-        inlineTranslateSwipeDir.value = config.inlineTranslate?.swipeDir || 'both';
-        inlineTranslateSwipePx.value = config.inlineTranslate?.swipePx || 60;
-        inlineTranslateSwipeMaxDurationMs.value = config.inlineTranslate?.swipeMaxDurationMs || 500;
-        inlineTranslateFontScale.value = config.inlineTranslate?.fontScale || 0.95;
-        inlineTranslateMutedColor.value = config.inlineTranslate?.mutedColor || '#00bfff';
-        youtubeSubtitlesTargetLang.value = config.youtubeSubtitles?.targetLang || 'vi';
-        youtubeSubtitlesFontSize.value = config.youtubeSubtitles?.fontSize || 16;
-        youtubeSubtitlesTranslatedFontSize.value = config.youtubeSubtitles?.translatedFontSize || 16;
-        youtubeSubtitlesOriginalColor.value = config.youtubeSubtitles?.originalColor || '#ffffff';
-        youtubeSubtitlesTranslatedColor.value = config.youtubeSubtitles?.translatedColor || '#0e8cef';
-        youtubeSubtitlesShowOriginal.checked = config.youtubeSubtitles?.showOriginal !== false;
-        apiTranslateProvider.value = config.apiServices?.translate?.activeProvider || 'google';
-        apiTranslateFallbackEnabled.checked = !!config.apiServices?.translate?.fallbackEnabled;
-        apiTranslateFallbackProvider.value = config.apiServices?.translate?.fallbackProvider || 'mymemory';
-        apiTranslateApiKey.value = config.apiServices?.translate?.providers?.[apiTranslateProvider.value]?.apiKey || '';
-        apiTranslateFallbackApiKey.value = config.apiServices?.translate?.providers?.[apiTranslateFallbackProvider.value]?.apiKey || '';
-        apiOcrProvider.value = config.apiServices?.ocr?.activeProvider || 'ocrspace';
-        apiOcrFallbackEnabled.checked = !!config.apiServices?.ocr?.fallbackEnabled;
-        apiOcrFallbackProvider.value = config.apiServices?.ocr?.fallbackProvider || 'ocrspace-alt';
-        apiOcrApiKey.value = config.apiServices?.ocr?.providers?.[apiOcrProvider.value]?.apiKey || '';
-        apiOcrFallbackApiKey.value = config.apiServices?.ocr?.providers?.[apiOcrFallbackProvider.value]?.apiKey || '';
-        quickSearchColumns.value = config.quickSearch?.columns || 5;
-        quickSearchImageSearchEnabled.checked = config.quickSearch?.imageSearchEnabled !== false;
-        const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds) ? config.quickSearch.enabledProviderIds : quickSearchProviderIds;
-        quickSearchProviderIds.forEach((providerId) => {
-            if (quickSearchProviderInputs[providerId]) {
-                quickSearchProviderInputs[providerId].checked = enabledProviderIds.includes(providerId);
-            }
-        });
-        clipboardMaxHistory.value = config.clipboard.maxHistory || 5;
-        videoFloatingMinDistance.value = config.videoFloating?.minSwipeDistance || 30;
-        videoFloatingSwipeShort.value = config.videoFloating?.swipeShort || 0.15;
-        videoFloatingSwipeLong.value = config.videoFloating?.swipeLong || 0.3;
-        videoFloatingShortThreshold.value = config.videoFloating?.shortThreshold || 200;
-        videoFloatingVerticalTolerance.value = config.videoFloating?.verticalTolerance || 80;
-        videoFloatingDiagonalThreshold.value = config.videoFloating?.diagonalThreshold || 1.5;
-        videoFloatingThrottle.value = config.videoFloating?.throttle ?? 15;
-        videoFloatingNoticeFontSize.value = config.videoFloating?.noticeFontSize || 14;
-        videoFloatingBackgroundSeekHost.textContent = normalizedActiveHost || 'No host';
-        videoFloatingBackgroundSeekBlocked.disabled = !normalizedActiveHost;
-        videoFloatingBackgroundSeekBlocked.checked = normalizedActiveHost
-            ? isVideoFloatingBackgroundSeekExcluded(config, normalizedActiveHost)
-            : false;
         gLpEnabled.checked = !!gestures.longPress.enabled;
         gLpMode.value = gestures.longPress.mode;
         gLpMs.value = gestures.longPress.ms;
@@ -407,9 +144,34 @@
         gEdgeSide.value = gestures.edgeSwipe.side;
         gEdgeWidth.value = gestures.edgeSwipe.width;
         gEdgeSpeed.value = gestures.edgeSwipe.speed;
+
+        // Complex fields: API provider keys (depend on currently selected provider)
+        apiTranslateApiKey.value = config.apiServices?.translate?.providers?.[apiTranslateProvider.value]?.apiKey || '';
+        apiTranslateFallbackApiKey.value = config.apiServices?.translate?.providers?.[apiTranslateFallbackProvider.value]?.apiKey || '';
+        apiOcrApiKey.value = config.apiServices?.ocr?.providers?.[apiOcrProvider.value]?.apiKey || '';
+        apiOcrFallbackApiKey.value = config.apiServices?.ocr?.providers?.[apiOcrFallbackProvider.value]?.apiKey || '';
+
+        // Complex fields: quick search providers
+        const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds) ? config.quickSearch.enabledProviderIds : quickSearchProviderIds;
+        quickSearchProviderIds.forEach((providerId) => {
+            if (quickSearchProviderInputs[providerId]) {
+                quickSearchProviderInputs[providerId].checked = enabledProviderIds.includes(providerId);
+            }
+        });
+
+        // Complex fields: host-scoped
+        const normalizedActiveHost = normalizeHost(activeHost);
+        videoFloatingBackgroundSeekHost.textContent = normalizedActiveHost || 'No host';
+        videoFloatingBackgroundSeekBlocked.disabled = !normalizedActiveHost;
+        videoFloatingBackgroundSeekBlocked.checked = normalizedActiveHost
+            ? isVideoFloatingBackgroundSeekExcluded(config, normalizedActiveHost)
+            : false;
         hostBlacklistToggle.disabled = !normalizedActiveHost;
         hostBlacklistToggle.checked = normalizedActiveHost ? isHostExcluded(config, normalizedActiveHost) : false;
         hostBlacklistLabel.textContent = normalizedActiveHost || 'No host';
+
+        // Complex fields: forum (host-scoped)
+        featureForumEnabled.checked = !!getForumConfig(config, activeHost).enabled;
 
         if (!activeHost) {
             hostLabel.textContent = 'No active host';
@@ -429,80 +191,34 @@
         syncFeatureCards();
     };
 
+    // ── Save ──
     const save = async () => {
         if (!config) return;
 
         const next = applyGestureSettings(deepClone(config), {
             enabled: featureGesturesEnabled.checked,
-            longPress: {
-                enabled: gLpEnabled.checked,
-                mode: gLpMode.value,
-                ms: Number(gLpMs.value)
-            },
-            rightClick: {
-                enabled: gRcEnabled.checked,
-                mode: gRcMode.value
-            },
-            closeTab: {
-                enabled: gCloseTabEnabled.checked,
-                ms: Number(gCloseTabMs.value)
-            },
-            pager: {
-                enabled: gPagerEnabled.checked,
-                hops: Number(gPagerHops.value)
-            },
-            edgeSwipe: {
-                enabled: gEdgeEnabled.checked,
-                side: gEdgeSide.value,
-                width: Number(gEdgeWidth.value),
-                speed: Number(gEdgeSpeed.value)
-            }
+            longPress: { enabled: gLpEnabled.checked, mode: gLpMode.value, ms: Number(gLpMs.value) },
+            rightClick: { enabled: gRcEnabled.checked, mode: gRcMode.value },
+            closeTab: { enabled: gCloseTabEnabled.checked, ms: Number(gCloseTabMs.value) },
+            pager: { enabled: gPagerEnabled.checked, hops: Number(gPagerHops.value) },
+            edgeSwipe: { enabled: gEdgeEnabled.checked, side: gEdgeSide.value, width: Number(gEdgeWidth.value), speed: Number(gEdgeSpeed.value) }
         });
         let nextScoped = activeHost ? setHostExcluded(next, activeHost, hostBlacklistToggle.checked) : next;
         nextScoped = activeHost
             ? setVideoFloatingBackgroundSeekExcluded(nextScoped, activeHost, videoFloatingBackgroundSeekBlocked.checked)
             : nextScoped;
 
-        nextScoped.unblockCopy.enabled = featureUnblockCopyEnabled.checked;
-        nextScoped.clipboard.enabled = featureClipboardEnabled.checked;
-        nextScoped.clipboard.maxHistory = Number(clipboardMaxHistory.value);
-        nextScoped.videoFloating.enabled = featureVideoFloatingEnabled.checked;
-        nextScoped.videoScreenshot.enabled = featureVideoScreenshotEnabled.checked;
-        nextScoped.videoFloating.minSwipeDistance = Number(videoFloatingMinDistance.value);
-        nextScoped.videoFloating.swipeShort = Number(videoFloatingSwipeShort.value);
-        nextScoped.videoFloating.swipeLong = Number(videoFloatingSwipeLong.value);
-        nextScoped.videoFloating.shortThreshold = Number(videoFloatingShortThreshold.value);
-        nextScoped.videoFloating.verticalTolerance = Number(videoFloatingVerticalTolerance.value);
-        nextScoped.videoFloating.diagonalThreshold = Number(videoFloatingDiagonalThreshold.value);
-        nextScoped.videoFloating.throttle = Number(videoFloatingThrottle.value);
-        nextScoped.videoFloating.noticeFontSize = Number(videoFloatingNoticeFontSize.value);
-        nextScoped.googleSearch.enabled = nextScoped.googleSearch?.enabled !== false;
-        nextScoped.quickSearch.enabled = featureQuickSearchEnabled.checked;
-        nextScoped.quickSearch.columns = Number(quickSearchColumns.value);
-        nextScoped.quickSearch.imageSearchEnabled = quickSearchImageSearchEnabled.checked;
-        nextScoped.quickSearch.enabledProviderIds = quickSearchProviderIds.filter((providerId) => quickSearchProviderInputs[providerId]?.checked);
-        nextScoped.inlineTranslate.enabled = featureInlineTranslateEnabled.checked;
-        nextScoped.inlineTranslate.hotkeyEnabled = inlineTranslateHotkeyEnabled.checked;
-        nextScoped.inlineTranslate.hotkey = inlineTranslateHotkey.value;
-        nextScoped.inlineTranslate.selectionTranslateEnabled = inlineTranslateSelectionTranslateEnabled.checked;
-        nextScoped.inlineTranslate.swipeEnabled = inlineTranslateSwipeEnabled.checked;
-        nextScoped.inlineTranslate.swipeDir = inlineTranslateSwipeDir.value;
-        nextScoped.inlineTranslate.swipePx = Number(inlineTranslateSwipePx.value);
-        nextScoped.inlineTranslate.swipeMaxDurationMs = Number(inlineTranslateSwipeMaxDurationMs.value);
-        nextScoped.inlineTranslate.fontScale = Number(inlineTranslateFontScale.value);
-        nextScoped.inlineTranslate.mutedColor = inlineTranslateMutedColor.value;
-        nextScoped.apiServices.translate.activeProvider = apiTranslateProvider.value;
-        nextScoped.apiServices.translate.fallbackEnabled = apiTranslateFallbackEnabled.checked;
-        nextScoped.apiServices.translate.fallbackProvider = apiTranslateFallbackProvider.value;
+        // Apply declarative field patches
+        const patches = collectFields(FIELD_MAP, fieldMapElements);
+        applyPatches(nextScoped, patches);
+
+        // Complex save: API provider keys
         nextScoped.apiServices.translate.providers[apiTranslateProvider.value].enabled = true;
         nextScoped.apiServices.translate.providers[apiTranslateProvider.value].apiKey = apiTranslateApiKey.value.trim();
         if (nextScoped.apiServices.translate.providers[apiTranslateFallbackProvider.value]) {
             nextScoped.apiServices.translate.providers[apiTranslateFallbackProvider.value].enabled = true;
             nextScoped.apiServices.translate.providers[apiTranslateFallbackProvider.value].apiKey = apiTranslateFallbackApiKey.value.trim();
         }
-        nextScoped.apiServices.ocr.activeProvider = apiOcrProvider.value;
-        nextScoped.apiServices.ocr.fallbackEnabled = apiOcrFallbackEnabled.checked;
-        nextScoped.apiServices.ocr.fallbackProvider = apiOcrFallbackProvider.value;
         nextScoped.apiServices.ocr.providers[apiOcrProvider.value].enabled = true;
         nextScoped.apiServices.ocr.providers[apiOcrProvider.value].apiKey = apiOcrApiKey.value.trim();
         if (nextScoped.apiServices.ocr.providers[apiOcrFallbackProvider.value]) {
@@ -510,13 +226,12 @@
             nextScoped.apiServices.ocr.providers[apiOcrFallbackProvider.value].apiKey = apiOcrFallbackApiKey.value.trim();
         }
         nextScoped.inlineTranslate.provider = nextScoped.apiServices.translate.activeProvider;
-        nextScoped.youtubeSubtitles.enabled = featureYoutubeSubtitlesEnabled.checked;
-        nextScoped.youtubeSubtitles.targetLang = youtubeSubtitlesTargetLang.value;
-        nextScoped.youtubeSubtitles.fontSize = Number(youtubeSubtitlesFontSize.value);
-        nextScoped.youtubeSubtitles.translatedFontSize = Number(youtubeSubtitlesTranslatedFontSize.value);
-        nextScoped.youtubeSubtitles.originalColor = youtubeSubtitlesOriginalColor.value;
-        nextScoped.youtubeSubtitles.translatedColor = youtubeSubtitlesTranslatedColor.value;
-        nextScoped.youtubeSubtitles.showOriginal = youtubeSubtitlesShowOriginal.checked;
+
+        // Complex save: quick search providers
+        nextScoped.googleSearch.enabled = nextScoped.googleSearch?.enabled !== false;
+        nextScoped.quickSearch.enabledProviderIds = quickSearchProviderIds.filter((providerId) => quickSearchProviderInputs[providerId]?.checked);
+
+        // Complex save: forum (host-scoped)
         let normalized = nextScoped;
         if (activeHost) {
             normalized = updateForumHostConfig(nextScoped, activeHost, {
@@ -588,76 +303,25 @@
         panel.classList.toggle('is-collapsed', !expanded);
     };
 
-    const savePanelOrder = () => {
-        if (!config) return;
-        config.runtime = config.runtime || {};
-        config.runtime.popupPanelOrder = getPanelOrder();
-        scheduleAutoSave();
-    };
-
-    const setupPanelReorder = () => {
-        panelCards.forEach((card) => {
-            card.draggable = false;
-
-            card.addEventListener('dragstart', (event) => {
-                draggingCard = card;
-                card.classList.add('is-dragging');
-                event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', card.dataset.panelId || '');
-            });
-
-            card.addEventListener('dragover', (event) => {
-                if (!draggingCard || draggingCard === card) return;
-                event.preventDefault();
-                const bounds = card.getBoundingClientRect();
-                const before = event.clientY < bounds.top + bounds.height / 2;
-                
-                const nextSibling = before ? card : card.nextSibling;
-                if (draggingCard.nextSibling !== nextSibling && draggingCard !== nextSibling) {
-                    popupRoot.insertBefore(draggingCard, nextSibling);
-                }
-            });
-
-            card.addEventListener('dragend', () => {
-                card.classList.remove('is-dragging');
-                draggingCard = null;
-                card.draggable = false;
-                savePanelOrder();
-            });
-        });
-
-        dragHandles.forEach((handle) => {
-            const card = handle.closest('.card[data-panel-id]');
-            if (!card) return;
-
-            handle.addEventListener('pointerdown', () => {
-                card.draggable = true;
-            });
-
-            const resetDraggable = () => {
-                if (!draggingCard) {
-                    card.draggable = false;
-                }
-            };
-
-            handle.addEventListener('pointerup', resetDraggable);
-            handle.addEventListener('pointercancel', resetDraggable);
-        });
-    };
+    // ── Init ──
+    const getActiveTab = () => new Promise((resolve) => {
+        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
+    });
 
     Promise.all([storage.getConfig(), getActiveTab()]).then(([loadedConfig, activeTab]) => {
         config = loadedConfig;
         activeHost = getHostFromUrl(activeTab?.url || '');
         render();
         isReady = true;
-        return cloudflareSync.loadSettings();
+        return ext.shared.cloudflareSync.loadSettings();
     }).then((syncSettings) => {
-        renderSyncSettings(syncSettings);
-        return loadBackupStatus();
+        syncPanel.renderSyncSettings(syncSettings);
+        return syncPanel.loadBackupStatus();
     }).catch((error) => {
         console.error('[GestureExtension][popup] init failed', error);
     });
 
+    // ── Event registration ──
     clipboardClear.addEventListener('click', () => {
         storage.clearClipboardHistory().then((nextConfig) => {
             config = nextConfig;
@@ -691,182 +355,79 @@
         });
     });
 
-    setupPanelReorder();
-
-    backupWorkerUrl?.addEventListener('input', () => {
-        saveSyncSettingsFromControls().catch((error) => {
-            setBackupStatus(`Error saving Worker URL: ${error.message}`, 'err');
-        });
-    });
-
-    backupApiCode?.addEventListener('input', () => {
-        saveSyncSettingsFromControls().catch((error) => {
-            setBackupStatus(`Error saving API code: ${error.message}`, 'err');
-        });
-    });
-
-    profileMacbook?.addEventListener('change', () => {
-        if (profileMacbook.checked) {
-            switchProfile('macbook');
-        }
-    });
-
-    profileMobile?.addEventListener('change', () => {
-        if (profileMobile.checked) {
-            switchProfile('mobile');
-        }
-    });
-
-    backupVerify?.addEventListener('click', async () => {
-        backupVerify.disabled = true;
-        setBackupStatus('Verifying Worker connection...');
-        try {
-            await saveSyncSettingsFromControls();
-            const result = await cloudflareSync.bootstrapProfile(getSyncSettingsFromControls());
-            if (result.config) {
-                config = result.config;
-                render();
-            }
-            setBackupStatus(
-                `${result.action === 'pulled' ? 'Pulled cloud profile' : 'Connected to Worker'} · ${syncStatusSuffix(result.state.revision)}`,
-                'ok'
-            );
-        } catch (error) {
-            setBackupStatus(`Connection failed: ${error.message}`, 'err');
-        } finally {
-            backupVerify.disabled = false;
-        }
-    });
-
-    backupPush?.addEventListener('click', async () => {
-        backupPush.disabled = true;
-        setBackupStatus('Pushing to cloud...');
-        try {
-            await saveSyncSettingsFromControls();
-            if (pendingSave) {
-                await pendingSave;
-            }
-            const remote = await cloudflareSync.pushConfig(normalizeConfig(config), getSyncSettingsFromControls());
-            setBackupStatus(`Push succeeded · ${syncStatusSuffix(remote.revision)}`, 'ok');
-        } catch (error) {
-            setBackupStatus(`Push failed: ${error.message}`, 'err');
-        } finally {
-            backupPush.disabled = false;
-        }
-    });
-
-    backupPull?.addEventListener('click', async () => {
-        backupPull.disabled = true;
-        setBackupStatus('Pulling from cloud...');
-        try {
-            await saveSyncSettingsFromControls();
-            const result = await cloudflareSync.pullConfig(getSyncSettingsFromControls());
-            config = result.config;
-            render();
-            setBackupStatus(`Pull succeeded · ${syncStatusSuffix(result.state.revision)}`, 'ok');
-        } catch (error) {
-            setBackupStatus(`Pull failed: ${error.message}`, 'err');
-        } finally {
-            backupPull.disabled = false;
-        }
-    });
-
+    // Feature toggle auto-save
     [
-        featureUnblockCopyEnabled,
-        featureGesturesEnabled,
-        featureClipboardEnabled,
-        featureVideoFloatingEnabled,
-        featureVideoScreenshotEnabled,
-        featureQuickSearchEnabled,
-        featureInlineTranslateEnabled,
-        featureYoutubeSubtitlesEnabled,
-        featureForumEnabled
+        featureUnblockCopyEnabled, featureGesturesEnabled, featureClipboardEnabled,
+        featureVideoFloatingEnabled, featureVideoScreenshotEnabled, featureQuickSearchEnabled,
+        featureInlineTranslateEnabled, featureYoutubeSubtitlesEnabled, featureForumEnabled
     ].forEach((control) => {
         registerAutoSave(control, 'change', { syncCards: true });
     });
 
+    // Simple change auto-save
     [
-        inlineTranslateHotkeyEnabled,
-        inlineTranslateHotkey,
-        inlineTranslateSelectionTranslateEnabled,
-        inlineTranslateSwipeEnabled,
-        inlineTranslateSwipeDir,
-        youtubeSubtitlesShowOriginal,
-        quickSearchImageSearchEnabled,
+        safeGetElementById('inline-translate-hotkey-enabled'),
+        safeGetElementById('inline-translate-hotkey'),
+        safeGetElementById('inline-translate-selection-translate-enabled'),
+        safeGetElementById('inline-translate-swipe-enabled'),
+        safeGetElementById('inline-translate-swipe-dir'),
+        safeGetElementById('youtube-subtitles-show-original'),
+        safeGetElementById('quick-search-image-search-enabled'),
         forumWide,
-        gLpEnabled,
-        gLpMode,
-        gRcEnabled,
-        gRcMode,
-        gCloseTabEnabled,
-        gEdgeEnabled,
-        gEdgeSide,
-        gPagerEnabled,
-        hostBlacklistToggle,
-        videoFloatingBackgroundSeekBlocked
+        gLpEnabled, gLpMode, gRcEnabled, gRcMode, gCloseTabEnabled,
+        gEdgeEnabled, gEdgeSide, gPagerEnabled,
+        hostBlacklistToggle, videoFloatingBackgroundSeekBlocked
     ].forEach((control) => {
         registerAutoSave(control, 'change');
     });
 
-    [
-        apiTranslateProvider,
-        apiTranslateFallbackProvider,
-        apiOcrProvider,
-        apiOcrFallbackProvider
-    ].forEach((control) => {
+    // API provider select auto-save (re-render to update API key fields)
+    [apiTranslateProvider, apiTranslateFallbackProvider, apiOcrProvider, apiOcrFallbackProvider].forEach((control) => {
         registerAutoSave(control, 'change', { renderAfter: true });
     });
 
-    [
-        apiTranslateFallbackEnabled,
-        apiOcrFallbackEnabled
-    ].forEach((control) => {
+    // API fallback toggles
+    [safeGetElementById('api-translate-fallback-enabled'), safeGetElementById('api-ocr-fallback-enabled')].forEach((control) => {
         registerAutoSave(control, 'change');
     });
 
+    // Text/color inputs with input+change dual-save
     [
-        inlineTranslateMutedColor,
-        apiTranslateApiKey,
-        apiTranslateFallbackApiKey,
-        apiOcrApiKey,
-        apiOcrFallbackApiKey,
-        youtubeSubtitlesTargetLang,
-        youtubeSubtitlesOriginalColor,
-        youtubeSubtitlesTranslatedColor
+        safeGetElementById('inline-translate-muted-color'),
+        apiTranslateApiKey, apiTranslateFallbackApiKey,
+        apiOcrApiKey, apiOcrFallbackApiKey,
+        safeGetElementById('youtube-subtitles-target-lang'),
+        safeGetElementById('youtube-subtitles-original-color'),
+        safeGetElementById('youtube-subtitles-translated-color')
     ].forEach((control) => {
         registerAutoSave(control, 'input', { skipWhenEmpty: false });
         registerAutoSave(control, 'change', { restoreWhenEmpty: true });
     });
 
+    // Number inputs with restore-on-empty
     [
-        inlineTranslateSwipePx,
-        inlineTranslateSwipeMaxDurationMs,
-        inlineTranslateFontScale,
-        youtubeSubtitlesFontSize,
-        youtubeSubtitlesTranslatedFontSize,
-        quickSearchColumns,
-        clipboardMaxHistory,
-        videoFloatingMinDistance,
-        videoFloatingSwipeShort,
-        videoFloatingSwipeLong,
-        videoFloatingShortThreshold,
-        videoFloatingVerticalTolerance,
-        videoFloatingDiagonalThreshold,
-        videoFloatingThrottle,
-        videoFloatingNoticeFontSize,
-        forumMinWidth,
-        forumGap,
-        forumFade,
-        forumDelay,
-        gLpMs,
-        gCloseTabMs,
-        gPagerHops,
-        gEdgeWidth,
-        gEdgeSpeed
+        safeGetElementById('inline-translate-swipe-px'),
+        safeGetElementById('inline-translate-swipe-max-duration-ms'),
+        safeGetElementById('inline-translate-font-scale'),
+        safeGetElementById('youtube-subtitles-font-size'),
+        safeGetElementById('youtube-subtitles-translated-font-size'),
+        safeGetElementById('quick-search-columns'),
+        safeGetElementById('clipboard-max-history'),
+        safeGetElementById('video-floating-min-distance'),
+        safeGetElementById('video-floating-swipe-short'),
+        safeGetElementById('video-floating-swipe-long'),
+        safeGetElementById('video-floating-short-threshold'),
+        safeGetElementById('video-floating-vertical-tolerance'),
+        safeGetElementById('video-floating-diagonal-threshold'),
+        safeGetElementById('video-floating-throttle'),
+        safeGetElementById('video-floating-notice-font-size'),
+        forumMinWidth, forumGap, forumFade, forumDelay,
+        gLpMs, gCloseTabMs, gPagerHops, gEdgeWidth, gEdgeSpeed
     ].forEach((control) => {
         registerAutoSave(control, 'change', { restoreWhenEmpty: true });
     });
 
+    // Quick search provider checkboxes
     Object.values(quickSearchProviderInputs).forEach((control) => {
         registerAutoSave(control, 'change');
     });

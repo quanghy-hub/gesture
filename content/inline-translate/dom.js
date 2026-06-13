@@ -1,28 +1,12 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
-    const viewport = ext.shared.viewportCore;
-    const {
-        JUNK,
-        IS_REDDIT,
-        REDDIT_SELECTORS,
-        REDDIT_TITLE_SELECTORS,
-        VALID_TAGS,
-        PARAGRAPH_TAGS,
-        HEADING_TAGS,
-        CONTAINER_FALLBACK_TAGS
-    } = inlineTranslate;
-    const EDITABLE_SELECTION_PANEL_MARGIN = 8;
+    const { IS_REDDIT } = inlineTranslate;
+    const detector = inlineTranslate.textBlockDetector;
+    const selectionPanel = inlineTranslate.editableSelectionPanel;
 
-    let editableSelectionPanel = null;
-    let editableSelectionPanelMeta = null;
-    let editableSelectionPanelText = null;
-    let editableSelectionApplyHandler = null;
+    const { normalizeBlockText, getTextKey, isClippedContainer } = detector;
 
-    const hasMeaningfulText = (text) => text.replace(JUNK, '').length > 0;
-    const normalizeBlockText = (text) => String(text || '').replace(/\s+/g, ' ').trim();
-    const getTextKey = (text) => normalizeBlockText(text).slice(0, 240);
-    const getElementText = (element) => normalizeBlockText(element?.innerText || '');
     const collectTextTypography = (element, bucket) => {
         if (!(element instanceof Element)) {
             return;
@@ -84,79 +68,6 @@
             lineHeight: best.lineHeight
         };
     };
-    const pointInElement = (element, x, y) => {
-        if (!(element instanceof Element)) {
-            return false;
-        }
-        const rect = element.getBoundingClientRect();
-        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    };
-
-    const getMeaningfulChildBlocks = (element) => [...(element?.children || [])].filter((child) => {
-        if (!(child instanceof HTMLElement) || child.classList.contains('gesture-inline-translate-box')) {
-            return false;
-        }
-        const text = getElementText(child);
-        return hasMeaningfulText(text) && text.length >= 24;
-    });
-
-    const isParagraphLikeCandidate = (element, text) => {
-        if (!(element instanceof HTMLElement) || !VALID_TAGS.test(element.tagName)) return false;
-        if (!hasMeaningfulText(text) || text.length > 2200) return false;
-        if (PARAGRAPH_TAGS.test(element.tagName)) return text.length >= 20;
-        if (HEADING_TAGS.test(element.tagName)) return text.length >= 60;
-        if (!CONTAINER_FALLBACK_TAGS.test(element.tagName)) return false;
-
-        const childBlocks = getMeaningfulChildBlocks(element);
-        const childCount = childBlocks.length;
-        const textNodes = [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE && normalizeBlockText(node.textContent || '').length >= 20);
-        const ownParagraphChildren = childBlocks.filter((child) => PARAGRAPH_TAGS.test(child.tagName) || HEADING_TAGS.test(child.tagName));
-
-        if (childCount === 0) return text.length >= 30;
-        if (childCount === 1) return getElementText(childBlocks[0]) === text;
-        if (textNodes.length > 0 && childCount <= 2) return text.length >= 40;
-        if (ownParagraphChildren.length === 1 && childCount <= 2 && text.length <= 700) return true;
-        return false;
-    };
-
-    const pickBetterBlock = (currentBest, candidate, candidateText, depth) => {
-        const normalizedText = candidateText.slice(0, 2000);
-        if (!currentBest) {
-            return { text: normalizedText, node: candidate, depth };
-        }
-
-        const bestIsParagraph = PARAGRAPH_TAGS.test(currentBest.node.tagName) || HEADING_TAGS.test(currentBest.node.tagName);
-        const nextIsParagraph = PARAGRAPH_TAGS.test(candidate.tagName) || HEADING_TAGS.test(candidate.tagName);
-
-        if (nextIsParagraph && !bestIsParagraph) {
-            return { text: normalizedText, node: candidate, depth };
-        }
-        if (nextIsParagraph === bestIsParagraph) {
-            const depthDelta = currentBest.depth - depth;
-            if (Math.abs(depthDelta) <= 1) {
-                if (Math.abs(normalizedText.length - 280) < Math.abs(currentBest.text.length - 280)) {
-                    return { text: normalizedText, node: candidate, depth };
-                }
-            } else if (depth < currentBest.depth) {
-                return { text: normalizedText, node: candidate, depth };
-            }
-        }
-
-        return currentBest;
-    };
-
-    const isClippedContainer = (element) => {
-        for (let current = element, depth = 0; current && current !== document.body && depth < 3; current = current.parentElement, depth += 1) {
-            const style = window.getComputedStyle(current);
-            if (/hidden|scroll|auto|clip/.test(`${style.overflow}${style.overflowY}`)) {
-                return true;
-            }
-            if (style.maxHeight && style.maxHeight !== 'none') {
-                return true;
-            }
-        }
-        return false;
-    };
 
     const getSafeTranslationAnchor = (node) => {
         if (!node?.parentElement) {
@@ -186,90 +97,10 @@
         return { host: node, mode: 'append' };
     };
 
-    const applyEditableSelectionPanelPosition = (anchor) => {
-        if (!editableSelectionPanel || !anchor) {
-            return;
-        }
-        const width = editableSelectionPanel.offsetWidth;
-        const height = editableSelectionPanel.offsetHeight;
-        const centeredLeft = anchor.x - (width / 2);
-        const next = viewport?.fitPanelToViewport?.({
-            preferredLeft: centeredLeft,
-            preferredTop: anchor.y,
-            panelWidth: width,
-            panelHeight: height,
-            margin: EDITABLE_SELECTION_PANEL_MARGIN
-        }) || {
-            left: Math.max(EDITABLE_SELECTION_PANEL_MARGIN, Math.min(centeredLeft, window.innerWidth - width - EDITABLE_SELECTION_PANEL_MARGIN)),
-            top: Math.max(EDITABLE_SELECTION_PANEL_MARGIN, Math.min(anchor.y, window.innerHeight - height - EDITABLE_SELECTION_PANEL_MARGIN))
-        };
-
-        editableSelectionPanel.style.left = `${next.left}px`;
-        editableSelectionPanel.style.top = `${next.top}px`;
-    };
-
-    const ensureEditableSelectionPanel = () => {
-        if (editableSelectionPanel?.isConnected) {
-            return editableSelectionPanel;
-        }
-
-        editableSelectionPanel = document.createElement('div');
-        editableSelectionPanel.className = 'gesture-inline-translate-selection-panel';
-        editableSelectionPanel.setAttribute('role', 'button');
-        editableSelectionPanel.tabIndex = -1;
-
-        editableSelectionPanelMeta = document.createElement('div');
-        editableSelectionPanelMeta.className = 'gesture-inline-translate-selection-meta';
-        editableSelectionPanelText = document.createElement('div');
-        editableSelectionPanelText.className = 'gesture-inline-translate-selection-text';
-        editableSelectionPanel.append(editableSelectionPanelMeta, editableSelectionPanelText);
-
-        const keepSelectionStable = (event) => {
-            event.preventDefault();
-        };
-
-        editableSelectionPanel.addEventListener('pointerdown', keepSelectionStable);
-        editableSelectionPanel.addEventListener('mousedown', keepSelectionStable);
-        editableSelectionPanel.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (editableSelectionPanel.dataset.mode === 'result' && typeof editableSelectionApplyHandler === 'function') {
-                editableSelectionApplyHandler();
-            }
-        });
-        editableSelectionPanel.addEventListener('keydown', (event) => {
-            if (editableSelectionPanel.dataset.mode !== 'result') {
-                return;
-            }
-            if (event.key !== 'Enter' && event.key !== ' ') {
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            editableSelectionApplyHandler?.();
-        });
-
-        document.documentElement.appendChild(editableSelectionPanel);
-        return editableSelectionPanel;
-    };
-
-    const setEditableSelectionPanelState = ({ mode, anchor, meta, text, onApply }) => {
-        const panel = ensureEditableSelectionPanel();
-        editableSelectionApplyHandler = typeof onApply === 'function' ? onApply : null;
-        panel.dataset.mode = mode;
-        panel.tabIndex = mode === 'result' ? 0 : -1;
-        panel.setAttribute('aria-disabled', mode === 'result' ? 'false' : 'true');
-        editableSelectionPanelMeta.textContent = meta;
-        editableSelectionPanelMeta.style.display = meta ? 'block' : 'none';
-        editableSelectionPanelText.textContent = text;
-        panel.style.display = 'block';
-        applyEditableSelectionPanelPosition(anchor);
-    };
-
     inlineTranslate.dom = {
-        hasMeaningfulText,
-        normalizeBlockText,
-        getTextKey,
+        hasMeaningfulText: detector.hasMeaningfulText,
+        normalizeBlockText: detector.normalizeBlockText,
+        getTextKey: detector.getTextKey,
         applyInlineTranslateCssVars(nextSettings) {
             const rootStyle = document.documentElement.style;
             rootStyle.setProperty('--gesture-ilt-fs', `${nextSettings.fontScale}em`);
@@ -410,134 +241,14 @@
             }
             return null;
         },
-        showEditableSelectionLoading(anchor) {
-            setEditableSelectionPanelState({
-                mode: 'loading',
-                anchor,
-                meta: 'Đang dịch sang tiếng Anh',
-                text: 'Đang xử lý vùng bôi đen…'
-            });
-        },
-        showEditableSelectionResult({ anchor, text, onApply }) {
-            setEditableSelectionPanelState({
-                mode: 'result',
-                anchor,
-                meta: '',
-                text,
-                onApply
-            });
-        },
-        showEditableSelectionError({ anchor, message }) {
-            setEditableSelectionPanelState({
-                mode: 'error',
-                anchor,
-                meta: 'Không dịch được',
-                text: String(message || 'Lỗi dịch tạm thời').slice(0, 140)
-            });
-        },
-        repositionEditableSelectionPanel(anchor) {
-            if (editableSelectionPanel?.style.display === 'block') {
-                applyEditableSelectionPanelPosition(anchor);
-            }
-        },
-        hideEditableSelectionPanel() {
-            editableSelectionApplyHandler = null;
-            if (editableSelectionPanel) {
-                editableSelectionPanel.style.display = 'none';
-                editableSelectionPanel.dataset.mode = '';
-                editableSelectionPanel.tabIndex = -1;
-            }
-        },
-        isEventInsideEditableSelectionPanel(event) {
-            if (!editableSelectionPanel?.isConnected) {
-                return false;
-            }
-            const path = event.composedPath?.();
-            if (Array.isArray(path) && path.includes(editableSelectionPanel)) {
-                return true;
-            }
-            return event.target instanceof Node && editableSelectionPanel.contains(event.target);
-        },
-        getTextBlock(element, x = 0, y = 0) {
-            if (!element || element === document.body) {
-                return null;
-            }
-
-            if (IS_REDDIT) {
-                const post = element.closest('shreddit-post');
-                if (post) {
-                    for (const selector of REDDIT_TITLE_SELECTORS) {
-                        for (const candidate of post.querySelectorAll(selector)) {
-                            if (!pointInElement(candidate, x, y)) continue;
-                            const titleText = candidate.innerText?.trim() || '';
-                            if (hasMeaningfulText(titleText)) {
-                                return { text: titleText, node: candidate };
-                            }
-                        }
-                    }
-                }
-                const comment = element.closest('shreddit-comment');
-                if (comment) {
-                    const candidate = comment.querySelector('.md, [slot="comment"], [id$="-rtjson-content"], [id$="-post-rtjson-content"]');
-                    if (candidate?.innerText.trim()) {
-                        return { text: candidate.innerText.trim(), node: candidate };
-                    }
-                }
-                if (post) {
-                    const body = post.querySelector('shreddit-post-text-body');
-                    if (body) {
-                        for (const selector of REDDIT_SELECTORS) {
-                            const candidate = body.querySelector(selector);
-                            if (candidate?.innerText.trim()) {
-                                return { text: candidate.innerText.trim(), node: candidate };
-                            }
-                        }
-                    }
-                }
-            }
-
-            let current = element;
-            let best = null;
-            let depth = 0;
-            while (current && current !== document.body) {
-                if (window.getComputedStyle(current).display === 'none') {
-                    current = current.parentElement;
-                    continue;
-                }
-                const text = getElementText(current);
-                if (isParagraphLikeCandidate(current, text)) {
-                    best = pickBetterBlock(best, current, text, depth);
-                    if (PARAGRAPH_TAGS.test(current.tagName)) {
-                        break;
-                    }
-                }
-                depth += 1;
-                current = current.parentElement;
-            }
-            return best ? { text: best.text, node: best.node } : null;
-        },
-        hitTestTextBlock(x, y) {
-            for (const element of document.elementsFromPoint(x, y)) {
-                if (element.closest('.gesture-inline-translate-box')) {
-                    continue;
-                }
-                const block = this.getTextBlock(element, x, y);
-                if (block) {
-                    return block;
-                }
-            }
-            return null;
-        },
-        isInVideoZone(x, y) {
-            const inRect = (element) => {
-                const rect = element.getBoundingClientRect();
-                return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-            };
-            return (
-                [...document.querySelectorAll('video')].some((video) => video.offsetWidth && inRect(video)) ||
-                [...document.querySelectorAll('iframe')].some((frame) => frame.offsetWidth && inRect(frame) && /youtube|vimeo|dailymotion|twitch|facebook.*video|tiktok/i.test(frame.src)) ||
-                document.elementsFromPoint(x, y).some((element) => element.closest?.('video, .html5-video-player, .jwplayer, .vjs-tech, .plyr, .flowplayer'))
-            );
-        }
+        showEditableSelectionLoading: selectionPanel.showEditableSelectionLoading.bind(selectionPanel),
+        showEditableSelectionResult: selectionPanel.showEditableSelectionResult.bind(selectionPanel),
+        showEditableSelectionError: selectionPanel.showEditableSelectionError.bind(selectionPanel),
+        repositionEditableSelectionPanel: selectionPanel.repositionEditableSelectionPanel.bind(selectionPanel),
+        hideEditableSelectionPanel: selectionPanel.hideEditableSelectionPanel.bind(selectionPanel),
+        isEventInsideEditableSelectionPanel: selectionPanel.isEventInsideEditableSelectionPanel.bind(selectionPanel),
+        getTextBlock: detector.getTextBlock,
+        hitTestTextBlock: detector.hitTestTextBlock,
+        isInVideoZone: detector.isInVideoZone
     };
 })();
