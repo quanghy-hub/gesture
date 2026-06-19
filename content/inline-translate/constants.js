@@ -23,4 +23,5 @@
     inlineTranslate.PARAGRAPH_TAGS = /^(P|LI|BLOCKQUOTE|TD|TH|PRE|FIGCAPTION|SUMMARY)$/;
     inlineTranslate.HEADING_TAGS = /^(H[1-6])$/;
     inlineTranslate.CONTAINER_FALLBACK_TAGS = /^(DIV|ARTICLE|SECTION|ASIDE|FIGURE|DETAILS|MAIN)$/;
+    inlineTranslate.VIETNAMESE_CHAR_PATTERN = /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i;
 })();

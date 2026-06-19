@@ -259,8 +259,7 @@
             postToFloatedIframe,
             renderSeekPreview: (ratio) => seekController.renderSeekPreview(ratio),
             restore: () => floatingSession.restore(),
-            applyTransform: () => floatingSession.applyTransform(),
-            switchVid: (dir) => floatingSession.switchVid(dir)
+            applyTransform: () => floatingSession.applyTransform()
         });
 
         const isWrapperToggleBlockedTarget = (target) => {

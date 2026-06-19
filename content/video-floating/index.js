@@ -5,6 +5,7 @@
 
     const createMountedController = () => {
         const cleanupSwipeSeek = ext.videoFloating.helpers.installTouchSwipeSeek();
+        const cleanupWheelKeyboardSeek = ext.videoFloating.helpers.installWheelKeyboardSeek();
         let controller = null;
         let domReadyHandler = null;
 
@@ -40,6 +41,7 @@
                     domReadyHandler = null;
                 }
                 cleanupSwipeSeek?.();
+                cleanupWheelKeyboardSeek?.();
                 controller?.destroy?.();
                 controller = null;
                 window.__gestureVideoFloatingController = null;

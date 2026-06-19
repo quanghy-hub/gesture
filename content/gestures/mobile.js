@@ -211,6 +211,14 @@
             const touchPoint = event.touches[0];
             const now = Date.now();
 
+            if (event.touches.length !== 1) {
+                cancelLongPress();
+                state.dblTap.last = null;
+                return;
+            }
+
+            const touchPoint = event.touches[0];
+
             if (isInEdgeZone(touchPoint.clientX) && !event.target.closest?.('#fvp-container')) {
                 const element = document.scrollingElement || document.documentElement;
                 state.edge = {

@@ -296,6 +296,7 @@
         config.inlineTranslate.provider = typeof config.inlineTranslate.provider === 'string' && config.inlineTranslate.provider.trim()
             ? config.inlineTranslate.provider.trim().toLowerCase()
             : 'google';
+        config.inlineTranslate.selectionTranslateEnabled = config.inlineTranslate.selectionTranslateEnabled !== false;
         config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
         config.inlineTranslate.hotkey = ['f2', 'f4', 'f8'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
             ? String(config.inlineTranslate.hotkey).toLowerCase()
@@ -380,6 +381,11 @@
         config.gestures.desktop.rclick.mode = normalizeMode(config.gestures.desktop.rclick.mode, 'fg');
         config.gestures.desktop.dblRight.enabled = !!config.gestures.desktop.dblRight.enabled;
         config.gestures.desktop.dblRight.ms = clampNumber(config.gestures.desktop.dblRight.ms, 500, 200, 1000);
+        config.gestures.desktop.fastScroll = config.gestures.desktop.fastScroll && typeof config.gestures.desktop.fastScroll === 'object' ? config.gestures.desktop.fastScroll : {};
+        config.gestures.desktop.fastScroll.enabled = config.gestures.desktop.fastScroll.enabled !== false;
+        config.gestures.desktop.fastScroll.step = clampNumber(config.gestures.desktop.fastScroll.step, 0.92, 0.5, 1);
+        config.gestures.desktop.fastScroll.wheelZone = clampNumber(config.gestures.desktop.fastScroll.wheelZone, 80, 40, 240);
+        delete config.gestures.desktop.fastScroll.touchpadBoost;
         config.gestures.desktop.pager.enabled = !!config.gestures.desktop.pager.enabled;
         config.gestures.desktop.pager.hops = clampNumber(config.gestures.desktop.pager.hops, 3, 1, 5);
 

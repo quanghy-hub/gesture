@@ -156,7 +156,9 @@
             updatePlaybackOverlayUI?.();
             startProgressLoop();
             bindCurrentVideo(video);
-            video.play().catch(() => { });
+            video.play().catch(() => {
+                updatePlaybackOverlayUI?.();
+            });
         };
 
         const createTransitionLayer = (video, className) => {

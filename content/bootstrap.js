@@ -36,6 +36,18 @@
         state.active = false;
     };
 
+    const destroyControllers = () => {
+        while (controllers.length) {
+            const controller = controllers.pop();
+            try {
+                controller?.destroy?.();
+            } catch (error) {
+                console.error('[GestureExtension] Failed to destroy feature controller', error);
+            }
+        }
+        state.active = false;
+    };
+
     const activateFeatures = () => {
         if (state.active || isCurrentHostExcluded()) {
             return;

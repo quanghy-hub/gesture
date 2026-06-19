@@ -204,6 +204,11 @@
       <h2 class="card-title card-title-with-toggle"><span>Video Screenshot</span><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Bật Video Screenshot"></h2>
     </section>
 
+    <!-- Video Screenshot -->
+    <section class="card" data-panel-id="video-screenshot">
+      <h2 class="card-title card-title-with-toggle"><span>Video Screenshot</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Video Screenshot"></button><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Bật Video Screenshot"></span></h2>
+    </section>
+
     <!-- Quick Search -->
     <section class="card">
       <h2 class="card-title card-title-with-toggle"><span>Quick Search</span><input id="feature-quick-search-enabled" type="checkbox" aria-label="Bật Quick Search"></h2>
@@ -249,6 +254,12 @@
               <option value="f8">F8</option>
             </select></span>
           <span class="toggle"><input id="inline-translate-hotkey-enabled" type="checkbox"></span>
+        </div>
+        <div class="item">
+          <span class="label-main">Selection</span>
+          <span class="label-sub">Translate</span>
+          <span class="param"></span>
+          <span class="toggle"><input id="inline-translate-selection-translate-enabled" type="checkbox"></span>
         </div>
         <div class="item">
           <span class="label-main">Swipe</span>
@@ -336,11 +347,13 @@
           <span class="toggle toggle-empty"></span>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- API Services -->
-    <section class="card">
-      <h2 class="card-title">API Services</h2>
+    <section class="card" data-panel-id="api-services">
+      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-api-services" aria-expanded="false" aria-label="Mở cài đặt API Services" role="button" tabindex="0"><span>API Services</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí API Services"></button></span></h2>
+      <div id="panel-api-services" class="panel-body is-collapsed">
       <div class="table table-api-services">
         <div class="item">
           <span class="label-main">Translate</span>
@@ -391,6 +404,21 @@
           <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off"></span>
           <span class="toggle toggle-empty"></span>
         </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Backup -->
+    <section class="card" data-panel-id="backup">
+      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-backup" aria-expanded="false" aria-label="Mở cài đặt Backup" role="button" tabindex="0"><span>Backup</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Kéo để đổi vị trí Backup"></button></span></h2>
+      <div id="panel-backup" class="panel-body is-collapsed">
+        <div class="backup-controls">
+          <input id="backup-gist-token" type="password" autocomplete="off" placeholder="GitHub token">
+          <button id="backup-verify-token" class="secondary inline-button" type="button">Test</button>
+          <button id="backup-export" class="secondary inline-button" type="button">Export</button>
+          <button id="backup-import" class="secondary inline-button" type="button">Import</button>
+        </div>
+        <p id="backup-status" class="section-note backup-status"></p>
       </div>
     </section>
 

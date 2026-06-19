@@ -7,6 +7,7 @@
 
     const GOOGLE_TRANSLATE_CHUNK_LIMIT = 1400;
     const GOOGLE_RETRY_COOLDOWN_MS = 2 * 60 * 1000;
+    const TRANSLATE_API_TIMEOUT_MS = 30000;
     const OCR_IMAGE_FETCH_TIMEOUT_MS = 15000;
     const OCR_API_TIMEOUT_MS = 45000;
     let googleCooldownUntil = 0;
@@ -82,16 +83,24 @@
         return chunks.length ? chunks : [normalized];
     };
 
-    const withTimeout = async (task, timeoutMs, timeoutMessage) => {
+    const fetchWithTimeout = async (url, options = {}, timeoutMs, timeoutMessage) => {
         const timeout = Math.max(1, Number(timeoutMs) || 1);
-        let timer = 0;
+        const controller = new AbortController();
+        let timedOut = false;
+        const timer = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, timeout);
         try {
-            return await Promise.race([
-                Promise.resolve().then(task),
-                new Promise((_, reject) => {
-                    timer = setTimeout(() => reject(new Error(timeoutMessage)), timeout);
-                })
-            ]);
+            return await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+        } catch (error) {
+            if (timedOut || error?.name === 'AbortError') {
+                throw new Error(timeoutMessage);
+            }
+            throw error;
         } finally {
             clearTimeout(timer);
         }
@@ -172,14 +181,14 @@
         const body = new URLSearchParams();
         body.set('q', text);
 
-        const response = await fetch(url.toString(), {
+        const response = await fetchWithTimeout(url.toString(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
             },
             redirect: 'follow',
             body: body.toString()
-        });
+        }, TRANSLATE_API_TIMEOUT_MS, 'Google Translate request timed out');
         if (!response.ok) {
             if (response.status === 429) {
                 setGoogleCooldown();
@@ -204,10 +213,10 @@
         const url = new URL(buildTranslateEndpoint('mymemory', providerSettings.endpoint));
         url.searchParams.set('q', text);
         url.searchParams.set('langpair', `${sourceLanguage}|${targetLanguage}`);
-        const response = await fetch(url.toString(), {
+        const response = await fetchWithTimeout(url.toString(), {
             method: 'GET',
             redirect: 'follow'
-        });
+        }, TRANSLATE_API_TIMEOUT_MS, 'MyMemory request timed out');
         if (!response.ok) {
             throw new Error(`MyMemory HTTP ${response.status}`);
         }
@@ -225,7 +234,7 @@
             throw new Error('DeepL requires API key');
         }
 
-        const response = await fetch(buildTranslateEndpoint('deepl', providerSettings.endpoint), {
+        const response = await fetchWithTimeout(buildTranslateEndpoint('deepl', providerSettings.endpoint), {
             method: 'POST',
             headers: {
                 'Authorization': `DeepL-Auth-Key ${apiKey}`,
@@ -236,7 +245,7 @@
                 source_lang: sourceLanguage.toUpperCase(),
                 target_lang: targetLanguage.toUpperCase()
             })
-        });
+        }, TRANSLATE_API_TIMEOUT_MS, 'DeepL request timed out');
         if (!response.ok) {
             throw new Error(`DeepL HTTP ${response.status}`);
         }
@@ -305,16 +314,12 @@
     const buildOcrEndpoint = (endpoint) => endpoint || 'https://api.ocr.space/parse/image';
 
     const fetchImageBlob = async (imageUrl) => {
-        const res = await withTimeout(
-            () => fetch(imageUrl, {
-                credentials: 'omit',
-                cache: 'no-store',
-                redirect: 'follow',
-                referrerPolicy: 'no-referrer'
-            }),
-            OCR_IMAGE_FETCH_TIMEOUT_MS,
-            'OCR image fetch timed out'
-        );
+        const res = await fetchWithTimeout(imageUrl, {
+            credentials: 'omit',
+            cache: 'no-store',
+            redirect: 'follow',
+            referrerPolicy: 'no-referrer'
+        }, OCR_IMAGE_FETCH_TIMEOUT_MS, 'OCR image fetch timed out');
         if (!res.ok) {
             throw new Error(`Image fetch HTTP ${res.status}`);
         }
@@ -337,14 +342,10 @@
         formData.append('OCREngine', '3');
         formData.append('apikey', String(ocrSettings.apiKey || 'helloworld'));
 
-        const ocrRes = await withTimeout(
-            () => fetch(buildOcrEndpoint(ocrSettings.endpoint), {
-                method: 'POST',
-                body: formData
-            }),
-            OCR_API_TIMEOUT_MS,
-            'OCR service request timed out'
-        );
+        const ocrRes = await fetchWithTimeout(buildOcrEndpoint(ocrSettings.endpoint), {
+            method: 'POST',
+            body: formData
+        }, OCR_API_TIMEOUT_MS, 'OCR service request timed out');
         if (!ocrRes.ok) {
             throw new Error(`OCR HTTP ${ocrRes.status}`);
         }

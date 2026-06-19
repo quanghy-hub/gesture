@@ -3,6 +3,7 @@
 
     const SELECTORS = [
         { container: '.block-body.js-replyNewMessageContainer', items: 'article.message--post, article.message' },
+        { container: '.structItemContainer-group.js-threadList', items: '.structItem--thread, .structItem' },
         { container: '.structItemContainer', items: '.structItem--thread, .structItem' }
     ];
 
@@ -22,8 +23,19 @@
         }
     };
 
+    const getDirectItems = (container, itemSelector) => {
+        const scopedSelector = itemSelector
+            .split(',')
+            .map((selector) => selector.trim())
+            .filter(Boolean)
+            .map((selector) => `:scope > ${selector}`)
+            .join(', ');
+
+        return scopedSelector ? Array.from(container.querySelectorAll(scopedSelector)) : [];
+    };
+
     const createMasonry = (container, itemSelector, gap) => {
-        const items = Array.from(container.querySelectorAll(`:scope > ${itemSelector}`));
+        const items = getDirectItems(container, itemSelector);
         if (items.length < 3) return null;
 
         const wrapper = document.createElement('div');

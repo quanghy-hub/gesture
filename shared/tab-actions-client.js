@@ -24,6 +24,9 @@
         },
         downloadDataUrl(url, filename) {
             return send('gesture-ext/download-data-url', { url, filename });
+        },
+        captureVisibleTab() {
+            return send('gesture-ext/capture-visible-tab');
         }
     };
 })();
