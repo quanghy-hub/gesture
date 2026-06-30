@@ -51,7 +51,7 @@
     };
 
     const extractCaptionTextFromDom = () => {
-        const captionRoots = queryAllDeep('.caption-window, .ytp-caption-window-container, .captions-text');
+        const captionRoots = queryAllDeep('.caption-window, .ytp-caption-window-container, .captions-text, .caption-visual-line, .ytp-caption-segment');
         for (const root of [...captionRoots].reverse()) {
             const lineNodes = root.querySelectorAll?.('.caption-visual-line') || [];
             if (lineNodes.length) {
@@ -86,6 +86,10 @@
         getSubtitleTracks,
         getPreferredTrack,
         getActiveCaptionTrack,
+        extractCaptionTextFromDom,
+        hasDomCaptionText() {
+            return !!extractCaptionTextFromDom();
+        },
         hideNativeCaptionTracks(video) {
             getSubtitleTracks(video).forEach((track) => {
                 try {

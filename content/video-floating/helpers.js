@@ -8,7 +8,6 @@
     const floating = ext?.shared?.floatingCore;
     const viewport = ext?.shared?.viewportCore;
     const {
-        FIT_MODES,
         VIDEO_IFRAME_PATTERN,
         DEFAULT_VIDEO_FLOATING_CONFIG,
         VIDEO_CHECK_INTERVAL
@@ -151,7 +150,9 @@
         try {
             const style = window.getComputedStyle(video);
             if (style.display === 'none' || style.visibility === 'hidden') return false;
-        } catch (e) {}
+        } catch {
+            // Some cross-origin or detached nodes may not expose computed styles.
+        }
 
         const rect = getRect(video);
         const elementArea = Math.max(0, rect.width * rect.height);
@@ -249,7 +250,9 @@
             try {
                 const style = window.getComputedStyle(video);
                 if (style.display === 'none' || style.visibility === 'hidden') continue;
-            } catch (e) {}
+            } catch {
+                // Some cross-origin or detached nodes may not expose computed styles.
+            }
 
             const isYouTube = location.hostname.includes('youtube.com') || location.hostname.includes('youtube-nocookie.com');
             if (isYouTube) {
@@ -294,7 +297,9 @@
         let host = '';
         try {
             host = new URL(getIframeSrc(iframe)).hostname;
-        } catch { }
+        } catch {
+            // Invalid iframe URLs are treated as same-page unknown hosts.
+        }
 
         const iframeRect = getRect(iframe);
         if (!iframeRect.width || !iframeRect.height) return true;
@@ -338,7 +343,11 @@
     const saveLayout = (layout) => {
         layoutCache = layout;
         if (cfgCache?.videoFloating) cfgCache.videoFloating.layout = layout;
-        try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { }
+        try {
+            localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+        } catch {
+            // Persisting layout is best-effort; config storage remains authoritative.
+        }
         if (storage?.saveVideoLayout) storage.saveVideoLayout(layout);
     };
 
@@ -348,7 +357,9 @@
         if (storage?.getConfig) {
             try {
                 cfgCache = await storage.getConfig();
-            } catch { }
+            } catch {
+                // Keep the existing cache if storage is unavailable.
+            }
         }
     };
 
@@ -363,7 +374,9 @@
                         layoutCache = saved;
                         return saved;
                     }
-                } catch { }
+                } catch {
+                    // Fall back to localStorage layout when config storage is unavailable.
+                }
             }
             const fallback = loadLayout();
             if (fallback) layoutCache = fallback;
@@ -380,7 +393,9 @@
             if (areaName !== 'local' || !changes?.[CONFIG_STORAGE_KEY]) return;
             try {
                 cfgCache = configUtils?.normalizeConfig?.(changes[CONFIG_STORAGE_KEY].newValue) || cfgCache;
-            } catch { }
+            } catch {
+                // Ignore malformed config change payloads and keep the previous cache.
+            }
             onChange?.();
         };
         chrome.storage.onChanged.addListener(handler);

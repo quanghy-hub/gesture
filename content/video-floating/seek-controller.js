@@ -3,19 +3,9 @@
     const videoFloating = ext.videoFloating = ext.videoFloating || {};
 
     videoFloating.createSeekController = (ctx, deps) => {
-        const { $, getCoord, getRect, clamp, formatTime, touch } = deps;
-        const POINTER_CAPTURE = { capture: true };
-        const TOUCH_START_CAPTURE = { capture: true, passive: true };
-        const TOUCH_MOVE_CAPTURE = { capture: true, passive: false };
-        const TOUCH_END_CAPTURE = { capture: true, passive: true };
+        const { $, clamp, formatTime } = deps;
 
         const getActiveSeekDuration = () => ctx.floatedIframe ? (ctx.iframePlaybackState.duration || 0) : (ctx.curVid?.duration || 0);
-        const getSeekRatioFromClientX = (clientX) => {
-            const container = $('fvp-seek-container');
-            const rect = getRect(container);
-            if (!rect.width) return 0;
-            return clamp((clientX - rect.left) / rect.width, 0, 1);
-        };
         const renderSeekPreview = (ratio) => {
             const seek = $('fvp-seek');
             if (seek) seek.value = Math.round(clamp(ratio, 0, 1) * 10000);

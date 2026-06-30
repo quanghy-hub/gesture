@@ -497,7 +497,11 @@
                 startY = event.clientY;
                 origin = { left: ctx.iconRef.element.offsetLeft, top: ctx.iconRef.element.offsetTop };
                 dragging = false;
-                try { ctx.iconRef.element.setPointerCapture(event.pointerId); } catch { }
+                try {
+                    ctx.iconRef.element.setPointerCapture(event.pointerId);
+                } catch {
+                    // Pointer capture is optional on some embedded surfaces.
+                }
             };
             const handleIconPointerMove = (event) => {
                 if (event.pointerId !== pointerId) return;
@@ -763,7 +767,11 @@
                 ctx.state.initY = ctx.box.offsetTop;
                 ctx.state.initW = ctx.box.offsetWidth;
                 ctx.state.initH = ctx.box.offsetHeight;
-                try { activeBoxPointerEl?.setPointerCapture?.(event.pointerId); } catch { }
+                try {
+                    activeBoxPointerEl?.setPointerCapture?.(event.pointerId);
+                } catch {
+                    // Pointer capture is optional on some embedded surfaces.
+                }
                 resetIdle();
             };
 
@@ -796,7 +804,11 @@
             const endBoxInteraction = (event) => {
                 if ((event.pointerId ?? 'mouse') !== activeBoxPointerId) return;
                 if (ctx.state.isDrag || ctx.state.isResize) persistCurrentBoxLayout();
-                try { activeBoxPointerEl?.releasePointerCapture?.(event.pointerId); } catch { }
+                try {
+                    activeBoxPointerEl?.releasePointerCapture?.(event.pointerId);
+                } catch {
+                    // Pointer capture is optional on some embedded surfaces.
+                }
                 activeBoxPointerId = null;
                 activeBoxPointerEl = null;
                 ctx.state.isDrag = false;
@@ -899,7 +911,11 @@
                 floatingSession.restore();
                 clearTimeout(ctx.state.idleTimer);
                 ctx.cleanup.splice(0).forEach((fn) => {
-                    try { fn(); } catch { }
+                    try {
+                        fn();
+                    } catch {
+                        // Run all cleanup callbacks even if one has already been detached.
+                    }
                 });
                 ctx.iconRef?.destroy();
                 ctx.menuRef?.destroy();

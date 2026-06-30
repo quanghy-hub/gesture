@@ -9,7 +9,7 @@
         shortcutKey: 's',
         regionShortcutCode: 'F4',
         recordShortcutCode: 'F8',
-        triggerSize: 52,
+        triggerSize: 46,
         triggerMargin: 12,
         minRegionSize: 8,
         minRecordWidth: 48,

@@ -16,7 +16,9 @@
     const postBridgeMessage = payload => {
         try {
             window.postMessage({ source: FVP_IFRAME_BRIDGE, ...payload }, '*');
-        } catch (e) { }
+        } catch {
+            // Page bridge messages are best-effort.
+        }
     };
 
     const uniqueLevels = levels => {
@@ -181,7 +183,11 @@
                 const playing = !video.paused;
                 video.src = item.value;
                 video.currentTime = t;
-                if (playing) video.play().catch(() => { });
+                if (playing) {
+                    video.play().catch(() => {
+                        // Autoplay policy may block resuming after source changes.
+                    });
+                }
             }
         };
     };
@@ -209,7 +215,9 @@
         if (!controller) return;
         try {
             controller.setQuality(item);
-        } catch (e) { }
+        } catch {
+            // Player APIs vary by site; refresh levels after a best-effort set.
+        }
         setTimeout(handleGetQuality, 120);
     };
 

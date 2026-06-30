@@ -28,7 +28,7 @@
 
     const normalizeTranslateText = (text) => String(text || '')
         .replace(/\r\n?/g, '\n')
-        .replace(/\u0000/g, '')
+        .replaceAll('\u0000', '')
         .replace(/[ \t]{2,}/g, ' ')
         .replace(/\n{3,}/g, '\n\n')
         .trim();

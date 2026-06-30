@@ -268,6 +268,28 @@ runTest('captionSource: giữ track đã bật để dịch sau khi ẩn native 
     assert.equal(captionSource.extractCaptionText(video, showingTrack), 'Hello world');
 });
 
+runTest('youtubeSubtitles: hỗ trợ caption fallback khi mobile YouTube không expose nút CC desktop', () => {
+    const controllerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/controller.js'), 'utf8');
+    const captionSourceSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-source.js'), 'utf8');
+
+    assert.match(controllerSource, /getActiveCaptionTrack\(video,\s*state\.captionTrack\)/);
+    assert.match(controllerSource, /hasDomCaptionText\(\)/);
+    assert.match(captionSourceSource, /extractCaptionTextFromDom/);
+    assert.match(captionSourceSource, /\.caption-visual-line,\s*\.ytp-caption-segment/);
+});
+
+// --- Video screenshot floating trigger ---
+runTest('videoScreenshot trigger: dùng cùng drag affordance với nút dịch phụ đề', () => {
+    const constantsSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/constants.js'), 'utf8');
+    const controllerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/controller.js'), 'utf8');
+
+    assert.match(constantsSource, /triggerSize:\s*46/);
+    assert.match(controllerSource, /triggerRef\.element\.style\.touchAction\s*=\s*'none'/);
+    assert.match(controllerSource, /threshold:\s*4/);
+    assert.match(controllerSource, /onMove:\s*\(\{\s*event,\s*deltaX,\s*deltaY,\s*origin\s*\}\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/);
+    assert.match(controllerSource, /triggerRef\.element\.addEventListener\('pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/);
+});
+
 
 // ============================================================================
 // 3. Kết luận

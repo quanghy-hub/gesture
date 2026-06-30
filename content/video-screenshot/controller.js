@@ -576,15 +576,17 @@
                 position: 'fixed',
                 zIndex: '2147483646'
             });
+            triggerRef.element.style.touchAction = 'none';
 
             removeDragBinding = floating.bindDragBehavior({
                 target: triggerRef.element,
-                threshold: 6,
+                threshold: 4,
                 getInitialPosition: () => ({
                     left: triggerRef.element.getBoundingClientRect().left,
                     top: triggerRef.element.getBoundingClientRect().top
                 }),
-                onMove: ({ deltaX, deltaY, origin }) => {
+                onMove: ({ event, deltaX, deltaY, origin }) => {
+                    floating.stopFloatingEvent(event);
                     const next = floating.clampFixedPosition({
                         left: origin.left + deltaX,
                         top: origin.top + deltaY,
@@ -607,8 +609,7 @@
             });
 
             triggerRef.element.addEventListener('pointerdown', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
+                floating.stopFloatingEvent(event);
             }, true);
 
             posStorage.load().then(({ left, top }) => {

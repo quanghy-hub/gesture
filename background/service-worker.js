@@ -1,3 +1,4 @@
+/* global GestureExtension, importScripts */
 importScripts(
     chrome.runtime.getURL('shared/namespace.js'),
     chrome.runtime.getURL('shared/api-services.js'),
@@ -13,7 +14,7 @@ importScripts(
     chrome.runtime.getURL('background/message-handlers.js')
 );
 
-const { STORAGE_KEY, normalizeConfig, getExcludedMatchPatterns } = GestureExtension.shared.config;
+const { STORAGE_KEY, getExcludedMatchPatterns } = GestureExtension.shared.config;
 
 const CONTENT_SCRIPT_DEFINITIONS = [
     {
@@ -111,16 +112,6 @@ const CONTENT_SCRIPT_DEFINITIONS = [
     }
 ];
 const CONTENT_SCRIPT_IDS = CONTENT_SCRIPT_DEFINITIONS.map((definition) => definition.id);
-const arrayBufferToBase64 = (buffer) => {
-    const bytes = new Uint8Array(buffer);
-    const chunks = [];
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize)));
-    }
-    return btoa(chunks.join(''));
-};
-const getRuntimeErrorMessage = () => chrome.runtime?.lastError?.message || '';
 const isTransientSyncError = (error) => {
     const message = String(error?.message || error || '').trim();
     if (!message) {
@@ -179,7 +170,9 @@ const syncRegisteredContentScripts = async () => {
 let syncQueue = Promise.resolve();
 const queueContentScriptSync = () => {
     syncQueue = syncQueue
-        .catch(() => { })
+        .catch(() => {
+            // Keep the queue alive after a previous sync failure.
+        })
         .then(() => syncRegisteredContentScripts())
         .catch((error) => {
             if (isTransientSyncError(error)) {

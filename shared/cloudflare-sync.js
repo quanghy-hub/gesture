@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { STORAGE_KEY, normalizeConfig } = ext.shared.config;
+    const { normalizeConfig } = ext.shared.config;
 
     const APP_ID = 'gesture';
     const DEFAULT_WORKER_URL = 'https://extension.quavav15-6.workers.dev';

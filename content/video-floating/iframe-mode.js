@@ -8,7 +8,6 @@
         WHEEL_GESTURE,
     } = videoFloating;
     const {
-        $,
         clamp,
         getRect,
         queryAllDeep,
@@ -46,7 +45,9 @@
                 try {
                     const style = window.getComputedStyle(video);
                     if (style.display === 'none' || style.visibility === 'hidden') continue;
-                } catch (e) {}
+                } catch {
+                    // Some cross-origin or detached nodes may not expose computed styles.
+                }
 
                 const isYouTube = location.hostname.includes('youtube.com') || location.hostname.includes('youtube-nocookie.com');
                 if (isYouTube) {
@@ -68,7 +69,9 @@
         const postIframeBridgeMessage = (payload) => {
             try {
                 window.postMessage({ source: FVP_IFRAME_BRIDGE, ...payload }, '*');
-            } catch { }
+            } catch {
+                // Bridge delivery is best-effort across frame boundaries.
+            }
         };
 
         const pruneChildFrames = () => {
@@ -171,7 +174,9 @@
                         rotationAngle: 0
                     }
                 }, '*');
-            } catch { }
+            } catch {
+                // Parent may be gone while the iframe is unloading.
+            }
         };
 
         const reportVideos = () => {
@@ -181,7 +186,9 @@
                     type: 'fvp-iframe-videos',
                     count: getOwnVideoCount() + [...childFrameVideoMap.values()].reduce((sum, count) => sum + count, 0)
                 }, '*');
-            } catch { }
+            } catch {
+                // Parent may be gone while the iframe is unloading.
+            }
         };
 
         const playIframeVideo = (video) => {
@@ -230,7 +237,9 @@
                 if (event.data?.type === 'fvp-page-quality-result') {
                     try {
                         window.parent.postMessage({ type: 'fvp-iframe-quality-result', detail: event.data.detail || [] }, '*');
-                    } catch { }
+                    } catch {
+                        // Parent may be gone while the iframe is unloading.
+                    }
                 }
                 return;
             }

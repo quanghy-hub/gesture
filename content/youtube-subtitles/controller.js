@@ -29,9 +29,16 @@
         const getCurrentVideo = () => ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
         const getNativeCaptionButton = () => ext.shared.domUtils.queryDeep('.ytp-subtitles-button')
             || document.querySelector('.ytp-subtitles-button');
-        const isNativeCaptionEnabled = () => {
+        const isNativeCaptionEnabled = (video = getCurrentVideo()) => {
             const button = getNativeCaptionButton();
-            return button?.getAttribute('aria-pressed') === 'true';
+            if (button?.getAttribute('aria-pressed') === 'true') {
+                return true;
+            }
+            const activeTrack = youtubeSubtitles.captionSource.getActiveCaptionTrack(video, state.captionTrack);
+            if (activeTrack) {
+                return true;
+            }
+            return youtubeSubtitles.captionSource.hasDomCaptionText();
         };
 
         const resetCaptionState = () => {
@@ -105,7 +112,7 @@
                 return;
             }
 
-            if (!isNativeCaptionEnabled()) {
+            if (!isNativeCaptionEnabled(video)) {
                 releaseCaptionTrack();
                 youtubeSubtitles.dom.removeSubtitleContainer();
                 youtubeSubtitles.dom.setPlayerTranslating(false);

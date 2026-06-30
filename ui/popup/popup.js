@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, isGestureHostExcluded, setGestureHostExcluded, normalizeHost, normalizeConfig, deepClone } = ext.shared.config;
+    const { getForumConfig, updateForumHostConfig, getGestureSettings, applyGestureSettings, isHostExcluded, setHostExcluded, isVideoFloatingBackgroundSeekExcluded, setVideoFloatingBackgroundSeekExcluded, isGestureHostExcluded, setGestureHostExcluded, normalizeHost, deepClone } = ext.shared.config;
     const { TRANSLATE_PROVIDER_OPTIONS, OCR_PROVIDER_OPTIONS } = ext.shared.apiServices;
     const storage = ext.shared.storage;
     const { safeGetElementById, fillProviderOptions, getHostFromUrl, setCardState, setHostControlsState } = ext.ui.popupUtils;
@@ -278,7 +278,9 @@
         }
         saveTimer = window.setTimeout(() => {
             saveTimer = 0;
-            runSave().catch(() => { });
+            runSave().catch(() => {
+                // runSave already reports the failure.
+            });
         }, 250);
     };
 

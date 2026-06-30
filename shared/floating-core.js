@@ -293,7 +293,11 @@
                 startY = event.clientY;
                 origin = getInitialPosition?.() || { left: 0, top: 0 };
                 dragging = false;
-                try { target.setPointerCapture(event.pointerId); } catch {}
+                try {
+                    target.setPointerCapture(event.pointerId);
+                } catch {
+                    // Pointer capture is optional on some embedded surfaces.
+                }
             };
 
             target.addEventListener('pointerdown', onPointerDown, true);
