@@ -230,10 +230,11 @@
     });
 
     window.addEventListener('message', e => {
-        if (e.source !== window || e.data?.source !== FVP_IFRAME_BRIDGE) return;
-        if (e.data?.type === 'fvp-page-get-quality') {
+        if (!e || !e.data || typeof e.data !== 'object') return;
+        if (e.source !== window || e.data.source !== FVP_IFRAME_BRIDGE) return;
+        if (e.data.type === 'fvp-page-get-quality') {
             handleGetQuality();
-        } else if (e.data?.type === 'fvp-page-set-quality') {
+        } else if (e.data.type === 'fvp-page-set-quality' && e.data.item && typeof e.data.item === 'object') {
             handleSetQuality(e.data.item);
         }
     });

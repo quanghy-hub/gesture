@@ -875,19 +875,24 @@
         ctx.cleanup.push(uiControls.bindQualityEvents());
 
         const onWindowMessage = (event) => {
-            if (event.data?.type === 'fvp-iframe-videos') {
+            if (!event || !event.data || typeof event.data !== 'object') return;
+            if (event.data.type === 'fvp-iframe-videos') {
+                if (event.source === window) return;
                 const iframes = queryAllDeep('iframe');
                 const matched = Array.from(iframes).find((iframe) => iframe.contentWindow === event.source);
                 if (matched) {
-                    if (event.data.count > 0 && isLikelyVideoIframe(matched)) ctx.iframeVideoMap.set(matched, event.data.count);
+                    const count = Number(event.data.count) || 0;
+                    if (count > 0 && isLikelyVideoIframe(matched)) ctx.iframeVideoMap.set(matched, count);
                     else ctx.iframeVideoMap.delete(matched);
                     floatingSession.updateVideoDetectionUI();
                 }
             }
-            if (event.data?.type === 'fvp-iframe-state' && ctx.floatedIframe?.contentWindow === event.source) {
+            if (event.data.type === 'fvp-iframe-state' && ctx.floatedIframe?.contentWindow === event.source) {
                 // Only trust state updates from the iframe currently embedded inside the floating shell.
-                Object.assign(ctx.iframePlaybackState, event.data.state || {});
-                uiControls.syncFloatedIframeUI();
+                if (event.data.state && typeof event.data.state === 'object') {
+                    Object.assign(ctx.iframePlaybackState, event.data.state);
+                    uiControls.syncFloatedIframeUI();
+                }
             }
         };
         window.addEventListener('message', onWindowMessage);

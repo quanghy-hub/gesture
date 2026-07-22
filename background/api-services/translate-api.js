@@ -104,11 +104,36 @@
         }
     };
 
-    const isGoogleCooldownActive = () => Date.now() < googleCooldownUntil;
+    const SESSION_COOLDOWN_KEY = 'gesture_google_cooldown_until';
+    const isGoogleCooldownActive = async () => {
+        if (Date.now() < googleCooldownUntil) return true;
+        try {
+            const storageApi = globalThis.chrome?.storage?.session || globalThis.chrome?.storage?.local;
+            if (storageApi?.get) {
+                const res = await new Promise((resolve) => storageApi.get([SESSION_COOLDOWN_KEY], resolve));
+                if (res?.[SESSION_COOLDOWN_KEY] && Date.now() < res[SESSION_COOLDOWN_KEY]) {
+                    googleCooldownUntil = res[SESSION_COOLDOWN_KEY];
+                    return true;
+                }
+            }
+        } catch {
+            // Storage session fallback
+        }
+        return false;
+    };
     const setGoogleCooldown = () => {
         googleCooldownUntil = Date.now() + GOOGLE_RETRY_COOLDOWN_MS;
+        try {
+            const storageApi = globalThis.chrome?.storage?.session || globalThis.chrome?.storage?.local;
+            if (storageApi?.set) {
+                storageApi.set({ [SESSION_COOLDOWN_KEY]: googleCooldownUntil }).catch(() => {});
+            }
+        } catch {
+            // Storage session fallback
+        }
     };
-    const getGoogleCooldownError = () => {
+    const getGoogleCooldownError = async () => {
+        await isGoogleCooldownActive();
         const remainingMs = Math.max(0, googleCooldownUntil - Date.now());
         const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
         return new Error(`Google Translate đang tạm khóa, thử lại sau ${remainingSeconds}s`);
@@ -156,8 +181,8 @@
     };
 
     const translateWithGoogleChunk = async (text, targetLanguage, providerSettings) => {
-        if (isGoogleCooldownActive()) {
-            throw getGoogleCooldownError();
+        if (await isGoogleCooldownActive()) {
+            throw await getGoogleCooldownError();
         }
 
         const url = new URL(buildTranslateEndpoint('google', providerSettings.endpoint));

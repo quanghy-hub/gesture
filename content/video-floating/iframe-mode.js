@@ -232,38 +232,72 @@
             return true;
         };
 
+        const ALLOWED_IFRAME_COMMANDS = new Set([
+            'set-floating-active',
+            'play',
+            'pause',
+            'play-pause',
+            'toggle-mute',
+            'seek-to-ratio',
+            'prev-video',
+            'next-video',
+            'cycle-fit',
+            'cycle-zoom',
+            'rotate',
+            'get-state',
+            'get-quality',
+            'set-quality'
+        ]);
+
         const onMessage = (event) => {
+            if (!event || !event.data || typeof event.data !== 'object') return;
+
             if (event.source === window && event.data?.source === FVP_IFRAME_BRIDGE) {
                 if (event.data?.type === 'fvp-page-quality-result') {
                     try {
-                        window.parent.postMessage({ type: 'fvp-iframe-quality-result', detail: event.data.detail || [] }, '*');
+                        window.parent.postMessage({ type: 'fvp-iframe-quality-result', detail: Array.isArray(event.data.detail) ? event.data.detail : [] }, '*');
                     } catch {
                         // Parent may be gone while the iframe is unloading.
                     }
                 }
                 return;
             }
+
             if (event.data?.type === 'fvp-iframe-videos') {
+                if (event.source === window) return;
                 const frame = Array.from(queryAllDeep('iframe')).find((iframe) => iframe.contentWindow === event.source);
                 if (frame) {
-                    if (event.data.count > 0) childFrameVideoMap.set(frame, event.data.count);
+                    const count = Number(event.data.count) || 0;
+                    if (count > 0) childFrameVideoMap.set(frame, count);
                     else childFrameVideoMap.delete(frame);
                     reportVideos();
                 }
                 return;
             }
+
             if (event.data?.type !== 'fvp-iframe-command') return;
-            if (event.data.command === 'set-floating-active') {
+
+            // Security check: Only process iframe commands originating from top/parent frames or self
+            if (event.source !== window.parent && event.source !== window.top && event.source !== window) {
+                return;
+            }
+
+            const command = String(event.data.command || '').trim();
+            if (!ALLOWED_IFRAME_COMMANDS.has(command)) {
+                return;
+            }
+
+            if (command === 'set-floating-active') {
                 isFloatingActive = !!event.data.active;
                 return;
             }
             const video = getCurrentIframeVideo();
-            switch (event.data.command) {
+            switch (command) {
                 case 'play': playIframeVideo(video); break;
                 case 'pause': if (video) video.pause(); break;
                 case 'play-pause': if (video) video.paused ? playIframeVideo(video) : video.pause(); break;
                 case 'toggle-mute': if (video) video.muted = !video.muted; break;
-                case 'seek-to-ratio': if (video?.duration) video.currentTime = clamp((event.data.ratio || 0) * video.duration, 0, video.duration); break;
+                case 'seek-to-ratio': if (video?.duration) video.currentTime = clamp((Number(event.data.ratio) || 0) * video.duration, 0, video.duration); break;
                 case 'prev-video': switchIframeVideo(-1); break;
                 case 'next-video': switchIframeVideo(1); break;
                 case 'cycle-fit': iframeUiState.fitIdx = (iframeUiState.fitIdx + 1) % FIT_MODES.length; applyIframePresentation(); break;
@@ -271,11 +305,11 @@
                 case 'rotate': iframeUiState.rotationAngle = (iframeUiState.rotationAngle + 90) % 360; applyIframePresentation(); break;
                 case 'get-state': break;
                 case 'get-quality': postIframeBridgeMessage({ type: 'fvp-page-get-quality' }); break;
-                case 'set-quality': postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: event.data.item }); break;
+                case 'set-quality': if (event.data.item && typeof event.data.item === 'object') postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: event.data.item }); break;
                 default: break;
             }
             postIframeState();
-            if (event.data.command !== 'get-state') setTimeout(postIframeState, 80);
+            if (command !== 'get-state') setTimeout(postIframeState, 80);
         };
 
         const onWheel = (event) => {

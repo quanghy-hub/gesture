@@ -101,7 +101,12 @@
             return { ok: false, error: 'Missing image url' };
         }
 
-        const response = await fetch(url, { credentials: 'include', cache: 'force-cache' });
+        let response;
+        try {
+            response = await fetch(url, { credentials: 'include', cache: 'force-cache' });
+        } catch {
+            response = await fetch(url, { credentials: 'omit', cache: 'force-cache' });
+        }
         if (!response.ok) {
             return { ok: false, error: `Image request failed: ${response.status}` };
         }
