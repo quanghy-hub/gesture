@@ -39,7 +39,7 @@
             const snapshot = Array.isArray(ctx.videoSequence)
                 ? ctx.videoSequence.filter((video) => (
                     video?.isConnected
-                    && (video === ctx.curVid || !video.closest?.('#fvp-wrapper'))
+                    && (video === ctx.curVid || video === ctx.state.switchTransition?.nextVideo || !video.closest?.('#fvp-wrapper'))
                 ))
                 : [];
             const merged = [];

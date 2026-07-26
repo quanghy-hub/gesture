@@ -95,6 +95,13 @@ const sandbox = {
 };
 sandbox.globalThis = sandbox;
 sandbox.window = sandbox;
+sandbox.document = {
+    permissionsPolicy: null,
+    featurePolicy: null,
+    createElement: () => ({ style: {}, remove: () => {} }),
+    body: { appendChild: () => {} },
+    activeElement: null
+};
 
 // Helper đọc và chạy file JS trong sandbox
 const loadScript = (filePath) => {
@@ -118,9 +125,10 @@ try {
     loadScript('background/api-services/ocr-api.js');
     loadScript('background/api-service-registry.js');
     loadScript('background/message-handlers.js');
-    sandbox.globalThis.GestureExtension.shared.domUtils = {
-        queryAllDeep: () => []
-    };
+    loadScript('shared/extension-ui-guard.js');
+    loadScript('shared/dom-utils.js');
+    loadScript('shared/touch-core.js');
+    loadScript('content/quick-search/constants.js');
     loadScript('content/youtube-subtitles/constants.js');
     loadScript('content/youtube-subtitles/caption-source.js');
     console.log('\x1b[32m✔ Nạp các module thành công.\x1b[0m');
@@ -133,15 +141,18 @@ const {
     normalizeHost,
     normalizeConfig,
     getGestureSettings,
+    getForumConfig,
+    updateForumHostConfig,
     isVideoFloatingBackgroundSeekExcluded,
     setVideoFloatingBackgroundSeekExcluded,
     isGestureHostExcluded,
     setGestureHostExcluded
 } = sandbox.globalThis.GestureExtension.shared.config;
-const { storage, cloudflareSync, selectionCore } = sandbox.globalThis.GestureExtension.shared;
+const { storage, cloudflareSync, selectionCore, domUtils, touchCore } = sandbox.globalThis.GestureExtension.shared;
 const { messageHandlers } = sandbox.globalThis.GestureExtension.background;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
 const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+const { quickSearch } = sandbox.globalThis.GestureExtension;
 
 // Chuyển đổi dữ liệu từ ngữ cảnh VM sang ngữ cảnh Main để tránh lỗi lệch prototype Array
 const toMainContext = (val) => {
@@ -555,6 +566,67 @@ runTest('buildBundle: file dist/page-api-bundle.js phải tồn tại và > 5KB'
     assert.equal(fs.existsSync(bundlePath), true, 'dist/page-api-bundle.js does not exist');
     const stat = fs.statSync(bundlePath);
     assert.ok(stat.size > 5000, `Bundle size ${stat.size} bytes is too small`);
+});
+
+
+// ============================================================================
+// 11. DOM Utils & Touch Core Tests
+// ============================================================================
+runTest('domUtils: escapeHtml mã hóa chính xác các ký tự đặc biệt XSS', () => {
+    assert.equal(domUtils.escapeHtml('<script>alert("XSS") & "test"</script>'), '&lt;script&gt;alert(&quot;XSS&quot;) &amp; &quot;test&quot;&lt;/script&gt;');
+});
+
+runTest('domUtils: previewText cắt ngắn văn bản vượt quá độ dài tối đa', () => {
+    const longText = 'Đây là một đoạn văn bản rất dài vượt quá giới hạn cho phép để hiển thị trong preview.';
+    assert.equal(domUtils.previewText(longText, 20), 'Đây là một đoạn v...');
+    assert.equal(domUtils.previewText('Ngắn', 20), 'Ngắn');
+});
+
+runTest('touchCore: getPrimaryPoint trích xuất tọa độ chính xác', () => {
+    const touchEvent = { touches: [{ clientX: 150, clientY: 300 }] };
+    assert.deepEqual(toMainContext(touchCore.getPrimaryPoint(touchEvent)), { x: 150, y: 300 });
+
+    const pointerEvent = { clientX: 45, clientY: 90 };
+    assert.deepEqual(toMainContext(touchCore.getPrimaryPoint(pointerEvent)), { x: 45, y: 90 });
+});
+
+runTest('touchCore: getDistance tính khoảng cách Euclid giữa 2 điểm', () => {
+    const distance = touchCore.getDistance({ x: 0, y: 0 }, { x: 3, y: 4 });
+    assert.equal(distance, 5);
+});
+
+runTest('touchCore: isTouchLikeEvent phân biệt touch và mouse events', () => {
+    assert.equal(touchCore.isTouchLikeEvent({ touches: [] }), true);
+    assert.equal(touchCore.isTouchLikeEvent({ clientX: 10 }), false);
+});
+
+
+// ============================================================================
+// 12. Quick Search & Forum Config Tests
+// ============================================================================
+runTest('quickSearch: encodeQuery chuẩn hóa khoảng trắng và encode URI', () => {
+    assert.equal(quickSearch.encodeQuery('  cử   chỉ   chrome  '), 'c%E1%BB%AD%20ch%E1%BB%89%20chrome');
+});
+
+runTest('quickSearch: buildProviderUrl thay thế {{q}} và {{img}} chính xác', () => {
+    const url = quickSearch.buildProviderUrl('https://www.google.com/search?q={{q}}&img={{img}}', {
+        text: 'hello world',
+        imageUrl: 'https://example.com/test.png'
+    });
+    assert.equal(url, 'https://www.google.com/search?q=hello%20world&img=https%3A%2F%2Fexample.com%2Ftest.png');
+});
+
+runTest('forumConfig: getForumConfig kế thừa defaults và host overrides', () => {
+    const baseConfig = normalizeConfig({});
+    const defaultConfig = getForumConfig(baseConfig, 'unknown-forum.com');
+    assert.equal(defaultConfig.enabled, false);
+    assert.equal(defaultConfig.wide, true);
+    assert.equal(defaultConfig.minWidth, 1000);
+
+    const updated = updateForumHostConfig(baseConfig, 'voz.vn', { enabled: true, minWidth: 1200 });
+    const vozConfig = getForumConfig(updated, 'voz.vn');
+    assert.equal(vozConfig.enabled, true);
+    assert.equal(vozConfig.minWidth, 1200);
 });
 
 // ============================================================================
