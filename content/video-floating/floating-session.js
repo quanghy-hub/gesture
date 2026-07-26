@@ -17,6 +17,7 @@
             applyBoxLayout,
             updateLeftPanelLayout,
             updateVolUI,
+            updateSpeedUI,
             updatePlaybackOverlayUI,
             postToFloatedIframe
         } = deps;
@@ -205,6 +206,7 @@
             ctx.rotationAngle = 0;
             applyTransform();
             updateVolUI();
+            updateSpeedUI?.();
             updateVideoOrderUI(video);
             updatePlaybackOverlayUI?.();
             startProgressLoop();

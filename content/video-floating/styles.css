@@ -384,6 +384,7 @@
 }
 
 /* Resolution Popup */
+#fvp-speed-popup,
 #fvp-res-popup {
     position: absolute;
     left: 38px;
@@ -396,13 +397,14 @@
     backdrop-filter: blur(15px);
     border-radius: 8px;
     padding: 4px 0;
-    min-width: 90px;
+    min-width: max-content;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
 
 .fvp-res-item {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 500;
     color: #ccc;
     cursor: pointer;
     white-space: nowrap;

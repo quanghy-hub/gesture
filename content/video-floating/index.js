@@ -4,9 +4,9 @@
     const ext = globalThis.GestureExtension;
 
     const createMountedController = () => {
-        ext.videoFloating.helpers.loadCfgAsync?.();
-        const cleanupSwipeSeek = ext.videoFloating.helpers.installTouchSwipeSeek();
-        const cleanupWheelKeyboardSeek = ext.videoFloating.helpers.installWheelKeyboardSeek();
+        ext.videoFloating.core.config.loadCfgAsync?.();
+        const cleanupSwipeSeek = ext.videoFloating.interactions.installTouchSwipeSeek();
+        const cleanupWheelKeyboardSeek = ext.videoFloating.interactions.installWheelKeyboardSeek();
         let controller = null;
         let domReadyHandler = null;
 

@@ -11,12 +11,25 @@
         clamp,
         getRect,
         queryAllDeep,
+        getFullscreenEl
+    } = videoFloating.core.utils;
+    const { TOUCH_SWITCH_VIDEO_EVENT } = videoFloating.core.config;
+    const {
         isDetectableVideo,
-        getVideo,
         compareVideoPriority,
         isVideoActivelyPlaying,
-        TOUCH_SWITCH_VIDEO_EVENT,
-    } = videoFloating.helpers;
+        getDirectVideos
+    } = videoFloating.media.detector;
+
+    const getVideo = () => {
+        const fs = getFullscreenEl();
+        if (fs) {
+            if (fs.tagName === 'VIDEO' || fs.tagName === 'AUDIO') return fs;
+            const video = fs.querySelector('video, audio');
+            if (video) return video;
+        }
+        return getDirectVideos()[0] || null;
+    };
 
     videoFloating.createIframeController = () => {
         const childFrameVideoMap = new Map();
@@ -157,6 +170,7 @@
                         volume: video.volume || 1,
                         currentTime: video.currentTime || 0,
                         duration: video.duration || 0,
+                        playbackRate: video.playbackRate || 1,
                         bufferedEnd: video.buffered?.length ? video.buffered.end(video.buffered.length - 1) : 0,
                         fitIdx: iframeUiState.fitIdx,
                         zoomIdx: iframeUiState.zoomIdx,
@@ -168,6 +182,7 @@
                         volume: 1,
                         currentTime: 0,
                         duration: 0,
+                        playbackRate: 1,
                         bufferedEnd: 0,
                         fitIdx: 0,
                         zoomIdx: 0,
@@ -246,7 +261,8 @@
             'rotate',
             'get-state',
             'get-quality',
-            'set-quality'
+            'set-quality',
+            'set-speed'
         ]);
 
         const onMessage = (event) => {
@@ -306,6 +322,7 @@
                 case 'get-state': break;
                 case 'get-quality': postIframeBridgeMessage({ type: 'fvp-page-get-quality' }); break;
                 case 'set-quality': if (event.data.item && typeof event.data.item === 'object') postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: event.data.item }); break;
+                case 'set-speed': if (video) video.playbackRate = Number(event.data.rate) || 1; break;
                 default: break;
             }
             postIframeState();

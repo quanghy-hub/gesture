@@ -20,6 +20,13 @@
             btn.textContent = volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
         };
 
+        const updateSpeedUI = () => {
+            const speedBtn = $('fvp-speed');
+            if (!speedBtn) return;
+            const rate = ctx.floatedIframe ? (ctx.iframePlaybackState.playbackRate || 1) : (ctx.curVid?.playbackRate || 1);
+            speedBtn.textContent = `${Number(rate).toFixed(1)}x`;
+        };
+
         const updatePlaybackOverlayUI = () => {
             const button = $('fvp-center-play');
             if (!button) return;
@@ -63,6 +70,7 @@
             const buffer = $('fvp-buffer');
             if (buffer) buffer.style.width = duration > 0 ? `${(ctx.iframePlaybackState.bufferedEnd / duration) * 100}%` : '0%';
             updateVolUI();
+            updateSpeedUI();
             updatePlaybackOverlayUI();
             const fit = $('fvp-fit');
             if (fit) fit.textContent = FIT_ICONS[ctx.iframePlaybackState.fitIdx] || FIT_ICONS[0];
@@ -84,6 +92,39 @@
             $('fvp-zoom').onclick = () => { if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-zoom' }); else if (ctx.curVid) { ctx.zoomIdx = (ctx.zoomIdx + 1) % ZOOM_LEVELS.length; deps.applyTransform(); $('fvp-zoom').textContent = ZOOM_ICONS[ctx.zoomIdx]; } };
             $('fvp-rotate').onclick = () => { if (ctx.floatedIframe) postToFloatedIframe({ command: 'rotate' }); else if (ctx.curVid) { ctx.rotationAngle = (ctx.rotationAngle + 90) % 360; deps.applyTransform(); $('fvp-rotate').style.transform = `rotate(${ctx.rotationAngle}deg)`; } };
             $('fvp-full').onclick = () => { const fs = getFullscreenEl(); if (!fs) ctx.box.requestFullscreen?.() || ctx.box.webkitRequestFullscreen?.(); else document.exitFullscreen?.() || document.webkitExitFullscreen?.(); };
+            
+            $('fvp-speed').onclick = () => {
+                const popup = $('fvp-speed-popup');
+                if (popup.style.display === 'flex') {
+                    popup.style.display = 'none';
+                    return;
+                }
+                const currentSpeed = ctx.floatedIframe ? (ctx.iframePlaybackState.playbackRate || 1) : (ctx.curVid?.playbackRate || 1);
+                
+                const slider = $('fvp-speed-slider');
+                const valDisplay = $('fvp-speed-value');
+                if (slider) slider.value = currentSpeed;
+                if (valDisplay) valDisplay.textContent = `${Number(currentSpeed).toFixed(1)}x`;
+                
+                popup.style.display = 'flex';
+                $('fvp-res-popup').style.display = 'none';
+            };
+            
+            const speedSlider = $('fvp-speed-slider');
+            if (speedSlider) {
+                speedSlider.oninput = (e) => {
+                    const speed = Number(e.target.value) || 1;
+                    const valDisplay = $('fvp-speed-value');
+                    if (valDisplay) valDisplay.textContent = `${speed.toFixed(1)}x`;
+                    $('fvp-speed').textContent = `${speed.toFixed(1)}x`;
+                    
+                    if (ctx.floatedIframe) postToFloatedIframe({ command: 'set-speed', rate: speed });
+                    else if (ctx.curVid) {
+                        ctx.curVid.playbackRate = speed;
+                    }
+                };
+            }
+            
             $('fvp-res').onclick = () => {
                 const popup = $('fvp-res-popup');
                 if (popup.style.display === 'flex') popup.style.display = 'none';
@@ -130,12 +171,23 @@
                 popup.style.display = 'flex';
             };
             const onPointerDownOutside = (event) => {
-                const popup = $('fvp-res-popup');
-                const button = $('fvp-res');
-                if (!popup || popup.style.display !== 'flex') return;
                 const target = event.target instanceof Element ? event.target : null;
-                if (target && (popup.contains(target) || button?.contains(target))) return;
-                closePopup();
+                
+                const resPopup = $('fvp-res-popup');
+                const resButton = $('fvp-res');
+                if (resPopup && resPopup.style.display === 'flex') {
+                    if (!target || (!resPopup.contains(target) && !resButton?.contains(target))) {
+                        closePopup();
+                    }
+                }
+                
+                const speedPopup = $('fvp-speed-popup');
+                const speedButton = $('fvp-speed');
+                if (speedPopup && speedPopup.style.display === 'flex') {
+                    if (!target || (!speedPopup.contains(target) && !speedButton?.contains(target))) {
+                        speedPopup.style.display = 'none';
+                    }
+                }
             };
             window.addEventListener('message', onWindowMessage);
             window.addEventListener('fvp-quality-result', onQualityResult);
@@ -149,6 +201,7 @@
 
         return {
             updateVolUI,
+            updateSpeedUI,
             togglePlayback,
             updatePlaybackOverlayUI,
             syncFloatedIframeUI,
