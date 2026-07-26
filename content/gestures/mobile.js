@@ -3,6 +3,9 @@
     const gestures = ext.gestures = ext.gestures || {};
     const touch = ext.shared.touchCore;
     const { isEditable, isInteractive, getValidLink, dist, openTab, closeCurrentTab, addListenerHelper } = gestures.gestureUtils;
+    const scroll = gestures.mobileScroll;
+    const tapManager = gestures.mobileTap;
+    const longPressManager = gestures.mobileLongPress;
 
     gestures.createMobileController = (context) => {
         const TOLERANCE = { move: 20 };
@@ -43,103 +46,6 @@
             }
         };
 
-        const stopMomentum = () => {
-            cancelAnimationFrame(state.momentumRAF);
-            state.momentumRAF = null;
-            state.momentumTime = 0;
-        };
-
-        const stopEdgeRender = () => {
-            cancelAnimationFrame(state.edge.renderRAF);
-            state.edge.renderRAF = null;
-            state.edge.renderTime = 0;
-        };
-
-        const clearTapStart = () => {
-            state.tap.start = null;
-        };
-
-        const clampScrollTop = (value, element) => Math.max(0, Math.min(value, element.scrollHeight - element.clientHeight));
-        const getEdgeStrength = (x) => {
-            const { edge } = getConfig();
-            const width = Math.max(edge.width, 1);
-
-            if (edge.side === 'left') {
-                return Math.max(0, 1 - (x / width));
-            }
-            if (edge.side === 'right') {
-                return Math.max(0, 1 - ((innerWidth - x) / width));
-            }
-
-            if (x <= width) {
-                return Math.max(0, 1 - (x / width));
-            }
-            if (x >= innerWidth - width) {
-                return Math.max(0, 1 - ((innerWidth - x) / width));
-            }
-            return 0;
-        };
-
-        const requestEdgeRender = () => {
-            if (state.edge.renderRAF) return;
-
-            const step = (time) => {
-                const element = document.scrollingElement || document.documentElement;
-                const target = clampScrollTop(state.edge.targetScrollTop, element);
-                const current = element.scrollTop;
-                const delta = target - current;
-
-                if (Math.abs(delta) < 0.5) {
-                    if (current !== target) {
-                        element.scrollTop = target;
-                    }
-                    state.edge.renderRAF = null;
-                    state.edge.renderTime = 0;
-                    return;
-                }
-
-                const deltaTime = state.edge.renderTime ? Math.min(Math.max(time - state.edge.renderTime, 8), 32) : 16;
-                state.edge.renderTime = time;
-                const follow = state.edge.active ? 0.95 : 0.35;
-                const maxStep = Math.max(12, deltaTime * 2.8);
-                const next = current + Math.sign(delta) * Math.min(Math.abs(delta) * follow, Math.abs(delta), maxStep + Math.abs(delta) * 0.25);
-                element.scrollTop = next;
-                state.edge.renderRAF = requestAnimationFrame(step);
-            };
-
-            state.edge.renderRAF = requestAnimationFrame(step);
-        };
-
-        const startMomentum = (velocity) => {
-            stopMomentum();
-            stopEdgeRender();
-            const element = document.scrollingElement || document.documentElement;
-            const decayPerFrame = 0.94;
-            const minVelocity = 8;
-
-            const step = (time) => {
-                const deltaTime = state.momentumTime ? Math.min(Math.max(time - state.momentumTime, 8), 34) : 16;
-                state.momentumTime = time;
-                const decay = Math.pow(decayPerFrame, deltaTime / 16);
-                velocity *= decay;
-                if (Math.abs(velocity) < minVelocity) {
-                    state.momentumRAF = null;
-                    state.momentumTime = 0;
-                    return;
-                }
-                const previous = element.scrollTop;
-                element.scrollTop = clampScrollTop(previous + ((velocity * deltaTime) / 1000), element);
-                if (element.scrollTop === previous) {
-                    state.momentumRAF = null;
-                    state.momentumTime = 0;
-                    return;
-                }
-                state.momentumRAF = requestAnimationFrame(step);
-            };
-
-            state.momentumRAF = requestAnimationFrame(step);
-        };
-
         const guard = (event) => {
             if (Date.now() < state.suppressUntil) {
                 preventDefaultIfCancelable(event);
@@ -149,11 +55,9 @@
             return false;
         };
 
-        const cancelLongPress = () => {
-            clearTimeout(state.lp.timer);
-            state.lp.timer = null;
-            state.lp.active = false;
-        };
+        const { stopMomentum, stopEdgeRender, requestEdgeRender, startMomentum } = scroll.createScrollManager(state);
+        const { clearTapStart } = tapManager.createTapManager(state);
+        const { cancelLongPress } = longPressManager.createLongPressManager(state);
 
         ['click', 'auxclick'].forEach((eventName) => {
             addListener(window, eventName, guard, true);
@@ -191,7 +95,7 @@
                 target: event.target,
                 cancelled: false
             };
-            const edgeStrength = cfg.edge.enabled ? getEdgeStrength(touchPoint.clientX) : 0;
+            const edgeStrength = cfg.edge.enabled ? scroll.getEdgeStrength(touchPoint.clientX, cfg.edge.width, cfg.edge.side) : 0;
             if (edgeStrength > 0) {
                 const element = document.scrollingElement || document.documentElement;
                 state.edge.active = true;
@@ -243,14 +147,14 @@
             const now = Date.now();
             const deltaTime = Math.max(1, now - state.edge.lastTime);
 
-            const strength = getEdgeStrength(touchPoint.clientX);
+            const cfg = getConfig();
+            const strength = scroll.getEdgeStrength(touchPoint.clientX, cfg.edge.width, cfg.edge.side);
             if (strength <= 0) {
                 state.edge.active = false;
                 clearTapStart();
                 return;
             }
 
-            const cfg = getConfig();
             const speedMultiplier = Math.max(1, Number(cfg.edge.speed) || 3);
             const scrollDelta = deltaY * strength * speedMultiplier;
             state.edge.targetScrollTop += scrollDelta;

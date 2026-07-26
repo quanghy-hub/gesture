@@ -119,8 +119,17 @@ try {
     loadScript('shared/config-normalize.js');
     loadScript('shared/config.js');
     loadScript('shared/storage.js');
+    loadScript('shared/cloudflare-sync-state.js');
+    loadScript('shared/cloudflare-sync-api.js');
+    loadScript('shared/cloudflare-sync-auto.js');
     loadScript('shared/cloudflare-sync.js');
+    loadScript('shared/selection-query.js');
+    loadScript('shared/selection-snapshot.js');
+    loadScript('shared/selection-modifier.js');
     loadScript('shared/selection-core.js');
+    loadScript('background/api-services/translate-utils.js');
+    loadScript('background/api-services/translate-google.js');
+    loadScript('background/api-services/translate-providers.js');
     loadScript('background/api-services/translate-api.js');
     loadScript('background/api-services/ocr-api.js');
     loadScript('background/api-service-registry.js');
