@@ -371,24 +371,24 @@ runTest('captionSource: giữ track đã bật để dịch sau khi ẩn native 
 });
 
 runTest('youtubeSubtitles: hỗ trợ caption fallback khi mobile YouTube không expose nút CC desktop', () => {
-    const controllerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/controller.js'), 'utf8');
+    const managerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-manager.js'), 'utf8');
     const captionSourceSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-source.js'), 'utf8');
 
-    assert.match(controllerSource, /getActiveCaptionTrack\(video,\s*state\.captionTrack\)/);
-    assert.match(controllerSource, /hasDomCaptionText\(\)/);
+    assert.match(managerSource, /getActiveCaptionTrack\(video,\s*state\.captionTrack\)/);
+    assert.match(managerSource, /hasDomCaptionText\(\)/);
     assert.match(captionSourceSource, /extractCaptionTextFromDom/);
     assert.match(captionSourceSource, /\.caption-visual-line,\s*\.ytp-caption-segment/);
 });
 
 runTest('videoScreenshot trigger: dùng cùng drag affordance với nút dịch phụ đề', () => {
     const constantsSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/constants.js'), 'utf8');
-    const controllerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/controller.js'), 'utf8');
+    const triggerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/trigger.js'), 'utf8');
 
     assert.match(constantsSource, /triggerSize:\s*46/);
-    assert.match(controllerSource, /triggerRef\.element\.style\.touchAction\s*=\s*'none'/);
-    assert.match(controllerSource, /threshold:\s*4/);
-    assert.match(controllerSource, /onMove:\s*\(\{\s*event,\s*deltaX,\s*deltaY,\s*origin\s*\}\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/);
-    assert.match(controllerSource, /triggerRef\.element\.addEventListener\('pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/);
+    assert.match(triggerSource, /triggerRef\.element\.style\.touchAction\s*=\s*'none'/);
+    assert.match(triggerSource, /threshold:\s*4/);
+    assert.match(triggerSource, /onMove:\s*\(\{\s*event,\s*deltaX,\s*deltaY,\s*origin\s*\}\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/);
+    assert.match(triggerSource, /triggerRef\.element\.addEventListener\('pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/);
 });
 
 
@@ -541,14 +541,14 @@ runTest('selectionCore: replaceSelectionSnapshot thay đổi giá trị input ch
 // 9. Security Validation & postMessage Whitelist Tests
 // ============================================================================
 runTest('security: iframe-mode kiểm tra origin/source và command whitelist', () => {
-    const iframeSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-floating/iframe-mode.js'), 'utf8');
+    const iframeSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-floating/iframe-message-bridge.js'), 'utf8');
     assert.match(iframeSource, /ALLOWED_IFRAME_COMMANDS/);
     assert.match(iframeSource, /event\.source\s*!==\s*window\.parent/);
     assert.match(iframeSource, /ALLOWED_IFRAME_COMMANDS\.has\(command\)/);
 });
 
 runTest('security: top-frame xác thực source window trước khi gán iframe state', () => {
-    const topFrameSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-floating/top-frame.js'), 'utf8');
+    const topFrameSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-floating/core/controller.js'), 'utf8');
     assert.match(topFrameSource, /ctx\.floatedIframe\?\.contentWindow\s*===\s*event\.source/);
     assert.match(topFrameSource, /typeof\s*event\.data\.state\s*===\s*'object'/);
 });
