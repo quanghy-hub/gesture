@@ -82,10 +82,10 @@
         return appState.pendingSave;
     };
 
-    const getActiveTab = () =>
-        new Promise((resolve) => {
-            chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
-        });
+    const getActiveTab = async () => {
+        const tabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+        return tabs?.[0] || null;
+    };
 
     Promise.all([storage.getConfig(), getActiveTab()])
         .then(([loadedConfig, activeTab]) => {

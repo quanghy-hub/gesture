@@ -3,7 +3,7 @@
     ext.shared = ext.shared || {};
     const viewport = ext.shared.viewportCore;
     const runtime = ext.shared.runtime;
-    const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
+    const hasStorageApi = () => !!globalThis.browser?.storage?.local;
     const positionMemoryStore = {};
 
     const isNodeLike = (value) => value instanceof Node;
@@ -59,54 +59,37 @@
             }
         },
         createPositionStorage: (storageKey, defaultPos = { left: 20, top: 20 }) => ({
-            load: () =>
-                new Promise((resolve) => {
-                    if (!hasStorageApi()) {
+            load: async () => {
+                if (!hasStorageApi()) {
+                    const v = positionMemoryStore[storageKey];
+                    return v && typeof v === 'object' ? v : defaultPos;
+                }
+                try {
+                    const result = await browser.storage.local.get([storageKey]);
+                    const v = result?.[storageKey];
+                    return v && typeof v === 'object' ? v : defaultPos;
+                } catch (error) {
+                    if (isExtensionContextInvalidated(error)) {
                         const v = positionMemoryStore[storageKey];
-                        resolve(v && typeof v === 'object' ? v : defaultPos);
-                        return;
+                        return v && typeof v === 'object' ? v : defaultPos;
                     }
-                    try {
-                        chrome.storage.local.get([storageKey], (result) => {
-                            if (chrome.runtime?.lastError && isExtensionContextInvalidated(chrome.runtime.lastError)) {
-                                const v = positionMemoryStore[storageKey];
-                                resolve(v && typeof v === 'object' ? v : defaultPos);
-                                return;
-                            }
-                            const v = result?.[storageKey];
-                            resolve(v && typeof v === 'object' ? v : defaultPos);
-                        });
-                    } catch (error) {
-                        if (isExtensionContextInvalidated(error)) {
-                            const v = positionMemoryStore[storageKey];
-                            resolve(v && typeof v === 'object' ? v : defaultPos);
-                            return;
-                        }
-                        resolve(defaultPos);
-                    }
-                }),
-            save: (left, top) => {
+                    return defaultPos;
+                }
+            },
+            save: async (left, top) => {
                 positionMemoryStore[storageKey] = { left, top };
                 if (!hasStorageApi()) {
-                    return Promise.resolve();
+                    return true;
                 }
-                return new Promise((resolve) => {
-                    try {
-                        chrome.storage.local.set({ [storageKey]: { left, top } }, () => {
-                            if (chrome.runtime?.lastError && isExtensionContextInvalidated(chrome.runtime.lastError)) {
-                                resolve(false);
-                                return;
-                            }
-                            resolve(true);
-                        });
-                    } catch (error) {
-                        if (isExtensionContextInvalidated(error)) {
-                            resolve(false);
-                            return;
-                        }
-                        resolve(false);
+                try {
+                    await browser.storage.local.set({ [storageKey]: { left, top } });
+                    return true;
+                } catch (error) {
+                    if (isExtensionContextInvalidated(error)) {
+                        return false;
                     }
-                });
+                    return false;
+                }
             }
         })
     };

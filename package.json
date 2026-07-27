@@ -10,6 +10,7 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
+        "build:firefox": "web-ext build --overwrite-dest",
         "prepare": "husky"
     },
     "keywords": [

@@ -1,24 +1,4 @@
-/* global GestureExtension, importScripts */
-importScripts(
-    chrome.runtime.getURL('shared/namespace.js'),
-    chrome.runtime.getURL('shared/api-services.js'),
-    chrome.runtime.getURL('shared/config-utils.js'),
-    chrome.runtime.getURL('shared/config-schema.js'),
-    chrome.runtime.getURL('shared/config-normalize.js'),
-    chrome.runtime.getURL('shared/config.js'),
-    chrome.runtime.getURL('shared/storage.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync-state.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync-api.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync-auto.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync.js'),
-    chrome.runtime.getURL('background/api-services/translate-utils.js'),
-    chrome.runtime.getURL('background/api-services/translate-google.js'),
-    chrome.runtime.getURL('background/api-services/translate-providers.js'),
-    chrome.runtime.getURL('background/api-services/translate-api.js'),
-    chrome.runtime.getURL('background/api-services/ocr-api.js'),
-    chrome.runtime.getURL('background/api-service-registry.js'),
-    chrome.runtime.getURL('background/message-handlers.js')
-);
+/* global GestureExtension */
 
 const { STORAGE_KEY, getExcludedMatchPatterns } = GestureExtension.shared.config;
 
@@ -86,7 +66,7 @@ const areSameRegistrations = (left, right) => {
 const getStoredConfig = () => GestureExtension.shared.storage.getConfig();
 
 const syncRegisteredContentScripts = async () => {
-    if (!chrome.scripting?.registerContentScripts) {
+    if (!browser.scripting?.registerContentScripts) {
         return;
     }
     const config = await getStoredConfig();
@@ -95,14 +75,14 @@ const syncRegisteredContentScripts = async () => {
         ...definition,
         excludeMatches
     }));
-    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: CONTENT_SCRIPT_IDS });
+    const existing = await browser.scripting.getRegisteredContentScripts({ ids: CONTENT_SCRIPT_IDS });
     if (areSameRegistrations(existing, nextScripts)) {
         return;
     }
     if (existing.length) {
-        await chrome.scripting.unregisterContentScripts({ ids: CONTENT_SCRIPT_IDS });
+        await browser.scripting.unregisterContentScripts({ ids: CONTENT_SCRIPT_IDS });
     }
-    await chrome.scripting.registerContentScripts(nextScripts);
+    await browser.scripting.registerContentScripts(nextScripts);
 };
 
 let syncQueue = Promise.resolve();
@@ -121,15 +101,15 @@ const queueContentScriptSync = () => {
     return syncQueue;
 };
 
-chrome.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(() => {
     queueContentScriptSync();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(() => {
     queueContentScriptSync();
 });
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
+browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local' || !changes[STORAGE_KEY]) {
         return;
     }
@@ -147,7 +127,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 queueContentScriptSync();
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string') {
         return false;
     }

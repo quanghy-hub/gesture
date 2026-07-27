@@ -37,8 +37,8 @@ const sandbox = {
     Element: MockElement,
     HTMLInputElement: MockHTMLInputElement,
     HTMLTextAreaElement: MockHTMLTextAreaElement,
-    // Mock chrome API cần thiết
-    chrome: {
+    // Mock browser API cần thiết
+    browser: {
         runtime: {
             getURL: (p) => p,
             lastError: null
@@ -400,7 +400,7 @@ async function runAllTests() {
         );
         assert.match(
             triggerSource,
-            /triggerRef\.element\.addEventListener\('pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/
+            /triggerRef\.element\.addEventListener\(\s*'pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/
         );
     });
 
@@ -624,7 +624,7 @@ async function runAllTests() {
     // 12. Quick Search & Forum Config Tests
     // ============================================================================
     runTest('quickSearch: encodeQuery chuẩn hóa khoảng trắng và encode URI', () => {
-        assert.equal(quickSearch.encodeQuery('  cử   chỉ   chrome  '), 'c%E1%BB%AD%20ch%E1%BB%89%20chrome');
+        assert.equal(quickSearch.encodeQuery('  cử   chỉ   browser  '), 'c%E1%BB%AD%20ch%E1%BB%89%20browser');
     });
 
     runTest('quickSearch: buildProviderUrl thay thế {{q}} và {{img}} chính xác', () => {

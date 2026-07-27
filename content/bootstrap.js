@@ -105,7 +105,7 @@
         });
 
     if (globalThis.chrome?.storage?.onChanged?.addListener) {
-        chrome.storage.onChanged.addListener((changes, areaName) => {
+        browser.storage.onChanged.addListener((changes, areaName) => {
             if (areaName !== 'local' || !changes[STORAGE_KEY]) return;
             state.config = normalizeConfig(changes[STORAGE_KEY].newValue);
             syncFeatureActivation();

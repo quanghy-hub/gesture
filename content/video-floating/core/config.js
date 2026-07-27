@@ -94,8 +94,8 @@
             }
             onChange?.();
         };
-        chrome.storage.onChanged.addListener(handler);
-        return () => chrome.storage.onChanged.removeListener(handler);
+        browser.storage.onChanged.addListener(handler);
+        return () => browser.storage.onChanged.removeListener(handler);
     };
 
     videoFloating.core.config = {

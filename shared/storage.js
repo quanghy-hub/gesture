@@ -3,54 +3,32 @@
     const { STORAGE_KEY, normalizeConfig, deepClone } = ext.shared.config;
     let memoryStore = {};
 
-    const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
+    const hasStorageApi = () => !!globalThis.browser?.storage?.local;
 
-    const getRuntimeErrorMessage = () => globalThis.chrome?.runtime?.lastError?.message;
-
-    const getLocal = (keys) =>
-        new Promise((resolve, reject) => {
-            if (!hasStorageApi()) {
-                const list = Array.isArray(keys) ? keys : [keys];
-                const result = {};
-                list.filter((key) => typeof key === 'string').forEach((key) => {
-                    if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
-                        result[key] = memoryStore[key];
-                    }
-                });
-                resolve(result);
-                return;
-            }
-
-            chrome.storage.local.get(keys, (result) => {
-                const runtimeError = getRuntimeErrorMessage();
-                if (runtimeError) {
-                    reject(new Error(runtimeError));
-                    return;
+    const getLocal = async (keys) => {
+        if (!hasStorageApi()) {
+            const list = Array.isArray(keys) ? keys : [keys];
+            const result = {};
+            list.filter((key) => typeof key === 'string').forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
+                    result[key] = memoryStore[key];
                 }
-                resolve(result || {});
             });
-        });
+            return result;
+        }
+        return (await browser.storage.local.get(keys)) || {};
+    };
 
-    const setLocal = (payload) =>
-        new Promise((resolve, reject) => {
-            if (!hasStorageApi()) {
-                memoryStore = {
-                    ...memoryStore,
-                    ...(payload && typeof payload === 'object' ? payload : {})
-                };
-                resolve();
-                return;
-            }
-
-            chrome.storage.local.set(payload, () => {
-                const runtimeError = getRuntimeErrorMessage();
-                if (runtimeError) {
-                    reject(new Error(runtimeError));
-                    return;
-                }
-                resolve();
-            });
-        });
+    const setLocal = async (payload) => {
+        if (!hasStorageApi()) {
+            memoryStore = {
+                ...memoryStore,
+                ...(payload && typeof payload === 'object' ? payload : {})
+            };
+            return;
+        }
+        await browser.storage.local.set(payload);
+    };
 
     const getConfig = async () => {
         const result = await getLocal([STORAGE_KEY]);

@@ -21,7 +21,7 @@
         const openerTabId = sender.tab?.id;
         const index = typeof sender.tab?.index === 'number' ? sender.tab.index + 1 : undefined;
 
-        const tab = await chrome.tabs.create({
+        const tab = await browser.tabs.create({
             url,
             active,
             openerTabId,
@@ -35,7 +35,7 @@
         const openerTabId = sender.tab?.id;
         const index = typeof sender.tab?.index === 'number' ? sender.tab.index + 1 : undefined;
 
-        const tab = await chrome.tabs.create({
+        const tab = await browser.tabs.create({
             active: true,
             openerTabId,
             index
@@ -49,7 +49,7 @@
             return { ok: false, error: 'No sender tab' };
         }
 
-        await chrome.tabs.remove(sender.tab.id);
+        await browser.tabs.remove(sender.tab.id);
         return { ok: true };
     };
 
@@ -87,7 +87,7 @@
             return { ok: false, error: 'Missing url for download' };
         }
 
-        const downloadId = await chrome.downloads.download({
+        const downloadId = await browser.downloads.download({
             url,
             filename: filename || undefined,
             saveAs: false
@@ -126,7 +126,7 @@
             return { ok: false, error: 'No sender window' };
         }
 
-        const url = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+        const url = await browser.tabs.captureVisibleTab(windowId, { format: 'png' });
         return { ok: true, url };
     };
 

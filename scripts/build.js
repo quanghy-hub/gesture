@@ -161,6 +161,9 @@ function buildBundle(fileList, outputFileName) {
 function build() {
     console.log('\x1b[36mBuilding Gesture Extension content bundles...\x1b[0m');
     try {
+        if (!fs.existsSync(DIST_DIR)) {
+            fs.mkdirSync(DIST_DIR, { recursive: true });
+        }
         buildBundle(ISOLATED_FILES, 'content-bundle.js');
         buildBundle(MAIN_FILES, 'page-api-bundle.js');
         console.log('\x1b[32m✔ All bundles built successfully.\x1b[0m');

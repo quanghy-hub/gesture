@@ -4,3 +4,4 @@ test-results/
 *.zip
 dist/
 
+web-ext-artifacts/
