@@ -1,15 +1,9 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
 
     videoFloating.createIframeLifecycle = (ctx, deps, videoLifecycle, videoCollection) => {
-        const {
-            el,
-            $,
-            isFeatureEnabled,
-            updatePlaybackOverlayUI,
-            postToFloatedIframe
-        } = deps;
+        const { el, $, isFeatureEnabled, updatePlaybackOverlayUI, postToFloatedIframe } = deps;
 
         const resetIframePlaybackState = () => {
             Object.assign(ctx.iframePlaybackState, {

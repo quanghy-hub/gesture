@@ -1,30 +1,12 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const unblockCopy = ext.unblockCopy = ext.unblockCopy || {};
+    const unblockCopy = (ext.unblockCopy = ext.unblockCopy || {});
     const UI_GUARD = ext.shared.extensionUiGuard;
 
     const STYLE_ID = 'gesture-unblock-copy-style';
-    const WINDOW_BLOCKED_EVENT_NAMES = [
-        'contextmenu',
-        'selectstart',
-        'dragstart'
-    ];
-    const DOCUMENT_BLOCKED_EVENT_NAMES = [
-        ...WINDOW_BLOCKED_EVENT_NAMES,
-        'copy',
-        'cut',
-        'beforecopy',
-        'beforecut'
-    ];
-    const BLOCKED_HANDLER_NAMES = [
-        'oncontextmenu',
-        'oncopy',
-        'oncut',
-        'onbeforecopy',
-        'onbeforecut',
-        'onselectstart',
-        'ondragstart'
-    ];
+    const WINDOW_BLOCKED_EVENT_NAMES = ['contextmenu', 'selectstart', 'dragstart'];
+    const DOCUMENT_BLOCKED_EVENT_NAMES = [...WINDOW_BLOCKED_EVENT_NAMES, 'copy', 'cut', 'beforecopy', 'beforecut'];
+    const BLOCKED_HANDLER_NAMES = ['oncontextmenu', 'oncopy', 'oncut', 'onbeforecopy', 'onbeforecut', 'onselectstart', 'ondragstart'];
 
     const canPatchNode = (node) => node instanceof Element || node instanceof Document || node instanceof Window;
 

@@ -1,11 +1,11 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
 
     videoFloating.createSeekController = (ctx, deps) => {
         const { $, clamp, formatTime } = deps;
 
-        const getActiveSeekDuration = () => ctx.floatedIframe ? (ctx.iframePlaybackState.duration || 0) : (ctx.curVid?.duration || 0);
+        const getActiveSeekDuration = () => (ctx.floatedIframe ? ctx.iframePlaybackState.duration || 0 : ctx.curVid?.duration || 0);
         const renderSeekPreview = (ratio) => {
             const seek = $('fvp-seek');
             if (seek) seek.value = Math.round(clamp(ratio, 0, 1) * 10000);
@@ -62,7 +62,7 @@
                 ctx.state.seekDragActive = true;
                 const ratio = parseFloat(seekEl.value) / 10000;
                 ctx.state.seekPreviewRatio = ratio;
-                
+
                 // Update the preview immediately
                 const duration = getActiveSeekDuration();
                 const currentTime = duration > 0 ? clamp(ratio, 0, 1) * duration : 0;

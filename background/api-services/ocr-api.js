@@ -4,13 +4,8 @@
     const OCR_IMAGE_FETCH_TIMEOUT_MS = 15000;
     const OCR_API_TIMEOUT_MS = 45000;
 
-    const getFriendlyOcrError = (primaryError, fallbackError) => String(
-        fallbackError?.message ||
-        primaryError?.message ||
-        fallbackError ||
-        primaryError ||
-        'Lỗi OCR tạm thời. Thử lại sau.'
-    );
+    const getFriendlyOcrError = (primaryError, fallbackError) =>
+        String(fallbackError?.message || primaryError?.message || fallbackError || primaryError || 'Lỗi OCR tạm thời. Thử lại sau.');
 
     const getStoredConfig = () => ext.shared.storage.getConfig();
 
@@ -22,12 +17,17 @@
 
     const fetchImageBlob = async (imageUrl) => {
         const translateApi = ext.background.translateApi;
-        const res = await translateApi.fetchWithTimeout(imageUrl, {
-            credentials: 'omit',
-            cache: 'no-store',
-            redirect: 'follow',
-            referrerPolicy: 'no-referrer'
-        }, OCR_IMAGE_FETCH_TIMEOUT_MS, 'OCR image fetch timed out');
+        const res = await translateApi.fetchWithTimeout(
+            imageUrl,
+            {
+                credentials: 'omit',
+                cache: 'no-store',
+                redirect: 'follow',
+                referrerPolicy: 'no-referrer'
+            },
+            OCR_IMAGE_FETCH_TIMEOUT_MS,
+            'OCR image fetch timed out'
+        );
         if (!res.ok) {
             throw new Error(`Image fetch HTTP ${res.status}`);
         }
@@ -51,10 +51,15 @@
         formData.append('OCREngine', '3');
         formData.append('apikey', String(ocrSettings.apiKey || 'helloworld'));
 
-        const ocrRes = await translateApi.fetchWithTimeout(buildOcrEndpoint(ocrSettings.endpoint), {
-            method: 'POST',
-            body: formData
-        }, OCR_API_TIMEOUT_MS, 'OCR service request timed out');
+        const ocrRes = await translateApi.fetchWithTimeout(
+            buildOcrEndpoint(ocrSettings.endpoint),
+            {
+                method: 'POST',
+                body: formData
+            },
+            OCR_API_TIMEOUT_MS,
+            'OCR service request timed out'
+        );
         if (!ocrRes.ok) {
             throw new Error(`OCR HTTP ${ocrRes.status}`);
         }
@@ -89,7 +94,7 @@
                     fallbackReason: primaryError?.message || String(primaryError)
                 };
             } catch (fallbackError) {
-                throw new Error(getFriendlyOcrError(primaryError, fallbackError));
+                throw new Error(getFriendlyOcrError(primaryError, fallbackError), { cause: fallbackError });
             }
         }
     };

@@ -8,20 +8,30 @@
         return {
             addEventListener() {},
             removeEventListener() {},
-            closest() { return null; },
+            closest() {
+                return null;
+            },
             setAttribute() {},
-            getAttribute() { return null; },
+            getAttribute() {
+                return null;
+            },
             removeAttribute() {},
             classList: {
                 add() {},
                 remove() {},
                 toggle() {},
-                contains() { return false; }
+                contains() {
+                    return false;
+                }
             },
             style: {},
             dataset: {},
-            querySelector() { return null; },
-            querySelectorAll() { return []; },
+            querySelector() {
+                return null;
+            },
+            querySelectorAll() {
+                return [];
+            },
             replaceChildren() {},
             appendChild() {},
             insertBefore() {},
@@ -35,12 +45,14 @@
 
     const fillProviderOptions = (select, options) => {
         if (!select) return;
-        select.replaceChildren(...options.map(({ id, label }) => {
-            const option = document.createElement('option');
-            option.value = id;
-            option.textContent = label;
-            return option;
-        }));
+        select.replaceChildren(
+            ...options.map(({ id, label }) => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = label;
+                return option;
+            })
+        );
     };
 
     const getHostFromUrl = (url) => {

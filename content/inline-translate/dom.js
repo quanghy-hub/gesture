@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
     const { IS_REDDIT } = inlineTranslate;
     const detector = inlineTranslate.textBlockDetector;
     const selectionPanel = inlineTranslate.editableSelectionPanel;
@@ -225,8 +225,10 @@
             }
         },
         findTranslationBox(node) {
-            return node.querySelector(':scope > .gesture-inline-translate-box')
-                || (node.nextElementSibling?.classList.contains('gesture-inline-translate-box') ? node.nextElementSibling : null);
+            return (
+                node.querySelector(':scope > .gesture-inline-translate-box') ||
+                (node.nextElementSibling?.classList.contains('gesture-inline-translate-box') ? node.nextElementSibling : null)
+            );
         },
         findRelatedTranslationBox(node, textKey) {
             const direct = this.findTranslationBox(node);

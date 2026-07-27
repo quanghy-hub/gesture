@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
     const { textBubbleOffsetY } = quickSearch.CONFIG;
 
     const getNodePath = (node) => {
@@ -22,13 +22,7 @@
         if (!range || !text) {
             return '';
         }
-        return [
-            text,
-            getNodePath(range.startContainer),
-            range.startOffset,
-            getNodePath(range.endContainer),
-            range.endOffset
-        ].join('|');
+        return [text, getNodePath(range.startContainer), range.startOffset, getNodePath(range.endContainer), range.endOffset].join('|');
     };
 
     const getRangeAnchor = (range) => {
@@ -43,7 +37,7 @@
             return null;
         }
         return {
-            x: anchorRect.left + ((anchorRect.width || 0) / 2),
+            x: anchorRect.left + (anchorRect.width || 0) / 2,
             y: anchorRect.bottom + textBubbleOffsetY
         };
     };

@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
 
     const originalVideoStyles = new WeakMap();
 

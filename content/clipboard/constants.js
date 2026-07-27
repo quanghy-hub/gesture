@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const clipboard = ext.clipboard = ext.clipboard || {};
+    const clipboard = (ext.clipboard = ext.clipboard || {});
 
     clipboard.UI = Object.freeze({
         triggerSize: 36,

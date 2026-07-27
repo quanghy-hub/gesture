@@ -1,27 +1,28 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.media = videoFloating.media || {};
 
     videoFloating.media.createAutoSync = (ctx) => {
         const { getRect, $ } = videoFloating.core.utils;
-        
+
         let floatingSession = null;
         let lastAutoSyncAt = 0;
-        
-        const setFloatingSession = (fs) => { floatingSession = fs; };
-        
-        const canAutoSyncFloatingVideo = () => (
-            videoFloating.core.config.isFeatureEnabled()
-            && !ctx.floatedIframe
-            && !!ctx.curVid
-            && ctx.box?.style.display !== 'none'
-            && !ctx.state.isSwitchingVideo
-            && !ctx.state.isDrag
-            && !ctx.state.isResize
-            && !ctx.state.isSeeking
-            && !ctx.state.seekDragActive
-        );
+
+        const setFloatingSession = (fs) => {
+            floatingSession = fs;
+        };
+
+        const canAutoSyncFloatingVideo = () =>
+            videoFloating.core.config.isFeatureEnabled() &&
+            !ctx.floatedIframe &&
+            !!ctx.curVid &&
+            ctx.box?.style.display !== 'none' &&
+            !ctx.state.isSwitchingVideo &&
+            !ctx.state.isDrag &&
+            !ctx.state.isResize &&
+            !ctx.state.isSeeking &&
+            !ctx.state.seekDragActive;
 
         const getFloatingSyncReferenceRect = () => {
             const wrapper = $('fvp-wrapper');
@@ -33,22 +34,22 @@
         const syncFloatingWithPlayingDirectVideo = (candidate = null) => {
             if (!canAutoSyncFloatingVideo()) return;
             if (candidate && (!candidate.isConnected || candidate.closest?.('#fvp-wrapper'))) return;
-            
+
             const detector = videoFloating.media.detector;
             const preferredVideo = candidate || detector.getDirectVideos()[0];
-            
+
             if (!preferredVideo || preferredVideo === ctx.curVid) return;
             if (!detector.isDetectableVideo(preferredVideo)) return;
             if (!detector.isVideoActivelyPlaying(preferredVideo)) return;
-            
-            // isVideoAutoSyncCandidate requires implementation! 
+
+            // isVideoAutoSyncCandidate requires implementation!
             // Wait, isVideoAutoSyncCandidate is in helpers.js. Let's move it to detector.js.
             if (!detector.isVideoAutoSyncCandidate?.(preferredVideo, { referenceRect: getFloatingSyncReferenceRect() })) return;
 
             const now = performance.now();
             if (now - lastAutoSyncAt < 350) return;
             lastAutoSyncAt = now;
-            
+
             floatingSession.float(preferredVideo);
         };
 
@@ -71,10 +72,10 @@
                 window.addEventListener(eventName, onDirectVideoPlayback, true);
                 ctx.cleanup.push(() => window.removeEventListener(eventName, onDirectVideoPlayback, true));
             });
-            
+
             const autoSyncTimer = window.setInterval(() => syncFloatingWithPlayingDirectVideo(), 750);
             ctx.cleanup.push(() => window.clearInterval(autoSyncTimer));
-            
+
             return {
                 syncFloatingWithPlayingDirectVideo
             };

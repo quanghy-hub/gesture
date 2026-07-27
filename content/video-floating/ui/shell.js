@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.ui = videoFloating.ui || {};
 
     videoFloating.ui.createShell = (ctx) => {
@@ -35,7 +35,10 @@
             ctx.menuRef = floating.createPanelRoot({ className: 'fvp-menu', hidden: true });
             ctx.menuRef.element.id = 'fvp-menu';
 
-            ctx.box = el('div', '', `
+            ctx.box = el(
+                'div',
+                '',
+                `
                 <div id="fvp-wrapper"></div>
                 <button id="fvp-center-play" type="button" aria-label="Resume video" hidden>⏸</button>
                 <div id="fvp-left-drag"></div>
@@ -66,7 +69,8 @@
                         </div>
                     </div>
                 </div>
-            `);
+            `
+            );
             ctx.box.id = 'fvp-container';
             ctx.box.style.display = 'none';
             document.body.appendChild(ctx.box);
@@ -75,8 +79,7 @@
         const setupOutsideClickGuard = () => {
             const removeOutsideClick = floating.bindOutsideClickGuard({
                 isOpen: () => ctx.menuRef.element.style.display !== 'none',
-                containsTarget: (target) => ctx.iconRef.element.contains(target)
-                    || ctx.menuRef.element.contains(target),
+                containsTarget: (target) => ctx.iconRef.element.contains(target) || ctx.menuRef.element.contains(target),
                 onOutside: () => ctx.menuRef.hide()
             });
             ctx.cleanup.push(removeOutsideClick);

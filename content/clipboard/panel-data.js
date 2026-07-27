@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const clipboard = ext.clipboard = ext.clipboard || {};
+    const clipboard = (ext.clipboard = ext.clipboard || {});
     const { escapeHtml, encodeAttribute } = ext.shared.domUtils;
 
     const getPanelData = (config, copiedTextCache) => {
@@ -16,11 +16,12 @@
 
     const createGroupMarkup = (title, items, emptyText) => {
         const rows = items.length
-            ? items.map((item) => {
-                const escaped = escapeHtml(item);
-                const encoded = encodeAttribute(item);
-                const pinLabel = title === 'Đã ghim' ? 'Bỏ ghim' : 'Ghim';
-                return `
+            ? items
+                  .map((item) => {
+                      const escaped = escapeHtml(item);
+                      const encoded = encodeAttribute(item);
+                      const pinLabel = title === 'Đã ghim' ? 'Bỏ ghim' : 'Ghim';
+                      return `
                     <div class="gesture-clipboard-item">
                         <button type="button" class="gesture-clipboard-icon-button gesture-clipboard-item-pin" data-pin="${encoded}" aria-label="${pinLabel}" title="${pinLabel}">📌</button>
                         <button type="button" class="gesture-clipboard-icon-button gesture-clipboard-item-paste" data-paste="${encoded}" aria-label="Paste" title="Dán nội dung">⚡</button>
@@ -28,7 +29,8 @@
                         <button type="button" class="gesture-clipboard-icon-button gesture-clipboard-icon-button-danger gesture-clipboard-item-remove" data-remove="${encoded}" aria-label="Xóa" title="Xóa">🗑</button>
                     </div>
                 `;
-            }).join('')
+                  })
+                  .join('')
             : `<div class="gesture-clipboard-empty">${emptyText}</div>`;
 
         return `
@@ -49,8 +51,10 @@
         },
         hasClipboardData(config) {
             const clipboardConfig = config?.clipboard || {};
-            return (Array.isArray(clipboardConfig.pinned) && clipboardConfig.pinned.length > 0)
-                || (Array.isArray(clipboardConfig.history) && clipboardConfig.history.length > 0);
+            return (
+                (Array.isArray(clipboardConfig.pinned) && clipboardConfig.pinned.length > 0) ||
+                (Array.isArray(clipboardConfig.history) && clipboardConfig.history.length > 0)
+            );
         }
     };
 })();

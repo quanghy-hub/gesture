@@ -1,12 +1,14 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
     videoFloating.interactions.createTouchSwipeSeek = (targetFinder, noticeUI) => {
         const emitTouchSwitchVideo = (dir) => {
             if (!dir) return;
-            window.dispatchEvent(new CustomEvent(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT || 'fvp-touch-switch-video', { detail: { dir } }));
+            window.dispatchEvent(
+                new CustomEvent(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT || 'fvp-touch-switch-video', { detail: { dir } })
+            );
         };
 
         const stopTouchEventForFloating = (event) => {
@@ -50,19 +52,22 @@
                 const floatingBox = videoFloating.core.utils.$('fvp-container');
                 const isFloatingBoxVisible = !!(floatingBox && floatingBox.style.display !== 'none');
                 const floatingBoxRect = isFloatingBoxVisible ? videoFloating.core.utils.getRect(floatingBox) : null;
-                const startedInsideFloatingBox = !!(floatingBoxRect
-                    && point.clientX >= floatingBoxRect.left
-                    && point.clientX <= floatingBoxRect.right
-                    && point.clientY >= floatingBoxRect.top
-                    && point.clientY <= floatingBoxRect.bottom);
+                const startedInsideFloatingBox = !!(
+                    floatingBoxRect &&
+                    point.clientX >= floatingBoxRect.left &&
+                    point.clientX <= floatingBoxRect.right &&
+                    point.clientY >= floatingBoxRect.top &&
+                    point.clientY <= floatingBoxRect.bottom
+                );
                 if (startedInsideFloatingBox && targetFinder.isFloatingGestureBlockedTarget(event.target)) return;
                 if (!startedInsideFloatingBox && videoFloating.core.config.isBackgroundSeekExcluded()) return;
 
                 const wrapper = startedInsideFloatingBox ? videoFloating.core.utils.$('fvp-wrapper') : null;
                 const wrapperRect = wrapper ? videoFloating.core.utils.getRect(wrapper) : null;
-                let video = (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height)
-                    ? targetFinder.getFloatingActiveVideo(wrapper)
-                    : targetFinder.getVideoAtPoint(point.clientX, point.clientY);
+                let video =
+                    startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height
+                        ? targetFinder.getFloatingActiveVideo(wrapper)
+                        : targetFinder.getVideoAtPoint(point.clientX, point.clientY);
 
                 if (!video && !startedInsideFloatingBox) {
                     const activeMedia = targetFinder.getVideo();
@@ -77,14 +82,16 @@
                 }
 
                 if (!video?.isConnected || !Number.isFinite(video.duration) || video.duration <= 0) return;
-                const rect = (startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height) ? wrapperRect : videoFloating.core.utils.getRect(video);
+                const rect =
+                    startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height
+                        ? wrapperRect
+                        : videoFloating.core.utils.getRect(video);
 
-                const isAudioOrHidden = video.tagName === 'AUDIO' || location.hostname.includes('music.youtube.com') || !rect.width || !rect.height;
+                const isAudioOrHidden =
+                    video.tagName === 'AUDIO' || location.hostname.includes('music.youtube.com') || !rect.width || !rect.height;
                 if (!isAudioOrHidden) {
                     if (!rect.width || !rect.height) return;
-                    const bottomGuard = startedInsideFloatingBox
-                        ? 60
-                        : Math.min(44, Math.max(18, rect.height * 0.1));
+                    const bottomGuard = startedInsideFloatingBox ? 60 : Math.min(44, Math.max(18, rect.height * 0.1));
                     if (point.clientY > rect.bottom - bottomGuard) return;
                 }
                 if (startedInsideFloatingBox) {
@@ -123,12 +130,8 @@
             const diagonalRatio = Math.max(1.12, vfConfig.diagonalThreshold * 0.78);
             const horizontalSlack = Math.max(vfConfig.verticalTolerance, 120);
             if (!swipe.gesture) {
-                const verticalDominant = absDy >= lockDistance
-                    && absDy > absDx
-                    && absDy / (absDx + 1) >= diagonalRatio;
-                const horizontalDominant = absDx >= lockDistance
-                    && absDx > absDy
-                    && absDx / (absDy + 1) >= diagonalRatio;
+                const verticalDominant = absDy >= lockDistance && absDy > absDx && absDy / (absDx + 1) >= diagonalRatio;
+                const horizontalDominant = absDx >= lockDistance && absDx > absDy && absDx / (absDy + 1) >= diagonalRatio;
                 if (swipe.allowVerticalSwitch && verticalDominant) {
                     swipe.gesture = 'switch';
                 } else if (horizontalDominant) {

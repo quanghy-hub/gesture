@@ -23,7 +23,10 @@
             return;
         }
 
-        const href = findLink(dir > 0 ? ['next', 'tiếp', 'sau', '»', '›', '下一'] : ['prev', 'trước', 'lùi', '«', '‹', '上一'], dir > 0 ? 'next' : 'prev');
+        const href = findLink(
+            dir > 0 ? ['next', 'tiếp', 'sau', '»', '›', '下一'] : ['prev', 'trước', 'lùi', '«', '‹', '上一'],
+            dir > 0 ? 'next' : 'prev'
+        );
         if (!href) return;
         if (hops <= 1) {
             location.href = href;
@@ -82,7 +85,8 @@
         if (document.getElementById('gesture-ext-pager-style')) return;
         const style = document.createElement('style');
         style.id = 'gesture-ext-pager-style';
-        style.textContent = '#gesture-ext-pager{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1ae6;color:#fff;padding:8px 16px;border-radius:20px;font:13px/1.4 system-ui;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity .2s}#gesture-ext-pager.show{opacity:1}';
+        style.textContent =
+            '#gesture-ext-pager{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1ae6;color:#fff;padding:8px 16px;border-radius:20px;font:13px/1.4 system-ui;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity .2s}#gesture-ext-pager.show{opacity:1}';
         (document.head || document.documentElement).appendChild(style);
     };
 

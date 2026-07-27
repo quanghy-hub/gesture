@@ -1,32 +1,37 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
     videoFloating.interactions.createGesturesHandler = (ctx, floatingSession, seekController, uiControls, shell) => {
-        const { getRect, clamp, $, getFullscreenEl, getTopVideoAtPoint, isPointInFloatingUI } = videoFloating.core.utils;
-        const configUtils = ext?.shared?.config;
-        const touch = ext?.shared?.touchCore;
+        const { clamp, $ } = videoFloating.core.utils;
 
         const isWrapperToggleBlockedTarget = (target) => {
             const node = target instanceof Element ? target : null;
             if (!node) return false;
-            return Boolean(node.closest('#fvp-left-panel, #fvp-ctrl, #fvp-res-popup, .fvp-resize-handle, button, input, select, textarea, a, label'));
+            return Boolean(
+                node.closest('#fvp-left-panel, #fvp-ctrl, #fvp-res-popup, .fvp-resize-handle, button, input, select, textarea, a, label')
+            );
         };
 
         const setupWrapperGestures = () => {
             const TAP_MOVE_THRESHOLD = 10;
             const POINTER_SWITCH_THRESHOLD = 28;
             const POINTER_SWITCH_DIAGONAL_RATIO = 1.3;
-            const wheelGestureConfig = videoFloating.WHEEL_GESTURE || { idleMs: 300, seekSecondsPerPixel: 0.1, switchThreshold: 120, switchCooldownMs: 500 };
-            
+            const wheelGestureConfig = videoFloating.WHEEL_GESTURE || {
+                idleMs: 300,
+                seekSecondsPerPixel: 0.1,
+                switchThreshold: 120,
+                switchCooldownMs: 500
+            };
+
             let wrapperPointerId = null;
             let wrapperStartX = 0;
             let wrapperStartY = 0;
             let wrapperPointerType = '';
             let wrapperMoved = false;
             let wrapperSwitchDir = 0;
-            
+
             let wheelDeltaY = 0;
             let wheelGestureResetTimer = 0;
             let wheelSeekBaseTime = null;
@@ -113,13 +118,14 @@
             const handleWrapperPointerEnd = (event) => {
                 if ((event.pointerId ?? 'mouse') !== wrapperPointerId) return;
                 const switchDir = wrapperSwitchDir;
-                const shouldToggle = !wrapperMoved
-                    && !switchDir
-                    && !ctx.state.isDrag
-                    && !ctx.state.isResize
-                    && !ctx.state.isSeeking
-                    && !ctx.state.seekDragActive
-                    && !isWrapperToggleBlockedTarget(event.target);
+                const shouldToggle =
+                    !wrapperMoved &&
+                    !switchDir &&
+                    !ctx.state.isDrag &&
+                    !ctx.state.isResize &&
+                    !ctx.state.isSeeking &&
+                    !ctx.state.seekDragActive &&
+                    !isWrapperToggleBlockedTarget(event.target);
                 resetWrapperTap();
                 if (switchDir) {
                     switchFromWrapper(switchDir);

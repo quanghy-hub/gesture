@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
     const { TRANSLATION_PENDING } = inlineTranslate;
     const { createMemoryCache, translate: coreTranslate } = ext.shared.translateCore;
 

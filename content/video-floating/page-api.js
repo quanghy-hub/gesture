@@ -8,12 +8,13 @@
 
     const FVP_IFRAME_BRIDGE = 'fvp-page-bridge';
 
-    const getFloatingVideo = () => document.querySelector('#fvp-wrapper video, #fvp-wrapper audio') || document.querySelector('video, audio');
-    const emitQualityResult = levels => {
+    const getFloatingVideo = () =>
+        document.querySelector('#fvp-wrapper video, #fvp-wrapper audio') || document.querySelector('video, audio');
+    const emitQualityResult = (levels) => {
         window.dispatchEvent(new CustomEvent('fvp-quality-result', { detail: levels }));
     };
 
-    const postBridgeMessage = payload => {
+    const postBridgeMessage = (payload) => {
         try {
             window.postMessage({ source: FVP_IFRAME_BRIDGE, ...payload }, '*');
         } catch {
@@ -21,9 +22,9 @@
         }
     };
 
-    const uniqueLevels = levels => {
+    const uniqueLevels = (levels) => {
         const seen = new Set();
-        return levels.filter(level => {
+        return levels.filter((level) => {
             const key = `${level.type}:${String(level.value)}`;
             if (seen.has(key)) return false;
             seen.add(key);
@@ -31,7 +32,7 @@
         });
     };
 
-    const parseResolutionLabel = value => {
+    const parseResolutionLabel = (value) => {
         const match = String(value || '').match(/(\d{3,4})p?/i);
         return match ? `${match[1]}p` : String(value || 'Auto');
     };
@@ -43,13 +44,19 @@
             type: 'yt',
             getLevels() {
                 const ytLabels = {
-                    highres: '4K+', hd2160: '2160p', hd1440: '1440p',
-                    hd1080: '1080p', hd720: '720p', large: '480p',
-                    medium: '360p', small: '240p', tiny: '144p'
+                    highres: '4K+',
+                    hd2160: '2160p',
+                    hd1440: '1440p',
+                    hd1080: '1080p',
+                    hd720: '720p',
+                    large: '480p',
+                    medium: '360p',
+                    small: '240p',
+                    tiny: '144p'
                 };
                 const current = player.getPlaybackQuality?.() || '';
                 const levels = [];
-                (player.getAvailableQualityLevels?.() || []).forEach(q => {
+                (player.getAvailableQualityLevels?.() || []).forEach((q) => {
                     if (q === 'auto') return;
                     levels.push({ label: ytLabels[q] || q, value: q, active: q === current, type: 'yt' });
                 });
@@ -62,7 +69,7 @@
         };
     };
 
-    const detectVideoJsPlayer = video => {
+    const detectVideoJsPlayer = (video) => {
         const player = video?.player || video?.__player || window.videojs?.getPlayer?.(video.id || video.getAttribute('id'));
         if (!player?.qualityLevels) return null;
         return {
@@ -93,7 +100,7 @@
         };
     };
 
-    const detectHlsPlayer = video => {
+    const detectHlsPlayer = (video) => {
         const hls = video?._hls || video?.hls || window.hls || window.Hls?.instances?.[0];
         if (!hls?.levels?.length) return null;
         return {
@@ -118,7 +125,7 @@
         };
     };
 
-    const detectShakaPlayer = video => {
+    const detectShakaPlayer = (video) => {
         const player = video?.shakaPlayer || window.shakaPlayer || window.player;
         if (!player?.getVariantTracks) return null;
         return {
@@ -126,8 +133,8 @@
             getLevels() {
                 const tracks = player.getVariantTracks() || [];
                 return tracks
-                    .filter(track => !track.audioOnly)
-                    .map(track => ({
+                    .filter((track) => !track.audioOnly)
+                    .map((track) => ({
                         label: track.height ? `${track.height}p` : `${Math.round((track.bandwidth || 0) / 1000)}kbps`,
                         value: track.id,
                         active: !!track.active,
@@ -136,7 +143,7 @@
             },
             setQuality(item) {
                 const tracks = player.getVariantTracks?.() || [];
-                const track = tracks.find(entry => entry.id === item.value);
+                const track = tracks.find((entry) => entry.id === item.value);
                 if (!track) return;
                 player.configure?.({ abr: { enabled: false } });
                 player.selectVariantTrack?.(track, true);
@@ -144,14 +151,14 @@
         };
     };
 
-    const detectPlyrPlayer = video => {
+    const detectPlyrPlayer = (video) => {
         const player = video?.plyr || window.plyr || window.player;
         const quality = player?.quality;
         if (!player || !quality || !Array.isArray(quality.options)) return null;
         return {
             type: 'plyr',
             getLevels() {
-                return quality.options.map(value => ({
+                return quality.options.map((value) => ({
                     label: parseResolutionLabel(value),
                     value,
                     active: quality.current === value,
@@ -164,7 +171,7 @@
         };
     };
 
-    const detectSourceLevels = video => {
+    const detectSourceLevels = (video) => {
         if (!video) return null;
         const sources = [...video.querySelectorAll('source')];
         if (sources.length <= 1) return null;
@@ -194,12 +201,14 @@
 
     const resolveQualityController = () => {
         const video = getFloatingVideo();
-        return detectYouTubePlayer()
-            || detectVideoJsPlayer(video)
-            || detectHlsPlayer(video)
-            || detectShakaPlayer(video)
-            || detectPlyrPlayer(video)
-            || detectSourceLevels(video);
+        return (
+            detectYouTubePlayer() ||
+            detectVideoJsPlayer(video) ||
+            detectHlsPlayer(video) ||
+            detectShakaPlayer(video) ||
+            detectPlyrPlayer(video) ||
+            detectSourceLevels(video)
+        );
     };
 
     const handleGetQuality = () => {
@@ -209,7 +218,7 @@
         postBridgeMessage({ type: 'fvp-page-quality-result', detail: levels });
     };
 
-    const handleSetQuality = item => {
+    const handleSetQuality = (item) => {
         if (!item) return;
         const controller = resolveQualityController();
         if (!controller) return;
@@ -225,11 +234,11 @@
     window.addEventListener('fvp-get-quality', handleGetQuality);
 
     // Listen for quality set requests
-    window.addEventListener('fvp-set-quality', e => {
+    window.addEventListener('fvp-set-quality', (e) => {
         handleSetQuality(e.detail);
     });
 
-    window.addEventListener('message', e => {
+    window.addEventListener('message', (e) => {
         if (!e || !e.data || typeof e.data !== 'object') return;
         if (e.source !== window || e.data.source !== FVP_IFRAME_BRIDGE) return;
         if (e.data.type === 'fvp-page-get-quality') {

@@ -16,7 +16,10 @@
     line-height: 1;
     user-select: none;
     touch-action: none;
-    transition: background 0.2s, transform 0.2s, opacity 0.2s;
+    transition:
+        background 0.2s,
+        transform 0.2s,
+        opacity 0.2s;
 }
 
 .gesture-google-search-trigger.is-active {
@@ -36,7 +39,10 @@
     background: #1a1a1a;
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
     color: #e8eaed;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
     display: flex;
     flex-direction: column;
 }

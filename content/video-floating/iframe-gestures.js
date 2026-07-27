@@ -1,13 +1,13 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     const { WHEEL_GESTURE } = videoFloating;
     const { clamp } = videoFloating.core.utils;
     const { TOUCH_SWITCH_VIDEO_EVENT } = videoFloating.core.config;
 
     videoFloating.createIframeGestures = (deps) => {
         const { videoManager, getFloatingActive, postIframeState } = deps;
-        
+
         let wheelDeltaY = 0;
         let wheelGestureResetTimer = 0;
         let wheelSeekBaseTime = null;
@@ -41,11 +41,7 @@
                 wheelSeekDeltaX = 0;
             }
             wheelSeekDeltaX -= deltaX;
-            video.currentTime = clamp(
-                wheelSeekBaseTime + wheelSeekDeltaX * WHEEL_GESTURE.seekSecondsPerPixel,
-                0,
-                video.duration
-            );
+            video.currentTime = clamp(wheelSeekBaseTime + wheelSeekDeltaX * WHEEL_GESTURE.seekSecondsPerPixel, 0, video.duration);
             postIframeState();
             return true;
         };

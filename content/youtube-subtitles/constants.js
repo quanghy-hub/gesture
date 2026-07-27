@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
 
     youtubeSubtitles.SELECTORS = Object.freeze({
         player: '#movie_player, .html5-video-player',

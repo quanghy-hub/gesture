@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
 
     quickSearch.createSessionManager = ({
         CONFIG,
@@ -12,7 +12,6 @@
         bubbleManager,
         actionMenu
     }) => {
-
         const state = {
             textSession: null,
             imageSession: null,
@@ -89,11 +88,11 @@
             hideTextBubble();
             hideImageBubble();
         };
-        
+
         const resetHoverTimer = () => {
             window.clearTimeout(timers.hide);
         };
-        
+
         const startHoverHideTimer = (imageBubbleInstance) => {
             timers.hide = window.setTimeout(() => {
                 if (!state.hoverImage?.matches(':hover')) {
@@ -101,7 +100,7 @@
                 }
             }, CONFIG.hideDelay);
         };
-        
+
         const startHoverHideTimerByImage = () => {
             if (state.imageSession) {
                 window.clearTimeout(timers.hide);
@@ -121,11 +120,8 @@
 
             clearSuppressedSelectionIfExpired();
             if (
-                state.suppressSelectionUntil > Date.now()
-                && (
-                    state.suppressSelectionKey === '*'
-                    || (snapshot.key && state.suppressSelectionKey === snapshot.key)
-                )
+                state.suppressSelectionUntil > Date.now() &&
+                (state.suppressSelectionKey === '*' || (snapshot.key && state.suppressSelectionKey === snapshot.key))
             ) {
                 hideTextBubble();
                 return;
@@ -218,38 +214,41 @@
 
         const scheduleImageEvaluation = (image, event) => {
             window.clearTimeout(timers.hover);
-            timers.hover = window.setTimeout(() => {
-                evaluateImageCandidate(image, event);
-            }, IS_ANDROID ? 0 : CONFIG.hoverDelay);
+            timers.hover = window.setTimeout(
+                () => {
+                    evaluateImageCandidate(image, event);
+                },
+                IS_ANDROID ? 0 : CONFIG.hoverDelay
+            );
         };
 
         const clearTouchLongPress = () => {
             window.clearTimeout(timers.longPress);
             state.touchCandidate = null;
         };
-        
+
         const setHoverImage = (image) => {
             state.hoverImage = image;
         };
-        
+
         const getHoverImage = () => state.hoverImage;
-        
+
         const clearHoverTimer = () => {
             window.clearTimeout(timers.hover);
         };
-        
+
         const setTouchCandidate = (candidate) => {
             state.touchCandidate = candidate;
         };
-        
+
         const getTouchCandidate = () => state.touchCandidate;
-        
+
         const setLongPressTimer = (handler, ms) => {
             timers.longPress = window.setTimeout(handler, ms);
         };
-        
+
         const getCurrentSelectionKey = () => state.textSession?.key || '';
-        
+
         const destroy = () => {
             window.clearTimeout(timers.selection);
             window.clearTimeout(timers.hover);

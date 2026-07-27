@@ -73,8 +73,22 @@
     ext.ui.popupElements.youtubeSubtitlesCard = ext.ui.popupElements.featureYoutubeSubtitlesEnabled.closest('.card');
     ext.ui.popupElements.forumCard = ext.ui.popupElements.featureForumEnabled.closest('.card');
 
-    ext.ui.popupElements.quickSearchProviderIds = ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'];
+    ext.ui.popupElements.quickSearchProviderIds = [
+        'google',
+        'perplexity',
+        'chatgpt',
+        'gemini',
+        'claude',
+        'copilot',
+        'bing',
+        'duckduckgo',
+        'youtube',
+        'google-images'
+    ];
     ext.ui.popupElements.quickSearchProviderInputs = Object.fromEntries(
-        ext.ui.popupElements.quickSearchProviderIds.map((providerId) => [providerId, safeGetElementById(`quick-search-provider-${providerId}`)])
+        ext.ui.popupElements.quickSearchProviderIds.map((providerId) => [
+            providerId,
+            safeGetElementById(`quick-search-provider-${providerId}`)
+        ])
     );
 })();

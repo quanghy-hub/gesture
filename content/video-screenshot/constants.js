@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoScreenshot = ext.videoScreenshot = ext.videoScreenshot || {};
+    const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
     const floating = ext.shared.floatingCore;
 
     videoScreenshot.CONFIG = Object.freeze({

@@ -41,7 +41,7 @@
             return null;
         }
         return {
-            x: rect.left + (rect.width / 2),
+            x: rect.left + rect.width / 2,
             y: rect.bottom + EDITABLE_PANEL_OFFSET_Y
         };
     };
@@ -52,21 +52,14 @@
             return null;
         }
         return {
-            x: rect.left + (rect.width / 2),
+            x: rect.left + rect.width / 2,
             y: rect.bottom + EDITABLE_PANEL_OFFSET_Y
         };
     };
 
     const getEditableSelectionKey = ({ target, kind, text, start, end, range }) => {
         if (kind === 'text-control') {
-            return [
-                kind,
-                target?.tagName || '',
-                start,
-                end,
-                target?.value?.length || 0,
-                text
-            ].join('|');
+            return [kind, target?.tagName || '', start, end, target?.value?.length || 0, text].join('|');
         }
         return [
             kind,
@@ -141,9 +134,7 @@
         const selection = window.getSelection?.();
         const target = query.isEditableTarget(preferredTarget)
             ? preferredTarget
-            : query.getEditableTarget(document.activeElement)
-                || query.getEditableTarget(selection?.anchorNode)
-                || null;
+            : query.getEditableTarget(document.activeElement) || query.getEditableTarget(selection?.anchorNode) || null;
 
         if (!target) {
             return null;
@@ -165,10 +156,7 @@
             return false;
         }
         const current = getEditableSelectionSnapshot(snapshot.target);
-        return !!current
-            && current.target === snapshot.target
-            && current.key === snapshot.key
-            && current.text === snapshot.text;
+        return !!current && current.target === snapshot.target && current.key === snapshot.key && current.text === snapshot.text;
     };
 
     ext.shared.selectionSnapshot = {

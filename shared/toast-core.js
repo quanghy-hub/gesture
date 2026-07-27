@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    
+
     let toastContainer = null;
     let toastTimer = null;
 
@@ -31,7 +31,7 @@
         },
         createToast: (message, x, y, duration = 2400) => {
             ext.shared.toastCore.ensureToastStyle();
-            
+
             if (toastContainer) {
                 toastContainer.remove();
                 clearTimeout(toastTimer);

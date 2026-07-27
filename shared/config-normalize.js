@@ -1,6 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { deepClone, mergeObjects, clampNumber, normalizeMode, normalizeSide, normalizeExcludedHosts, normalizeProviderSettings } = ext.shared.configUtils;
+    const { deepClone, mergeObjects, clampNumber, normalizeMode, normalizeSide, normalizeExcludedHosts, normalizeProviderSettings } =
+        ext.shared.configUtils;
     const { DEFAULT_POPUP_PANEL_ORDER, DEFAULT_CONFIG } = ext.shared.configSchema;
     const apiServicesUtils = ext.shared.apiServices || {};
     const DEFAULT_API_SERVICES = apiServicesUtils.DEFAULT_API_SERVICES || {
@@ -24,8 +25,10 @@
             }
         }
     };
-    const getDefaultProviderId = apiServicesUtils.getDefaultProviderId || ((serviceType) => serviceType === 'ocr' ? 'ocrspace' : 'google');
-    const getDefaultFallbackProviderId = apiServicesUtils.getDefaultFallbackProviderId || ((serviceType) => serviceType === 'translate' ? 'mymemory' : '');
+    const getDefaultProviderId =
+        apiServicesUtils.getDefaultProviderId || ((serviceType) => (serviceType === 'ocr' ? 'ocrspace' : 'google'));
+    const getDefaultFallbackProviderId =
+        apiServicesUtils.getDefaultFallbackProviderId || ((serviceType) => (serviceType === 'translate' ? 'mymemory' : ''));
 
     const normalizePopupPanelOrder = (value) => {
         const incoming = Array.isArray(value) ? value : [];
@@ -67,13 +70,15 @@
             }
         }
 
-        const activeProvider = typeof next.activeProvider === 'string' && providers[next.activeProvider]
-            ? next.activeProvider
-            : defaults.activeProvider || getDefaultProviderId(serviceType);
+        const activeProvider =
+            typeof next.activeProvider === 'string' && providers[next.activeProvider]
+                ? next.activeProvider
+                : defaults.activeProvider || getDefaultProviderId(serviceType);
 
-        const fallbackProvider = typeof next.fallbackProvider === 'string' && providers[next.fallbackProvider]
-            ? next.fallbackProvider
-            : defaults.fallbackProvider || getDefaultFallbackProviderId(serviceType);
+        const fallbackProvider =
+            typeof next.fallbackProvider === 'string' && providers[next.fallbackProvider]
+                ? next.fallbackProvider
+                : defaults.fallbackProvider || getDefaultFallbackProviderId(serviceType);
 
         return {
             activeProvider,
@@ -113,7 +118,9 @@
         config.quickSearch = config.quickSearch && typeof config.quickSearch === 'object' ? config.quickSearch : {};
         config.quickSearch.enabled = config.quickSearch.enabled !== false;
         config.quickSearch.enabledProviderIds = Array.isArray(config.quickSearch.enabledProviderIds)
-            ? config.quickSearch.enabledProviderIds.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
+            ? config.quickSearch.enabledProviderIds
+                  .filter((value) => typeof value === 'string' && value.trim())
+                  .map((value) => value.trim())
             : ['google', 'perplexity', 'chatgpt', 'gemini', 'claude', 'copilot', 'bing', 'duckduckgo', 'youtube', 'google-images'];
         config.quickSearch.selectionDelay = clampNumber(config.quickSearch.selectionDelay, 300, 100, 1000);
         config.quickSearch.columns = clampNumber(config.quickSearch.columns, 5, 3, 8);
@@ -138,7 +145,8 @@
         delete config.videoFloating.maxBoost;
         config.videoFloating.noticeFontSize = clampNumber(config.videoFloating.noticeFontSize, 14, 8, 48);
         config.videoFloating.backgroundSeekExcludedHosts = normalizeExcludedHosts(config.videoFloating.backgroundSeekExcludedHosts);
-        config.videoFloating.layout = config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
+        config.videoFloating.layout =
+            config.videoFloating.layout && typeof config.videoFloating.layout === 'object' ? config.videoFloating.layout : null;
         delete config.videoFloating.iconPos;
 
         config.videoScreenshot = config.videoScreenshot && typeof config.videoScreenshot === 'object' ? config.videoScreenshot : {};
@@ -146,48 +154,58 @@
 
         config.inlineTranslate = config.inlineTranslate && typeof config.inlineTranslate === 'object' ? config.inlineTranslate : {};
         config.inlineTranslate.enabled = config.inlineTranslate.enabled !== false;
-        config.inlineTranslate.provider = typeof config.inlineTranslate.provider === 'string' && config.inlineTranslate.provider.trim()
-            ? config.inlineTranslate.provider.trim().toLowerCase()
-            : 'google';
+        config.inlineTranslate.provider =
+            typeof config.inlineTranslate.provider === 'string' && config.inlineTranslate.provider.trim()
+                ? config.inlineTranslate.provider.trim().toLowerCase()
+                : 'google';
         config.inlineTranslate.selectionTranslateEnabled = config.inlineTranslate.selectionTranslateEnabled !== false;
         config.inlineTranslate.hotkeyEnabled = config.inlineTranslate.hotkeyEnabled !== false;
         config.inlineTranslate.hotkey = ['ctrl+d', 'f2'].includes(String(config.inlineTranslate.hotkey || '').toLowerCase())
             ? String(config.inlineTranslate.hotkey).toLowerCase()
             : 'ctrl+d';
         config.inlineTranslate.swipeEnabled = config.inlineTranslate.swipeEnabled !== false;
-        config.inlineTranslate.swipeDir = ['left', 'right', 'both'].includes(config.inlineTranslate.swipeDir) ? config.inlineTranslate.swipeDir : 'both';
+        config.inlineTranslate.swipeDir = ['left', 'right', 'both'].includes(config.inlineTranslate.swipeDir)
+            ? config.inlineTranslate.swipeDir
+            : 'both';
         config.inlineTranslate.swipePx = clampNumber(config.inlineTranslate.swipePx, 60, 20, 240);
         config.inlineTranslate.swipeMaxDurationMs = clampNumber(config.inlineTranslate.swipeMaxDurationMs, 500, 100, 1500);
         config.inlineTranslate.swipeSlopeMax = clampNumber(config.inlineTranslate.swipeSlopeMax, 0.4, 0.1, 1);
         config.inlineTranslate.fontScale = clampNumber(config.inlineTranslate.fontScale, 0.95, 0.5, 2);
-        config.inlineTranslate.mutedColor = typeof config.inlineTranslate.mutedColor === 'string' && config.inlineTranslate.mutedColor.trim()
-            ? config.inlineTranslate.mutedColor.trim()
-            : '#00bfff';
+        config.inlineTranslate.mutedColor =
+            typeof config.inlineTranslate.mutedColor === 'string' && config.inlineTranslate.mutedColor.trim()
+                ? config.inlineTranslate.mutedColor.trim()
+                : '#00bfff';
         config.inlineTranslate.dedupeSeconds = clampNumber(config.inlineTranslate.dedupeSeconds, 0.7, 0.1, 10);
 
         config.youtubeSubtitles = config.youtubeSubtitles && typeof config.youtubeSubtitles === 'object' ? config.youtubeSubtitles : {};
-        config.youtubeSubtitles.targetLang = typeof config.youtubeSubtitles.targetLang === 'string' && config.youtubeSubtitles.targetLang.trim()
-            ? config.youtubeSubtitles.targetLang.trim()
-            : 'vi';
+        config.youtubeSubtitles.targetLang =
+            typeof config.youtubeSubtitles.targetLang === 'string' && config.youtubeSubtitles.targetLang.trim()
+                ? config.youtubeSubtitles.targetLang.trim()
+                : 'vi';
         config.youtubeSubtitles.fontSize = clampNumber(config.youtubeSubtitles.fontSize, 16, 12, 32);
         config.youtubeSubtitles.translatedFontSize = clampNumber(config.youtubeSubtitles.translatedFontSize, 16, 12, 32);
-        config.youtubeSubtitles.originalColor = typeof config.youtubeSubtitles.originalColor === 'string' && config.youtubeSubtitles.originalColor.trim()
-            ? config.youtubeSubtitles.originalColor.trim()
-            : '#ffffff';
-        config.youtubeSubtitles.translatedColor = typeof config.youtubeSubtitles.translatedColor === 'string' && config.youtubeSubtitles.translatedColor.trim()
-            ? config.youtubeSubtitles.translatedColor.trim()
-            : '#0e8cef';
+        config.youtubeSubtitles.originalColor =
+            typeof config.youtubeSubtitles.originalColor === 'string' && config.youtubeSubtitles.originalColor.trim()
+                ? config.youtubeSubtitles.originalColor.trim()
+                : '#ffffff';
+        config.youtubeSubtitles.translatedColor =
+            typeof config.youtubeSubtitles.translatedColor === 'string' && config.youtubeSubtitles.translatedColor.trim()
+                ? config.youtubeSubtitles.translatedColor.trim()
+                : '#0e8cef';
         delete config.youtubeSubtitles.displayMode;
         config.youtubeSubtitles.showOriginal = config.youtubeSubtitles.showOriginal !== false;
-        config.youtubeSubtitles.containerPosition = config.youtubeSubtitles.containerPosition && typeof config.youtubeSubtitles.containerPosition === 'object'
-            ? config.youtubeSubtitles.containerPosition
-            : {};
-        config.youtubeSubtitles.containerPosition.x = typeof config.youtubeSubtitles.containerPosition.x === 'string' && config.youtubeSubtitles.containerPosition.x.trim()
-            ? config.youtubeSubtitles.containerPosition.x.trim()
-            : '5%';
-        config.youtubeSubtitles.containerPosition.y = typeof config.youtubeSubtitles.containerPosition.y === 'string' && config.youtubeSubtitles.containerPosition.y.trim()
-            ? config.youtubeSubtitles.containerPosition.y.trim()
-            : '70px';
+        config.youtubeSubtitles.containerPosition =
+            config.youtubeSubtitles.containerPosition && typeof config.youtubeSubtitles.containerPosition === 'object'
+                ? config.youtubeSubtitles.containerPosition
+                : {};
+        config.youtubeSubtitles.containerPosition.x =
+            typeof config.youtubeSubtitles.containerPosition.x === 'string' && config.youtubeSubtitles.containerPosition.x.trim()
+                ? config.youtubeSubtitles.containerPosition.x.trim()
+                : '5%';
+        config.youtubeSubtitles.containerPosition.y =
+            typeof config.youtubeSubtitles.containerPosition.y === 'string' && config.youtubeSubtitles.containerPosition.y.trim()
+                ? config.youtubeSubtitles.containerPosition.y.trim()
+                : '70px';
         config.youtubeSubtitles.containerAlignment = ['left', 'center', 'right'].includes(config.youtubeSubtitles.containerAlignment)
             ? config.youtubeSubtitles.containerAlignment
             : 'left';

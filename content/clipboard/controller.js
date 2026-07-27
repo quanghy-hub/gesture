@@ -1,7 +1,8 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const clipboard = ext.clipboard = ext.clipboard || {};
-    const { getEditableTarget, isEditableTarget, getActiveSelectionText, getSelectionTextFromTarget, insertTextAtCaret } = ext.shared.selectionCore;
+    const clipboard = (ext.clipboard = ext.clipboard || {});
+    const { getEditableTarget, isEditableTarget, getActiveSelectionText, getSelectionTextFromTarget, insertTextAtCaret } =
+        ext.shared.selectionCore;
     const { decodeAttribute } = ext.shared.domUtils;
 
     clipboard.createController = ({ getConfig, storage }) => {
@@ -155,12 +156,7 @@
             }
             const clipboardText = event.clipboardData?.getData('text/plain') || '';
             const eventTarget = event.target instanceof Element ? getEditableTarget(event.target) || event.target : null;
-            const selectionSources = [
-                clipboardText,
-                getSelectionTextFromTarget(eventTarget),
-                getActiveSelectionText(),
-                copiedTextCache
-            ];
+            const selectionSources = [clipboardText, getSelectionTextFromTarget(eventTarget), getActiveSelectionText(), copiedTextCache];
             const text = selectionSources.find((value) => typeof value === 'string' && value.trim()) || '';
             await actions.saveCopiedText(text);
         };

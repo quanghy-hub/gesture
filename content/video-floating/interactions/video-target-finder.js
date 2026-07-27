@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
     videoFloating.interactions.createVideoTargetFinder = () => {
@@ -29,7 +29,7 @@
             if (typeof document.elementsFromPoint === 'function') {
                 for (const node of document.elementsFromPoint(x, y)) {
                     if (!(node instanceof Element)) continue;
-                    const video = (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') ? node : node.closest?.('video, audio');
+                    const video = node.tagName === 'VIDEO' || node.tagName === 'AUDIO' ? node : node.closest?.('video, audio');
                     if (!video || !video.isConnected || video.closest('#fvp-wrapper')) continue;
                     if (videoFloating.media.detector.isDetectableVideo(video)) return video;
                 }
@@ -60,7 +60,9 @@
         const isFloatingGestureBlockedTarget = (target) => {
             const node = target instanceof Element ? target : null;
             if (!node) return false;
-            return Boolean(node.closest('#fvp-left-panel, #fvp-ctrl, #fvp-res-popup, .fvp-resize-handle, button, input, select, textarea, a, label'));
+            return Boolean(
+                node.closest('#fvp-left-panel, #fvp-ctrl, #fvp-res-popup, .fvp-resize-handle, button, input, select, textarea, a, label')
+            );
         };
 
         const isVideoSeekEditableTarget = (target) => {

@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     const { FVP_IFRAME_BRIDGE, FIT_MODES, ZOOM_LEVELS } = videoFloating;
     const { queryAllDeep, clamp } = videoFloating.core.utils;
 
@@ -19,34 +19,39 @@
         const postIframeState = () => {
             const video = videoManager.getCurrentIframeVideo();
             try {
-                window.parent.postMessage({
-                    type: 'fvp-iframe-state',
-                    state: video ? {
-                        hasVideo: true,
-                        paused: !!video.paused,
-                        muted: !!video.muted,
-                        volume: video.volume || 1,
-                        currentTime: video.currentTime || 0,
-                        duration: video.duration || 0,
-                        playbackRate: video.playbackRate || 1,
-                        bufferedEnd: video.buffered?.length ? video.buffered.end(video.buffered.length - 1) : 0,
-                        fitIdx: iframeUiState.fitIdx,
-                        zoomIdx: iframeUiState.zoomIdx,
-                        rotationAngle: iframeUiState.rotationAngle
-                    } : {
-                        hasVideo: false,
-                        paused: true,
-                        muted: false,
-                        volume: 1,
-                        currentTime: 0,
-                        duration: 0,
-                        playbackRate: 1,
-                        bufferedEnd: 0,
-                        fitIdx: 0,
-                        zoomIdx: 0,
-                        rotationAngle: 0
-                    }
-                }, '*');
+                window.parent.postMessage(
+                    {
+                        type: 'fvp-iframe-state',
+                        state: video
+                            ? {
+                                  hasVideo: true,
+                                  paused: !!video.paused,
+                                  muted: !!video.muted,
+                                  volume: video.volume || 1,
+                                  currentTime: video.currentTime || 0,
+                                  duration: video.duration || 0,
+                                  playbackRate: video.playbackRate || 1,
+                                  bufferedEnd: video.buffered?.length ? video.buffered.end(video.buffered.length - 1) : 0,
+                                  fitIdx: iframeUiState.fitIdx,
+                                  zoomIdx: iframeUiState.zoomIdx,
+                                  rotationAngle: iframeUiState.rotationAngle
+                              }
+                            : {
+                                  hasVideo: false,
+                                  paused: true,
+                                  muted: false,
+                                  volume: 1,
+                                  currentTime: 0,
+                                  duration: 0,
+                                  playbackRate: 1,
+                                  bufferedEnd: 0,
+                                  fitIdx: 0,
+                                  zoomIdx: 0,
+                                  rotationAngle: 0
+                              }
+                    },
+                    '*'
+                );
             } catch {
                 // Parent may be gone while the iframe is unloading.
             }
@@ -61,10 +66,13 @@
         const reportVideos = () => {
             pruneChildFrames();
             try {
-                window.parent.postMessage({
-                    type: 'fvp-iframe-videos',
-                    count: videoManager.getOwnVideoCount() + [...childFrameVideoMap.values()].reduce((sum, count) => sum + count, 0)
-                }, '*');
+                window.parent.postMessage(
+                    {
+                        type: 'fvp-iframe-videos',
+                        count: videoManager.getOwnVideoCount() + [...childFrameVideoMap.values()].reduce((sum, count) => sum + count, 0)
+                    },
+                    '*'
+                );
             } catch {
                 // Parent may be gone while the iframe is unloading.
             }
@@ -101,7 +109,10 @@
             if (event.source === window && event.data?.source === FVP_IFRAME_BRIDGE) {
                 if (event.data?.type === 'fvp-page-quality-result') {
                     try {
-                        window.parent.postMessage({ type: 'fvp-iframe-quality-result', detail: Array.isArray(event.data.detail) ? event.data.detail : [] }, '*');
+                        window.parent.postMessage(
+                            { type: 'fvp-iframe-quality-result', detail: Array.isArray(event.data.detail) ? event.data.detail : [] },
+                            '*'
+                        );
                     } catch {
                         // Parent may be gone while the iframe is unloading.
                     }
@@ -139,21 +150,53 @@
             }
             const video = videoManager.getCurrentIframeVideo();
             switch (command) {
-                case 'play': playIframeVideo(video); break;
-                case 'pause': if (video) video.pause(); break;
-                case 'play-pause': if (video) video.paused ? playIframeVideo(video) : video.pause(); break;
-                case 'toggle-mute': if (video) video.muted = !video.muted; break;
-                case 'seek-to-ratio': if (video?.duration) video.currentTime = clamp((Number(event.data.ratio) || 0) * video.duration, 0, video.duration); break;
-                case 'prev-video': videoManager.switchIframeVideo(-1); break;
-                case 'next-video': videoManager.switchIframeVideo(1); break;
-                case 'cycle-fit': iframeUiState.fitIdx = (iframeUiState.fitIdx + 1) % FIT_MODES.length; videoManager.applyIframePresentation(); break;
-                case 'cycle-zoom': iframeUiState.zoomIdx = (iframeUiState.zoomIdx + 1) % ZOOM_LEVELS.length; videoManager.applyIframePresentation(); break;
-                case 'rotate': iframeUiState.rotationAngle = (iframeUiState.rotationAngle + 90) % 360; videoManager.applyIframePresentation(); break;
-                case 'get-state': break;
-                case 'get-quality': postIframeBridgeMessage({ type: 'fvp-page-get-quality' }); break;
-                case 'set-quality': if (event.data.item && typeof event.data.item === 'object') postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: event.data.item }); break;
-                case 'set-speed': if (video) video.playbackRate = Number(event.data.rate) || 1; break;
-                default: break;
+                case 'play':
+                    playIframeVideo(video);
+                    break;
+                case 'pause':
+                    if (video) video.pause();
+                    break;
+                case 'play-pause':
+                    if (video) video.paused ? playIframeVideo(video) : video.pause();
+                    break;
+                case 'toggle-mute':
+                    if (video) video.muted = !video.muted;
+                    break;
+                case 'seek-to-ratio':
+                    if (video?.duration) video.currentTime = clamp((Number(event.data.ratio) || 0) * video.duration, 0, video.duration);
+                    break;
+                case 'prev-video':
+                    videoManager.switchIframeVideo(-1);
+                    break;
+                case 'next-video':
+                    videoManager.switchIframeVideo(1);
+                    break;
+                case 'cycle-fit':
+                    iframeUiState.fitIdx = (iframeUiState.fitIdx + 1) % FIT_MODES.length;
+                    videoManager.applyIframePresentation();
+                    break;
+                case 'cycle-zoom':
+                    iframeUiState.zoomIdx = (iframeUiState.zoomIdx + 1) % ZOOM_LEVELS.length;
+                    videoManager.applyIframePresentation();
+                    break;
+                case 'rotate':
+                    iframeUiState.rotationAngle = (iframeUiState.rotationAngle + 90) % 360;
+                    videoManager.applyIframePresentation();
+                    break;
+                case 'get-state':
+                    break;
+                case 'get-quality':
+                    postIframeBridgeMessage({ type: 'fvp-page-get-quality' });
+                    break;
+                case 'set-quality':
+                    if (event.data.item && typeof event.data.item === 'object')
+                        postIframeBridgeMessage({ type: 'fvp-page-set-quality', item: event.data.item });
+                    break;
+                case 'set-speed':
+                    if (video) video.playbackRate = Number(event.data.rate) || 1;
+                    break;
+                default:
+                    break;
             }
             postIframeState();
             if (command !== 'get-state') setTimeout(postIframeState, 80);

@@ -1,10 +1,9 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
     videoFloating.interactions.createIconHandler = (ctx, menu, shell) => {
-        const { clamp } = videoFloating.core.utils;
         const config = videoFloating.core.config;
         const floating = ext?.shared?.floatingCore;
 
@@ -42,6 +41,7 @@
                 try {
                     ctx.iconRef.element.setPointerCapture(event.pointerId);
                 } catch {
+                    /* ignore */
                 }
             };
             const handleIconPointerMove = (event) => {
@@ -54,7 +54,13 @@
                     ctx.menuRef.hide();
                 }
                 if (!dragging) return;
-                const next = floating.clampFixedPosition({ left: origin.left + deltaX, top: origin.top + deltaY, width: 42, height: 42, margin: 10 });
+                const next = floating.clampFixedPosition({
+                    left: origin.left + deltaX,
+                    top: origin.top + deltaY,
+                    width: 42,
+                    height: 42,
+                    margin: 10
+                });
                 ctx.iconRef.setPosition(next.left, next.top);
                 shell.resetIdle();
             };

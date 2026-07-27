@@ -1,15 +1,18 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
     const { queryAllDeep } = ext.shared.domUtils;
-    const {
-        EARLY_VISIBLE_CAPTION_WORDS,
-        MIN_VISIBLE_CAPTION_WORDS,
-        MAX_VISIBLE_CAPTION_WORDS
-    } = youtubeSubtitles;
+    const { EARLY_VISIBLE_CAPTION_WORDS, MIN_VISIBLE_CAPTION_WORDS, MAX_VISIBLE_CAPTION_WORDS } = youtubeSubtitles;
 
-    const normalizeCueText = (text) => String(text || '').replace(/\s+/g, ' ').trim();
-    const normalizeCaptionWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean);
+    const normalizeCueText = (text) =>
+        String(text || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    const normalizeCaptionWords = (text) =>
+        String(text || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
 
     const getSubtitleTracks = (video) => {
         if (!video?.textTracks) {
@@ -30,9 +33,7 @@
         if (!tracks.length) {
             return null;
         }
-        return tracks.find((track) => track.mode === 'showing')
-            || tracks.find((track) => track.language)
-            || tracks[0];
+        return tracks.find((track) => track.mode === 'showing') || tracks.find((track) => track.language) || tracks[0];
     };
 
     const getActiveCaptionTrack = (video, managedTrack) => {
@@ -51,12 +52,19 @@
     };
 
     const extractCaptionTextFromDom = () => {
-        const captionRoots = queryAllDeep('.caption-window, .ytp-caption-window-container, .captions-text, .caption-visual-line, .ytp-caption-segment');
+        const captionRoots = queryAllDeep(
+            '.caption-window, .ytp-caption-window-container, .captions-text, .caption-visual-line, .ytp-caption-segment'
+        );
         for (const root of [...captionRoots].reverse()) {
             const lineNodes = root.querySelectorAll?.('.caption-visual-line') || [];
             if (lineNodes.length) {
                 const lineText = Array.from(lineNodes)
-                    .map((line) => Array.from(line.querySelectorAll('.ytp-caption-segment, .captions-text span')).map((segment) => segment.textContent.trim()).filter(Boolean).join(' '))
+                    .map((line) =>
+                        Array.from(line.querySelectorAll('.ytp-caption-segment, .captions-text span'))
+                            .map((segment) => segment.textContent.trim())
+                            .filter(Boolean)
+                            .join(' ')
+                    )
                     .filter(Boolean)
                     .join(' ')
                     .trim();

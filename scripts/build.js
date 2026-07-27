@@ -126,9 +126,7 @@ const ISOLATED_FILES = [
     'content/bootstrap.js'
 ];
 
-const MAIN_FILES = [
-    'content/video-floating/page-api.js'
-];
+const MAIN_FILES = ['content/video-floating/page-api.js'];
 
 function buildBundle(fileList, outputFileName) {
     const startTime = Date.now();
@@ -175,9 +173,9 @@ function build() {
 if (process.argv.includes('--watch')) {
     build();
     console.log('\x1b[35mWatching for changes in shared/ and content/...\x1b[0m');
-    const watchDirs = ['shared', 'content'].map(d => path.join(ROOT_DIR, d));
+    const watchDirs = ['shared', 'content'].map((d) => path.join(ROOT_DIR, d));
     let debounceTimer = null;
-    watchDirs.forEach(dir => {
+    watchDirs.forEach((dir) => {
         if (fs.existsSync(dir)) {
             fs.watch(dir, { recursive: true }, (eventType, filename) => {
                 if (!filename || !filename.endsWith('.js')) return;

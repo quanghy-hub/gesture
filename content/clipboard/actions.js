@@ -1,8 +1,16 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const clipboard = ext.clipboard = ext.clipboard || {};
+    const clipboard = (ext.clipboard = ext.clipboard || {});
 
-    clipboard.createActions = ({ storage, syncConfig, isExtensionContextInvalidated, updateUI, setConfig, getConfig, setCopiedTextCache }) => ({
+    clipboard.createActions = ({
+        storage,
+        syncConfig,
+        isExtensionContextInvalidated,
+        updateUI,
+        setConfig,
+        getConfig,
+        setCopiedTextCache
+    }) => ({
         async saveCopiedText(text) {
             const trimmed = typeof text === 'string' ? text.trim() : '';
             if (!trimmed) {

@@ -34,7 +34,10 @@
     pointer-events: auto;
     overflow: visible;
     box-shadow: none;
-    transition: transform .2s, opacity .3s, color .2s;
+    transition:
+        transform 0.2s,
+        opacity 0.3s,
+        color 0.2s;
     touch-action: none;
     will-change: transform, opacity;
 }
@@ -106,7 +109,7 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    transition: background .2s;
+    transition: background 0.2s;
     border-radius: 10px;
     white-space: nowrap;
 }
@@ -117,7 +120,7 @@
 
 .fvp-menu-item.active {
     background: rgba(255, 255, 255, 0.08);
-    color: #4CAF50;
+    color: #4caf50;
     font-weight: 600;
 }
 
@@ -158,7 +161,7 @@
     -webkit-user-select: none;
     overflow: hidden;
     will-change: transform, width, height;
-    animation: fvp-fade-in .2s ease-out;
+    animation: fvp-fade-in 0.2s ease-out;
 }
 
 @media (max-width: 640px) {
@@ -197,7 +200,9 @@
     line-height: 1;
     cursor: pointer;
     box-shadow: none;
-    transition: transform .16s ease, opacity .16s ease;
+    transition:
+        transform 0.16s ease,
+        opacity 0.16s ease;
     text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -257,20 +262,26 @@
 .fvp-transition-layer.is-outgoing-up.is-animating {
     transform: translateY(-100%);
     opacity: 0.35;
-    transition: transform .24s ease, opacity .22s ease;
+    transition:
+        transform 0.24s ease,
+        opacity 0.22s ease;
 }
 
 .fvp-transition-layer.is-outgoing-down.is-animating {
     transform: translateY(100%);
     opacity: 0.35;
-    transition: transform .24s ease, opacity .22s ease;
+    transition:
+        transform 0.24s ease,
+        opacity 0.22s ease;
 }
 
 .fvp-transition-layer.is-incoming-from-bottom.is-animating,
 .fvp-transition-layer.is-incoming-from-top.is-animating {
     transform: translateY(0);
     opacity: 1;
-    transition: transform .24s ease, opacity .22s ease;
+    transition:
+        transform 0.24s ease,
+        opacity 0.22s ease;
 }
 
 /* Overlay Controls */
@@ -287,7 +298,7 @@
     pointer-events: none;
 }
 
-.fvp-overlay>* {
+.fvp-overlay > * {
     pointer-events: auto;
 }
 
@@ -317,7 +328,7 @@
     justify-items: center;
     row-gap: 4px;
     opacity: 0.4;
-    transition: opacity .2s;
+    transition: opacity 0.2s;
 }
 
 #fvp-left-panel:hover,
@@ -408,7 +419,7 @@
     color: #ccc;
     cursor: pointer;
     white-space: nowrap;
-    transition: background .15s;
+    transition: background 0.15s;
 }
 
 .fvp-res-item:hover {
@@ -547,7 +558,9 @@
     justify-content: center;
     border-radius: 6px;
     flex-shrink: 0;
-    transition: background .15s, transform .1s;
+    transition:
+        background 0.15s,
+        transform 0.1s;
     touch-action: manipulation;
 }
 
@@ -650,7 +663,7 @@
     position: absolute;
     top: 12px;
     right: 12px;
-    background: rgba(0, 0, 0, .65);
+    background: rgba(0, 0, 0, 0.65);
     color: #fff;
     padding: 6px 12px;
     border-radius: 6px;
@@ -658,11 +671,13 @@
     pointer-events: none;
     white-space: nowrap;
     opacity: 0;
-    transform: scale(.95);
-    transition: opacity .2s ease, transform .2s ease;
+    transform: scale(0.95);
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
     font: 500 13px/1 sans-serif;
-    letter-spacing: .3px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }

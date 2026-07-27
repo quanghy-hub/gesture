@@ -17,7 +17,8 @@
         }
     };
 
-    const isExtensionUiTarget = (eventOrTarget, extraSelectors = []) => uiGuard?.isExtensionUiTarget?.(eventOrTarget, extraSelectors) || false;
+    const isExtensionUiTarget = (eventOrTarget, extraSelectors = []) =>
+        uiGuard?.isExtensionUiTarget?.(eventOrTarget, extraSelectors) || false;
 
     const createLongPress = () => {
         let timer = 0;

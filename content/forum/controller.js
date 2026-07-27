@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const forum = ext.forum = ext.forum || {};
+    const forum = (ext.forum = ext.forum || {});
     const { debounce } = ext.shared.runtime;
     const { getForumConfig } = ext.shared.config;
     const { createMasonry, destroyMasonry, selectors } = ext.features.forumLayout;
@@ -62,10 +62,13 @@
 
         const scheduleRevealFallback = () => {
             if (!html.classList.contains('fs-loading') || revealTimer) return;
-            revealTimer = window.setTimeout(() => {
-                revealTimer = null;
-                showContent();
-            }, Math.max(350, currentConfig.initDelay + currentConfig.fadeTime + 500));
+            revealTimer = window.setTimeout(
+                () => {
+                    revealTimer = null;
+                    showContent();
+                },
+                Math.max(350, currentConfig.initDelay + currentConfig.fadeTime + 500)
+            );
         };
 
         const shouldActivate = () => currentConfig.enabled && innerWidth > innerHeight && innerWidth >= currentConfig.minWidth;

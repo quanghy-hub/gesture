@@ -1,20 +1,16 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
     const selectionCore = ext.shared.selectionCore;
     const { VIETNAMESE_CHAR_PATTERN } = inlineTranslate;
 
     inlineTranslate.createEditableSelectionManager = (deps) => {
         const { getSettings, dom, hideEditableSelectionPanelRef, getEditableSelectionState } = deps;
-        
+
         const isVietnameseSelection = (text) => VIETNAMESE_CHAR_PATTERN.test(String(text || ''));
 
         const areSameEditableSnapshots = (left, right) => {
-            return !!left
-                && !!right
-                && left.target === right.target
-                && left.key === right.key
-                && left.text === right.text;
+            return !!left && !!right && left.target === right.target && left.key === right.key && left.text === right.text;
         };
 
         const hideEditableSelectionPanel = ({ invalidateRequest = true } = {}) => {

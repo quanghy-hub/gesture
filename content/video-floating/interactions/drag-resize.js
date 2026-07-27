@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
     videoFloating.interactions.createDragResizeHandler = (ctx, layoutManager, shell) => {
@@ -28,6 +28,7 @@
             try {
                 activeBoxPointerEl?.setPointerCapture?.(event.pointerId);
             } catch {
+                /* ignore */
             }
             shell.resetIdle();
         };
@@ -40,13 +41,21 @@
             const dx = c.x - ctx.state.startX;
             const dy = c.y - ctx.state.startY;
             if (ctx.state.isDrag) {
-                const next = layoutManager.clampBoxPosition({ left: ctx.state.initX + dx, top: ctx.state.initY + dy, width: ctx.box.offsetWidth, height: ctx.box.offsetHeight });
+                const next = layoutManager.clampBoxPosition({
+                    left: ctx.state.initX + dx,
+                    top: ctx.state.initY + dy,
+                    width: ctx.box.offsetWidth,
+                    height: ctx.box.offsetHeight
+                });
                 ctx.box.style.left = `${next.left}px`;
                 ctx.box.style.top = `${next.top}px`;
                 layoutManager.updateLeftPanelLayout();
             } else if (ctx.state.isResize) {
                 const { vertical } = layoutManager.getBoxViewportInsets();
-                const width = Math.min(Math.max(ctx.state.resizeDir === 'bl' ? ctx.state.initW - dx : ctx.state.initW + dx, 200), layoutManager.getMaxBoxWidth());
+                const width = Math.min(
+                    Math.max(ctx.state.resizeDir === 'bl' ? ctx.state.initW - dx : ctx.state.initW + dx, 200),
+                    layoutManager.getMaxBoxWidth()
+                );
                 const height = Math.min(Math.max(ctx.state.initH + dy, 120), Math.max(120, window.innerHeight - vertical * 2));
                 const left = ctx.state.resizeDir === 'bl' ? ctx.state.initX + (ctx.state.initW - width) : ctx.state.initX;
                 const next = layoutManager.clampBoxPosition({ left, top: ctx.state.initY, width, height });
@@ -68,7 +77,7 @@
             }
             activeBoxPointerId = null;
         };
-        
+
         return {
             beginBoxInteraction,
             handleBoxPointerMove,

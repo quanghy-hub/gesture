@@ -6,7 +6,7 @@
     ext.shared.floatingBehavior = {
         bindDragBehavior: ({ target, threshold = 6, getInitialPosition, onMove, onClick, onDragEnd }) => {
             if (!target || typeof target.addEventListener !== 'function' || typeof target.removeEventListener !== 'function') {
-                return () => { };
+                return () => {};
             }
 
             let pointerId = null;
@@ -15,7 +15,10 @@
             let dragging = false;
             let origin = { left: 0, top: 0 };
 
-            const reset = () => { pointerId = null; dragging = false; };
+            const reset = () => {
+                pointerId = null;
+                dragging = false;
+            };
 
             const onPointerMove = (event) => {
                 if (event.pointerId !== pointerId) return;

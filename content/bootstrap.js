@@ -92,14 +92,17 @@
         }
     };
 
-    ext.shared.storage.getConfig().then((config) => {
-        state.config = config;
-        syncFeatureActivation();
-    }).catch((error) => {
-        console.error('[GestureExtension] Failed to load config', error);
-        state.config = normalizeConfig();
-        syncFeatureActivation();
-    });
+    ext.shared.storage
+        .getConfig()
+        .then((config) => {
+            state.config = config;
+            syncFeatureActivation();
+        })
+        .catch((error) => {
+            console.error('[GestureExtension] Failed to load config', error);
+            state.config = normalizeConfig();
+            syncFeatureActivation();
+        });
 
     if (globalThis.chrome?.storage?.onChanged?.addListener) {
         chrome.storage.onChanged.addListener((changes, areaName) => {

@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoScreenshot = ext.videoScreenshot = ext.videoScreenshot || {};
+    const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
 
     videoScreenshot.createCaptureRegion = (ctx) => {
         const { CONFIG, buildFilename, fallbackDownload } = videoScreenshot;
@@ -16,16 +16,18 @@
 
         const canUseRegionScreenshot = () => window.top === window;
 
-        const waitForNextPaint = () => new Promise((resolve) => {
-            requestAnimationFrame(() => requestAnimationFrame(resolve));
-        });
+        const waitForNextPaint = () =>
+            new Promise((resolve) => {
+                requestAnimationFrame(() => requestAnimationFrame(resolve));
+            });
 
-        const createImageFromUrl = (url) => new Promise((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => resolve(image);
-            image.onerror = () => reject(new Error('Cannot load captured screenshot'));
-            image.src = url;
-        });
+        const createImageFromUrl = (url) =>
+            new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error('Cannot load captured screenshot'));
+                image.src = url;
+            });
 
         const normalizeRegion = (start, end) => {
             const left = Math.max(0, Math.min(start.x, end.x));
@@ -172,7 +174,7 @@
             event.stopPropagation();
             removeRegionOverlay();
         };
-        
+
         const isRegionModeActive = () => regionModeActive;
 
         return {

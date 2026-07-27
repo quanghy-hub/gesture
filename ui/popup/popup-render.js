@@ -1,6 +1,13 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const { getForumConfig, getGestureSettings, isHostExcluded, isVideoFloatingBackgroundSeekExcluded, isGestureHostExcluded, normalizeHost } = ext.shared.config;
+    const {
+        getForumConfig,
+        getGestureSettings,
+        isHostExcluded,
+        isVideoFloatingBackgroundSeekExcluded,
+        isGestureHostExcluded,
+        normalizeHost
+    } = ext.shared.config;
     const { setCardState, setHostControlsState } = ext.ui.popupUtils;
     const { renderFields } = ext.ui.popupFieldMap;
 
@@ -18,7 +25,7 @@
             setCardState(els.forumCard, els.featureForumEnabled.checked);
             setHostControlsState(els.hostBoundControls, els.hostOnlyRows, canUseForumControls);
         },
-        
+
         render: (config, activeHost, els, panelReorder, fieldMap, fieldMapElements) => {
             if (!config) return;
 
@@ -42,11 +49,14 @@
             els.gEdgeSpeed.value = gestures.edgeSwipe.speed;
 
             els.apiTranslateApiKey.value = config.apiServices?.translate?.providers?.[els.apiTranslateProvider.value]?.apiKey || '';
-            els.apiTranslateFallbackApiKey.value = config.apiServices?.translate?.providers?.[els.apiTranslateFallbackProvider.value]?.apiKey || '';
+            els.apiTranslateFallbackApiKey.value =
+                config.apiServices?.translate?.providers?.[els.apiTranslateFallbackProvider.value]?.apiKey || '';
             els.apiOcrApiKey.value = config.apiServices?.ocr?.providers?.[els.apiOcrProvider.value]?.apiKey || '';
             els.apiOcrFallbackApiKey.value = config.apiServices?.ocr?.providers?.[els.apiOcrFallbackProvider.value]?.apiKey || '';
 
-            const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds) ? config.quickSearch.enabledProviderIds : els.quickSearchProviderIds;
+            const enabledProviderIds = Array.isArray(config.quickSearch?.enabledProviderIds)
+                ? config.quickSearch.enabledProviderIds
+                : els.quickSearchProviderIds;
             els.quickSearchProviderIds.forEach((providerId) => {
                 if (els.quickSearchProviderInputs[providerId]) {
                     els.quickSearchProviderInputs[providerId].checked = enabledProviderIds.includes(providerId);
@@ -70,7 +80,8 @@
 
             if (!activeHost) {
                 els.hostLabel.textContent = 'No active host';
-                if (els.forumScopeLabel) els.forumScopeLabel.textContent = 'Only applicable for XenForo sites. The current page has no valid host.';
+                if (els.forumScopeLabel)
+                    els.forumScopeLabel.textContent = 'Only applicable for XenForo sites. The current page has no valid host.';
                 ext.ui.popupRender.syncFeatureCards(activeHost, els);
                 return;
             }

@@ -1,28 +1,17 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     const { FIT_MODES } = videoFloating;
 
     videoFloating.createVideoSwitcher = (ctx, deps, videoCollection, videoLifecycle) => {
         const { el, $, updatePlaybackOverlayUI } = deps;
-        const {
-            restoreVideoNode,
-            restoreVideoPresentation,
-            captureVideoPresentation,
-            createTransitionLayer
-        } = videoFloating.presentationHelper;
+        const { restoreVideoNode, restoreVideoPresentation, captureVideoPresentation, createTransitionLayer } =
+            videoFloating.presentationHelper;
 
         const cleanupSwitchTransition = () => {
             const transition = ctx.state.switchTransition;
             if (!transition) return false;
-            const {
-                currentVideo,
-                previousPlaceholder,
-                previousParent,
-                nextVideo,
-                nextPlaceholder,
-                nextParent
-            } = transition;
+            const { currentVideo, previousPlaceholder, previousParent, nextVideo, nextPlaceholder, nextParent } = transition;
             restoreVideoNode(currentVideo, previousParent, previousPlaceholder);
             restoreVideoNode(nextVideo, nextParent, nextPlaceholder);
             restoreVideoPresentation(currentVideo);

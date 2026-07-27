@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.core = videoFloating.core || {};
 
     const configUtils = ext?.shared?.config;
@@ -9,7 +9,7 @@
 
     const CONFIG_STORAGE_KEY = configUtils?.STORAGE_KEY || 'gesture_extension_config_v1';
     const LAYOUT_KEY = 'fvp_layout';
-    
+
     let cfgCache = null;
     let layoutCache = null;
     let layoutReadyPromise = null;
@@ -24,8 +24,9 @@
         try {
             return JSON.parse(localStorage.getItem(LAYOUT_KEY));
         } catch {
-            return null;
+            /* ignore */
         }
+        return null;
     };
 
     const saveLayout = (layout) => {
@@ -34,17 +35,26 @@
         try {
             localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
         } catch {
+            /* ignore */
         }
         if (storage?.saveVideoLayout) storage.saveVideoLayout(layout);
     };
 
-    const iconPosStorage = floating?.createPositionStorage ? floating.createPositionStorage('fvp_icon_pos', { left: 56, top: 200 }) : { get() { return { left: 56, top: 200 }; }, set() {} };
+    const iconPosStorage = floating?.createPositionStorage
+        ? floating.createPositionStorage('fvp_icon_pos', { left: 56, top: 200 })
+        : {
+              get() {
+                  return { left: 56, top: 200 };
+              },
+              set() {}
+          };
 
     const loadCfgAsync = async () => {
         if (storage?.getConfig) {
             try {
                 cfgCache = await storage.getConfig();
             } catch {
+                /* ignore */
             }
         }
     };
@@ -61,6 +71,7 @@
                         return saved;
                     }
                 } catch {
+                    /* ignore */
                 }
             }
             const fallback = loadLayout();
@@ -72,13 +83,14 @@
 
     const bindStorageListener = (onChange) => {
         if (!globalThis.chrome?.storage?.onChanged?.addListener) {
-            return () => { };
+            return () => {};
         }
         const handler = (changes, areaName) => {
             if (areaName !== 'local' || !changes?.[CONFIG_STORAGE_KEY]) return;
             try {
                 cfgCache = configUtils?.normalizeConfig?.(changes[CONFIG_STORAGE_KEY].newValue) || cfgCache;
             } catch {
+                /* ignore */
             }
             onChange?.();
         };

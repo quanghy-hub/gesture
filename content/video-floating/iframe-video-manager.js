@@ -1,17 +1,28 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     const { FIT_MODES, ZOOM_LEVELS } = videoFloating;
     const { getRect, queryAllDeep, getFullscreenEl } = videoFloating.core.utils;
     const { isDetectableVideo, compareVideoPriority, isVideoActivelyPlaying, getDirectVideos } = videoFloating.media.detector;
 
     videoFloating.createIframeVideoManager = (deps) => {
         const { onStateChange, iframeUiState } = deps;
-        
+
         let activeIframeVideo = null;
         let styledIframeVideo = null;
         let trackedStateVideo = null;
-        const IFRAME_STATE_EVENTS = ['play', 'pause', 'ended', 'timeupdate', 'durationchange', 'loadedmetadata', 'volumechange', 'progress', 'seeking', 'seeked'];
+        const IFRAME_STATE_EVENTS = [
+            'play',
+            'pause',
+            'ended',
+            'timeupdate',
+            'durationchange',
+            'loadedmetadata',
+            'volumechange',
+            'progress',
+            'seeking',
+            'seeked'
+        ];
 
         const getVideo = () => {
             const fs = getFullscreenEl();
@@ -82,7 +93,10 @@
 
         const getCurrentIframeVideo = () => {
             const preferredVideo = getIframeVideos()[0] || null;
-            if (preferredVideo && (!activeIframeVideo?.isConnected || (preferredVideo !== activeIframeVideo && isVideoActivelyPlaying(preferredVideo)))) {
+            if (
+                preferredVideo &&
+                (!activeIframeVideo?.isConnected || (preferredVideo !== activeIframeVideo && isVideoActivelyPlaying(preferredVideo)))
+            ) {
                 activeIframeVideo = preferredVideo;
             }
             if (activeIframeVideo?.isConnected) {
@@ -105,9 +119,8 @@
             if (iframeUiState.rotationAngle) transforms.push(`rotate(${iframeUiState.rotationAngle}deg)`);
             if (zoom !== 1) transforms.push(`scale(${zoom})`);
             video.style.transform = transforms.join(' ');
-            video.style.objectFit = (iframeUiState.rotationAngle === 90 || iframeUiState.rotationAngle === 270)
-                ? 'contain'
-                : FIT_MODES[iframeUiState.fitIdx];
+            video.style.objectFit =
+                iframeUiState.rotationAngle === 90 || iframeUiState.rotationAngle === 270 ? 'contain' : FIT_MODES[iframeUiState.fitIdx];
         };
 
         const switchIframeVideo = (dir) => {
@@ -120,7 +133,7 @@
             Object.assign(iframeUiState, { fitIdx: 0, zoomIdx: 0, rotationAngle: 0 });
             applyIframePresentation(activeIframeVideo);
         };
-        
+
         const setActiveIframeVideo = (video) => {
             activeIframeVideo = video;
             bindActiveIframeState(activeIframeVideo);

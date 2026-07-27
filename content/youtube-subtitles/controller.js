@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
 
     youtubeSubtitles.createController = ({ getConfig, storage }) => {
         let settings = getConfig().youtubeSubtitles;
@@ -95,18 +95,18 @@
             observer?.start();
             videoSync.bindVideoSync(video);
             youtubeSubtitles.dom.setTranslateButtonState(true);
-            captionManager.renderCurrentCaption().catch(() => { });
+            captionManager.renderCurrentCaption().catch(() => {});
             return true;
         };
 
         const toggleTranslationMode = () => {
             if (state.enabled) {
                 stopTranslationMode();
-                persistSettings({ enabled: false }).catch(() => { });
+                persistSettings({ enabled: false }).catch(() => {});
                 return;
             }
             startTranslationMode();
-            persistSettings({ enabled: true }).catch(() => { });
+            persistSettings({ enabled: true }).catch(() => {});
         };
 
         const pageEvents = youtubeSubtitles.createPageEvents({
@@ -120,7 +120,7 @@
         youtubeSubtitles.dom.ensureStyles();
         const observer = videoSync.createCaptionObserver(() => {
             if (state.enabled) {
-                captionManager.renderCurrentCaption().catch(() => { });
+                captionManager.renderCurrentCaption().catch(() => {});
             }
         });
         pageEvents.bindPageEvents();

@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
     const { imageBubbleOffsetY, minImageSidePx, minImageAreaPx, minNaturalImageSidePx } = quickSearch.CONFIG;
 
     const IMAGE_UI_HINT_RE = /\b(icon|logo|avatar|emoji|badge|sprite|thumbnail|thumb|favicon|mask)\b/i;
@@ -18,7 +18,9 @@
             image.getAttribute('aria-label'),
             image.getAttribute('data-icon'),
             image.getAttribute('itemprop')
-        ].filter(Boolean).join(' ');
+        ]
+            .filter(Boolean)
+            .join(' ');
         return IMAGE_UI_HINT_RE.test(text);
     };
 
@@ -41,7 +43,7 @@
                 return event ? { x: event.clientX + 6, y: event.clientY + 6 } : null;
             }
             return {
-                x: rect.left + (rect.width / 2),
+                x: rect.left + rect.width / 2,
                 y: rect.bottom + imageBubbleOffsetY
             };
         },
@@ -93,7 +95,9 @@
                 image.getAttribute('data-original'),
                 image.getAttribute('data-url')
             ];
-            const preferred = candidates.find((url) => typeof url === 'string' && url && !url.startsWith('data:') && !url.startsWith('blob:'));
+            const preferred = candidates.find(
+                (url) => typeof url === 'string' && url && !url.startsWith('data:') && !url.startsWith('blob:')
+            );
             return preferred || candidates.find((url) => typeof url === 'string' && url) || '';
         }
     };

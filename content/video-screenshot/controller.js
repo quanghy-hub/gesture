@@ -1,16 +1,16 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoScreenshot = ext.videoScreenshot = ext.videoScreenshot || {};
+    const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
 
     videoScreenshot.createController = (context) => {
         const { ensureStyles } = videoScreenshot;
 
         let observer = null;
-        let removeShortcutListener = () => { };
+        let removeShortcutListener = () => {};
         let syncTimer = 0;
 
         const isFeatureEnabled = () => context?.getConfig?.()?.videoScreenshot?.enabled !== false;
-        
+
         // Pass a proxy context to modules so they can always check feature flag
         const ctx = {
             isFeatureEnabled
@@ -20,8 +20,8 @@
 
         if (isExcludedPage()) {
             return {
-                onConfigChange() { },
-                destroy() { }
+                onConfigChange() {},
+                destroy() {}
             };
         }
 
@@ -54,7 +54,7 @@
         ensureStyles();
         trigger.ensureTrigger();
         trigger.syncTrigger();
-        
+
         removeShortcutListener = interactions.bindKeyboardShortcut();
         window.addEventListener('resize', queueSyncTrigger);
         window.addEventListener('scroll', queueSyncTrigger, true);
@@ -62,10 +62,14 @@
         if (document.body) {
             startObserver();
         } else {
-            window.addEventListener('DOMContentLoaded', () => {
-                trigger.syncTrigger();
-                startObserver();
-            }, { once: true });
+            window.addEventListener(
+                'DOMContentLoaded',
+                () => {
+                    trigger.syncTrigger();
+                    startObserver();
+                },
+                { once: true }
+            );
         }
 
         return {

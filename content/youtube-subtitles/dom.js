@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
     const floating = ext.shared.floatingCore;
     const { SELECTORS } = youtubeSubtitles;
     const ICONS = floating.icons;
@@ -10,10 +10,7 @@
         left: Math.max(12, window.innerWidth - 66),
         top: Math.max(12, window.innerHeight - 158)
     });
-    const togglePosStorage = floating.createPositionStorage(
-        'gesture_youtube_subtitles_toggle_pos_v1',
-        getDefaultTogglePosition()
-    );
+    const togglePosStorage = floating.createPositionStorage('gesture_youtube_subtitles_toggle_pos_v1', getDefaultTogglePosition());
 
     youtubeSubtitles.dom = {
         mountControlButtons({ onToggleTranslate }) {
@@ -73,9 +70,13 @@
                 }
             });
 
-            buttonRef.element.addEventListener('pointerdown', (event) => {
-                floating.stopFloatingEvent(event);
-            }, true);
+            buttonRef.element.addEventListener(
+                'pointerdown',
+                (event) => {
+                    floating.stopFloatingEvent(event);
+                },
+                true
+            );
         },
         setTranslateButtonState(enabled) {
             const button = getToggleButton();
@@ -231,11 +232,12 @@
                     event.preventDefault();
                     const nextLeft = Math.max(0, Math.min(origin.left + deltaX, window.innerWidth - container.offsetWidth));
                     const nextTop = Math.max(0, Math.min(origin.top + deltaY, window.innerHeight - container.offsetHeight));
-                    const alignment = nextLeft > (window.innerWidth - container.offsetWidth) * 0.7
-                        ? 'right'
-                        : nextLeft < (window.innerWidth - container.offsetWidth) * 0.3
-                            ? 'left'
-                            : 'center';
+                    const alignment =
+                        nextLeft > (window.innerWidth - container.offsetWidth) * 0.7
+                            ? 'right'
+                            : nextLeft < (window.innerWidth - container.offsetWidth) * 0.3
+                              ? 'left'
+                              : 'center';
 
                     container.classList.add('yt-sub-dragging');
                     container.style.left = alignment === 'right' ? 'auto' : `${nextLeft}px`;
@@ -256,7 +258,7 @@
                                 y: `${container.dataset.dragTop}px`
                             },
                             containerAlignment: container.dataset.dragAlignment || 'left'
-                        }).catch(() => { });
+                        }).catch(() => {});
                     }
                 }
             });

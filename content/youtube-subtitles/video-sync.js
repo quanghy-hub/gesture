@@ -1,10 +1,10 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
 
     youtubeSubtitles.createVideoSync = (deps) => {
         const { state, releaseCaptionTrack, renderCurrentCaption } = deps;
-        
+
         const createCaptionObserver = (onChange) => {
             let mutationObserver = null;
             return {
@@ -48,7 +48,7 @@
             state.video = video;
             state.videoSyncHandler = () => {
                 if (state.enabled) {
-                    renderCurrentCaption().catch(() => { });
+                    renderCurrentCaption().catch(() => {});
                 }
             };
             video.addEventListener('timeupdate', state.videoSyncHandler);

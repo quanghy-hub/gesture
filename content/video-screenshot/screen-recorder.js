@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoScreenshot = ext.videoScreenshot = ext.videoScreenshot || {};
+    const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
 
     videoScreenshot.createScreenRecorder = (ctx, regionCapture) => {
         const { CONFIG, buildRecordingFilename, fallbackDownload } = videoScreenshot;
@@ -18,16 +18,11 @@
         let recorderStopButton = null;
         let recorderBorder = null;
 
-        const canUseScreenRecorder = () => window.top === window
-            && !!navigator.mediaDevices?.getDisplayMedia
-            && typeof MediaRecorder !== 'undefined';
+        const canUseScreenRecorder = () =>
+            window.top === window && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined';
 
         const getRecorderMimeType = () => {
-            const candidates = [
-                'video/webm;codecs=vp9',
-                'video/webm;codecs=vp8',
-                'video/webm'
-            ];
+            const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
             return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || '';
         };
 
@@ -70,7 +65,7 @@
         };
 
         const getRecorderControlPosition = (region) => {
-            const width = (CONFIG.recordControlSize * 2) + 14;
+            const width = CONFIG.recordControlSize * 2 + 14;
             const height = CONFIG.recordControlSize + 8;
             const gap = CONFIG.recordControlGap;
             const centeredLeft = region.left + (region.width - width) / 2;
@@ -134,20 +129,32 @@
             recorderStopButton.title = 'Dừng ghi hình (F8)';
             recorderStopButton.setAttribute('aria-label', 'Dừng ghi hình');
 
-            recorderControl.addEventListener('pointerdown', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-            }, true);
-            recorderPauseButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                toggleScreenRecordingPause();
-            }, true);
-            recorderStopButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                stopScreenRecording();
-            }, true);
+            recorderControl.addEventListener(
+                'pointerdown',
+                (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                },
+                true
+            );
+            recorderPauseButton.addEventListener(
+                'click',
+                (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toggleScreenRecordingPause();
+                },
+                true
+            );
+            recorderStopButton.addEventListener(
+                'click',
+                (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    stopScreenRecording();
+                },
+                true
+            );
             recorderControl.append(recorderPauseButton, recorderStopButton);
             document.documentElement.appendChild(recorderControl);
             syncRecorderPauseButton();
@@ -274,11 +281,15 @@
                     recorderChunks.push(event.data);
                 }
             });
-            recorder.addEventListener('stop', () => {
-                const blob = new Blob(recorderChunks, { type: mimeType || 'video/webm' });
-                cleanupRecorder();
-                downloadRecording(blob);
-            }, { once: true });
+            recorder.addEventListener(
+                'stop',
+                () => {
+                    const blob = new Blob(recorderChunks, { type: mimeType || 'video/webm' });
+                    cleanupRecorder();
+                    downloadRecording(blob);
+                },
+                { once: true }
+            );
             recorder.addEventListener('pause', syncRecorderPauseButton);
             recorder.addEventListener('resume', syncRecorderPauseButton);
             stream.getTracks().forEach((track) => {

@@ -40,7 +40,11 @@
         if (typeof value !== 'string') return '';
         let host = value.trim().toLowerCase();
         if (!host) return '';
-        host = host.replace(/^https?:\/\//, '').replace(/^(\*\.)+/, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+        host = host
+            .replace(/^https?:\/\//, '')
+            .replace(/^(\*\.)+/, '')
+            .replace(/[/?#].*$/, '')
+            .replace(/:\d+$/, '');
         host = host.replace(/^\.+|\.+$/g, '').replace(/\.+/g, '.');
         if (host.startsWith('www.') && host.split('.').length > 2) {
             host = host.slice(4);
@@ -56,8 +60,8 @@
     };
     const normalizeProviderSettings = (value, fallback) => ({
         enabled: value?.enabled !== false,
-        apiKey: typeof value?.apiKey === 'string' ? value.apiKey.trim() : (fallback?.apiKey || ''),
-        endpoint: typeof value?.endpoint === 'string' ? value.endpoint.trim() : (fallback?.endpoint || '')
+        apiKey: typeof value?.apiKey === 'string' ? value.apiKey.trim() : fallback?.apiKey || '',
+        endpoint: typeof value?.endpoint === 'string' ? value.endpoint.trim() : fallback?.endpoint || ''
     });
 
     ext.shared.configUtils = {

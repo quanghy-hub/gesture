@@ -1,35 +1,39 @@
 (() => {
     const ext = globalThis.GestureExtension;
 
-    const parseGoogleTranslateResponse = (data) => data?.[0]?.map((item) => item?.[0] ?? '').join('').trim() ?? '';
+    const parseGoogleTranslateResponse = (data) =>
+        data?.[0]
+            ?.map((item) => item?.[0] ?? '')
+            .join('')
+            .trim() ?? '';
     const parseMyMemoryResponse = (data) => String(data?.responseData?.translatedText || '').trim();
 
     const GOOGLE_TRANSLATE_CHUNK_LIMIT = 1400;
     const TRANSLATE_API_TIMEOUT_MS = 30000;
 
-    const detectTargetLanguage = (text) => /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text)
-        ? 'en'
-        : 'vi';
+    const detectTargetLanguage = (text) =>
+        /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text) ? 'en' : 'vi';
 
     const detectSourceLanguage = (text, targetLanguage = '') => {
-        const normalizedTarget = String(targetLanguage || '').trim().toLowerCase();
+        const normalizedTarget = String(targetLanguage || '')
+            .trim()
+            .toLowerCase();
         if (normalizedTarget === 'vi') {
             return 'en';
         }
         if (normalizedTarget === 'en') {
             return 'vi';
         }
-        return /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text)
-            ? 'vi'
-            : 'en';
+        return /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text) ? 'vi' : 'en';
     };
 
-    const normalizeTranslateText = (text) => String(text || '')
-        .replace(/\r\n?/g, '\n')
-        .replaceAll('\u0000', '')
-        .replace(/[ \t]{2,}/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+    const normalizeTranslateText = (text) =>
+        String(text || '')
+            .replace(/\r\n?/g, '\n')
+            .replaceAll('\u0000', '')
+            .replace(/[ \t]{2,}/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
 
     const splitTranslateText = (text, limit = GOOGLE_TRANSLATE_CHUNK_LIMIT) => {
         const normalized = normalizeTranslateText(text);
@@ -40,7 +44,10 @@
             return [normalized];
         }
 
-        const segments = normalized.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+        const segments = normalized
+            .split(/\n{2,}/)
+            .map((part) => part.trim())
+            .filter(Boolean);
         const chunks = [];
         let current = '';
 
@@ -94,7 +101,7 @@
             });
         } catch (error) {
             if (timedOut || error?.name === 'AbortError') {
-                throw new Error(timeoutMessage);
+                throw new Error(timeoutMessage, { cause: error });
             }
             throw error;
         } finally {

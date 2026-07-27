@@ -11,6 +11,7 @@
 ## 1. Store Listing Copy
 
 ### Short Description (Max 132 chars)
+
 Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.
 
 ### Detailed Description (User-facing)
@@ -44,19 +45,19 @@ Every permission declared in `manifest.json` is strictly required for the extens
 
 ### API Permissions
 
-| Permission | Justification |
-|---|---|
-| `storage` | Required to save user preferences, custom gesture settings, pinned clipboard items, and local host exclusion rules across browser sessions. |
-| `tabs` | Required to create new background/foreground tabs from gesture links, close active tabs via gesture actions, and capture active tab screenshots for video frame analysis. |
-| `downloads` | Required to save captured video screenshots and recorded video clips directly to the user's Downloads folder upon request. |
-| `scripting` | Required to dynamically inject content script bundles and MAIN-world video quality APIs into web pages while respecting the user's domain exclusion list. |
-| `clipboardWrite` | Required to copy translated text snippets, forum excerpts, and OCR results to the system clipboard when the user clicks copy action buttons. |
+| Permission       | Justification                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`        | Required to save user preferences, custom gesture settings, pinned clipboard items, and local host exclusion rules across browser sessions.                               |
+| `tabs`           | Required to create new background/foreground tabs from gesture links, close active tabs via gesture actions, and capture active tab screenshots for video frame analysis. |
+| `downloads`      | Required to save captured video screenshots and recorded video clips directly to the user's Downloads folder upon request.                                                |
+| `scripting`      | Required to dynamically inject content script bundles and MAIN-world video quality APIs into web pages while respecting the user's domain exclusion list.                 |
+| `clipboardWrite` | Required to copy translated text snippets, forum excerpts, and OCR results to the system clipboard when the user clicks copy action buttons.                              |
 
 ### Host Permissions
 
-| Host Permission | Justification |
-|---|---|
-| `<all_urls>` | Required because Gesture features (mouse/touch gestures, floating video PiP, inline translation, screenshot capture, and copy unblocking) operate globally across all web pages visited by the user. Restricting to specific domains would break the extension's primary purpose of unified browser-wide navigation. |
+| Host Permission | Justification                                                                                                                                                                                                                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<all_urls>`    | Required because Gesture features (mouse/touch gestures, floating video PiP, inline translation, screenshot capture, and copy unblocking) operate globally across all web pages visited by the user. Restricting to specific domains would break the extension's primary purpose of unified browser-wide navigation. |
 
 ---
 
@@ -84,6 +85,7 @@ Every permission declared in `manifest.json` is strictly required for the extens
 ## 6. Version History
 
 ### Version 1.1.0 (2026-07-21)
+
 - Bundled 44 content script files into unified isolated and main-world bundles (`dist/content-bundle.js`, `dist/page-api-bundle.js`).
 - Enhanced `postMessage` security validation with origin checks, frame source validation, and strict command whitelisting.
 - Persisted rate-limit cooldown state to `chrome.storage.session`.

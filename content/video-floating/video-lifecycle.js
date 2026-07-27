@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     const { FIT_MODES, ZOOM_LEVELS } = videoFloating;
 
     videoFloating.createVideoLifecycle = (ctx, deps, videoCollection) => {
@@ -18,11 +18,7 @@
             updatePlaybackOverlayUI
         } = deps;
 
-        const {
-            captureVideoPresentation,
-            restoreVideoPresentation,
-            restoreVideoNode
-        } = videoFloating.presentationHelper;
+        const { captureVideoPresentation, restoreVideoPresentation, restoreVideoNode } = videoFloating.presentationHelper;
 
         const isFloatingShellOpen = () => !!(ctx.box && ctx.box.style.display !== 'none');
 
@@ -46,7 +42,7 @@
             if (ctx.rotationAngle) transforms.push(`rotate(${ctx.rotationAngle}deg)`);
             if (zoom !== 1) transforms.push(`scale(${zoom})`);
             ctx.curVid.style.transform = transforms.join(' ');
-            ctx.curVid.style.objectFit = (ctx.rotationAngle === 90 || ctx.rotationAngle === 270) ? 'contain' : FIT_MODES[ctx.fitIdx];
+            ctx.curVid.style.objectFit = ctx.rotationAngle === 90 || ctx.rotationAngle === 270 ? 'contain' : FIT_MODES[ctx.fitIdx];
         };
 
         const stopProgressLoop = () => {
@@ -68,7 +64,8 @@
                 }
                 if (ctx.curVid.buffered?.length && ctx.curVid.duration) {
                     const buffer = $('fvp-buffer');
-                    if (buffer) buffer.style.width = `${(ctx.curVid.buffered.end(ctx.curVid.buffered.length - 1) / ctx.curVid.duration) * 100}%`;
+                    if (buffer)
+                        buffer.style.width = `${(ctx.curVid.buffered.end(ctx.curVid.buffered.length - 1) / ctx.curVid.duration) * 100}%`;
                 }
                 ctx.state.rafId = requestAnimationFrame(updateLoop);
             };
@@ -119,13 +116,13 @@
             clearTimeout(ctx.state.transitionTimer);
             ctx.state.transitionTimer = 0;
             ctx.state.isSwitchingVideo = false;
-            
+
             const transitionRestored = cleanupSwitchTransition ? cleanupSwitchTransition() : false;
             ctx.state.pendingSeekRatio = null;
             ctx.state.seekPreviewRatio = null;
             ctx.state.isSeeking = false;
             ctx.state.seekDragActive = false;
-            
+
             if (ctx.floatedIframe) {
                 restoreFloatedIframe?.({ clearRefs: true });
             } else if (!transitionRestored && ctx.curVid) {
@@ -134,7 +131,7 @@
                 ctx.curVid.onplay = ctx.curVid.onpause = ctx.curVid.onended = null;
                 ctx.curVid = null;
             }
-            
+
             clearWrapper($('fvp-wrapper'));
             if (ctx.box) ctx.box.style.display = 'none';
             ctx.videoSequence = [];
@@ -148,7 +145,7 @@
         const float = (video, restoreFunc, onEnded) => {
             if (!isFeatureEnabled()) return;
             const shouldApplyLayout = !isFloatingShellOpen();
-            
+
             if (ctx.floatedIframe) {
                 restoreFunc?.(false, true); // Partial restore to clear iframe
             }
@@ -156,22 +153,22 @@
                 restoreFunc?.();
             }
             if (ctx.curVid === video) return;
-            
+
             deps.ensureInitialized();
             ctx.videoSequence = videoCollection.getSwitchVideos();
             ctx.origPar = video.parentNode;
             ctx.curVid = video;
-            
+
             captureVideoPresentation(video);
             ctx.ph = el('div', 'fvp-ph', '<div style="font-size:20px;opacity:.5">📺</div>');
             ctx.ph.style.cssText = `width:${video.offsetWidth || 300}px;height:${video.offsetHeight || 200}px`;
             ctx.origPar?.replaceChild(ctx.ph, video);
-            
+
             const wrapper = $('fvp-wrapper');
             clearWrapper(wrapper);
             wrapper.appendChild(video);
             video.style.objectFit = FIT_MODES[ctx.fitIdx];
-            
+
             showFloatingShell({
                 applySavedLayout: shouldApplyLayout,
                 isCurrent: () => ctx.curVid === video

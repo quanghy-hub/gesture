@@ -1,18 +1,15 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoScreenshot = ext.videoScreenshot = ext.videoScreenshot || {};
+    const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
     const floating = ext.shared.floatingCore;
 
     videoScreenshot.createTrigger = (ctx, captureVideo) => {
         const { CONFIG, ICON, getDefaultTriggerPosition } = videoScreenshot;
 
         let triggerRef = null;
-        let removeDragBinding = () => { };
+        let removeDragBinding = () => {};
 
-        const posStorage = floating.createPositionStorage(
-            'gesture_video_screenshot_trigger_pos_v1',
-            getDefaultTriggerPosition()
-        );
+        const posStorage = floating.createPositionStorage('gesture_video_screenshot_trigger_pos_v1', getDefaultTriggerPosition());
 
         const ensureTrigger = () => {
             if (triggerRef) {
@@ -60,9 +57,13 @@
                 }
             });
 
-            triggerRef.element.addEventListener('pointerdown', (event) => {
-                floating.stopFloatingEvent(event);
-            }, true);
+            triggerRef.element.addEventListener(
+                'pointerdown',
+                (event) => {
+                    floating.stopFloatingEvent(event);
+                },
+                true
+            );
 
             posStorage.load().then(({ left, top }) => {
                 const pos = floating.clampFixedPosition({
@@ -87,7 +88,7 @@
                 trigger.hide();
             }
         };
-        
+
         const destroy = () => {
             removeDragBinding();
             triggerRef?.destroy();

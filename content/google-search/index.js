@@ -44,8 +44,7 @@
                     if (filter.unit === 'file') onApplyFile(value);
                     else if (filter.unit === 'tool' && value === 'OCR') {
                         ext.shared.toastCore.createToast('Di chuột vào ảnh để dùng OCR', event.clientX, event.clientY, 2000);
-                    }
-                    else onApplyTime(filter.unit, value);
+                    } else onApplyTime(filter.unit, value);
                 });
                 panel.appendChild(button);
             });
@@ -68,13 +67,13 @@
             const configState = getConfig();
             if (configState?.googleSearch?.enabled === false) {
                 return {
-                    onConfigChange() { },
-                    destroy() { }
+                    onConfigChange() {},
+                    destroy() {}
                 };
             }
 
             let config = { left: 0, top: 0, open: false };
-            
+
             const triggerRef = floating.createTriggerElement({
                 className: 'gesture-google-search-trigger',
                 textContent: '🔍',
@@ -106,7 +105,7 @@
             const updateUI = () => {
                 triggerRef.setPosition(config.left, config.top);
                 triggerRef.element.classList.toggle('is-active', config.open);
-                
+
                 if (config.open) {
                     panelRef.show('block');
                     const rect = triggerRef.element.getBoundingClientRect();
@@ -153,7 +152,10 @@
             const unbindOutside = floating.bindOutsideClickGuard({
                 isOpen: () => config.open,
                 containsTarget: (t) => triggerRef.element.contains(t) || panelRef.element.contains(t),
-                onOutside: () => { config.open = false; updateUI(); }
+                onOutside: () => {
+                    config.open = false;
+                    updateUI();
+                }
             });
 
             posStorage.load().then((pos) => {
@@ -171,7 +173,7 @@
             });
 
             return {
-                onConfigChange() { },
+                onConfigChange() {},
                 destroy() {
                     unbindDrag();
                     unbindOutside();

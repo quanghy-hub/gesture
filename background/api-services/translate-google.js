@@ -58,11 +58,7 @@
             return `Google Translate đang bị giới hạn. Fallback cũng thất bại: ${String(fallbackError?.message || fallbackError || 'Unknown error')}`;
         }
         return String(
-            fallbackError?.message ||
-            primaryError?.message ||
-            fallbackError ||
-            primaryError ||
-            'Lỗi dịch tạm thời. Thử lại sau.'
+            fallbackError?.message || primaryError?.message || fallbackError || primaryError || 'Lỗi dịch tạm thời. Thử lại sau.'
         );
     };
 
@@ -84,14 +80,19 @@
         const body = new URLSearchParams();
         body.set('q', text);
 
-        const response = await utils.fetchWithTimeout(url.toString(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        const response = await utils.fetchWithTimeout(
+            url.toString(),
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                },
+                redirect: 'follow',
+                body: body.toString()
             },
-            redirect: 'follow',
-            body: body.toString()
-        }, utils.TRANSLATE_API_TIMEOUT_MS, 'Google Translate request timed out');
+            utils.TRANSLATE_API_TIMEOUT_MS,
+            'Google Translate request timed out'
+        );
 
         if (!response.ok) {
             if (response.status === 429) {

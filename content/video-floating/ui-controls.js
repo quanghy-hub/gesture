@@ -1,13 +1,11 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     const { FIT_MODES, FIT_ICONS, ZOOM_LEVELS, ZOOM_ICONS } = videoFloating;
 
     videoFloating.createUiControls = (ctx, deps) => {
         const { $, el, formatTime, getFullscreenEl, postToFloatedIframe } = deps;
-        const getPausedState = () => ctx.floatedIframe
-            ? !!ctx.iframePlaybackState.paused
-            : !!(ctx.curVid?.paused ?? true);
+        const getPausedState = () => (ctx.floatedIframe ? !!ctx.iframePlaybackState.paused : !!(ctx.curVid?.paused ?? true));
         const requestIframeState = () => {
             if (!ctx.floatedIframe) return;
             postToFloatedIframe({ command: 'get-state' });
@@ -16,14 +14,22 @@
         const updateVolUI = () => {
             const btn = $('fvp-vol-btn');
             if (!btn) return;
-            const volume = ctx.floatedIframe ? (ctx.iframePlaybackState.muted ? 0 : ctx.iframePlaybackState.volume) : (ctx.curVid ? (ctx.curVid.muted ? 0 : ctx.curVid.volume) : 1);
+            const volume = ctx.floatedIframe
+                ? ctx.iframePlaybackState.muted
+                    ? 0
+                    : ctx.iframePlaybackState.volume
+                : ctx.curVid
+                  ? ctx.curVid.muted
+                      ? 0
+                      : ctx.curVid.volume
+                  : 1;
             btn.textContent = volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
         };
 
         const updateSpeedUI = () => {
             const speedBtn = $('fvp-speed');
             if (!speedBtn) return;
-            const rate = ctx.floatedIframe ? (ctx.iframePlaybackState.playbackRate || 1) : (ctx.curVid?.playbackRate || 1);
+            const rate = ctx.floatedIframe ? ctx.iframePlaybackState.playbackRate || 1 : ctx.curVid?.playbackRate || 1;
             speedBtn.textContent = `${Number(rate).toFixed(1)}x`;
         };
 
@@ -51,7 +57,7 @@
                 return;
             }
             if (!ctx.curVid) return;
-            if (ctx.curVid.paused) ctx.curVid.play().catch(() => { });
+            if (ctx.curVid.paused) ctx.curVid.play().catch(() => {});
             else ctx.curVid.pause();
         };
 
@@ -87,29 +93,60 @@
                 event.stopPropagation();
                 togglePlayback();
             };
-            $('fvp-vol-btn').onclick = () => { if (ctx.floatedIframe) postToFloatedIframe({ command: 'toggle-mute' }); else if (ctx.curVid) { ctx.curVid.muted = !ctx.curVid.muted; updateVolUI(); } };
-            $('fvp-fit').onclick = () => { if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-fit' }); else { ctx.fitIdx = (ctx.fitIdx + 1) % FIT_MODES.length; if (ctx.curVid) ctx.curVid.style.objectFit = FIT_MODES[ctx.fitIdx]; $('fvp-fit').textContent = FIT_ICONS[ctx.fitIdx]; } };
-            $('fvp-zoom').onclick = () => { if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-zoom' }); else if (ctx.curVid) { ctx.zoomIdx = (ctx.zoomIdx + 1) % ZOOM_LEVELS.length; deps.applyTransform(); $('fvp-zoom').textContent = ZOOM_ICONS[ctx.zoomIdx]; } };
-            $('fvp-rotate').onclick = () => { if (ctx.floatedIframe) postToFloatedIframe({ command: 'rotate' }); else if (ctx.curVid) { ctx.rotationAngle = (ctx.rotationAngle + 90) % 360; deps.applyTransform(); $('fvp-rotate').style.transform = `rotate(${ctx.rotationAngle}deg)`; } };
-            $('fvp-full').onclick = () => { const fs = getFullscreenEl(); if (!fs) ctx.box.requestFullscreen?.() || ctx.box.webkitRequestFullscreen?.(); else document.exitFullscreen?.() || document.webkitExitFullscreen?.(); };
-            
+            $('fvp-vol-btn').onclick = () => {
+                if (ctx.floatedIframe) postToFloatedIframe({ command: 'toggle-mute' });
+                else if (ctx.curVid) {
+                    ctx.curVid.muted = !ctx.curVid.muted;
+                    updateVolUI();
+                }
+            };
+            $('fvp-fit').onclick = () => {
+                if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-fit' });
+                else {
+                    ctx.fitIdx = (ctx.fitIdx + 1) % FIT_MODES.length;
+                    if (ctx.curVid) ctx.curVid.style.objectFit = FIT_MODES[ctx.fitIdx];
+                    $('fvp-fit').textContent = FIT_ICONS[ctx.fitIdx];
+                }
+            };
+            $('fvp-zoom').onclick = () => {
+                if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-zoom' });
+                else if (ctx.curVid) {
+                    ctx.zoomIdx = (ctx.zoomIdx + 1) % ZOOM_LEVELS.length;
+                    deps.applyTransform();
+                    $('fvp-zoom').textContent = ZOOM_ICONS[ctx.zoomIdx];
+                }
+            };
+            $('fvp-rotate').onclick = () => {
+                if (ctx.floatedIframe) postToFloatedIframe({ command: 'rotate' });
+                else if (ctx.curVid) {
+                    ctx.rotationAngle = (ctx.rotationAngle + 90) % 360;
+                    deps.applyTransform();
+                    $('fvp-rotate').style.transform = `rotate(${ctx.rotationAngle}deg)`;
+                }
+            };
+            $('fvp-full').onclick = () => {
+                const fs = getFullscreenEl();
+                if (!fs) ctx.box.requestFullscreen?.() || ctx.box.webkitRequestFullscreen?.();
+                else document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+            };
+
             $('fvp-speed').onclick = () => {
                 const popup = $('fvp-speed-popup');
                 if (popup.style.display === 'flex') {
                     popup.style.display = 'none';
                     return;
                 }
-                const currentSpeed = ctx.floatedIframe ? (ctx.iframePlaybackState.playbackRate || 1) : (ctx.curVid?.playbackRate || 1);
-                
+                const currentSpeed = ctx.floatedIframe ? ctx.iframePlaybackState.playbackRate || 1 : ctx.curVid?.playbackRate || 1;
+
                 const slider = $('fvp-speed-slider');
                 const valDisplay = $('fvp-speed-value');
                 if (slider) slider.value = currentSpeed;
                 if (valDisplay) valDisplay.textContent = `${Number(currentSpeed).toFixed(1)}x`;
-                
+
                 popup.style.display = 'flex';
                 $('fvp-res-popup').style.display = 'none';
             };
-            
+
             const speedSlider = $('fvp-speed-slider');
             if (speedSlider) {
                 speedSlider.oninput = (e) => {
@@ -117,14 +154,14 @@
                     const valDisplay = $('fvp-speed-value');
                     if (valDisplay) valDisplay.textContent = `${speed.toFixed(1)}x`;
                     $('fvp-speed').textContent = `${speed.toFixed(1)}x`;
-                    
+
                     if (ctx.floatedIframe) postToFloatedIframe({ command: 'set-speed', rate: speed });
                     else if (ctx.curVid) {
                         ctx.curVid.playbackRate = speed;
                     }
                 };
             }
-            
+
             $('fvp-res').onclick = () => {
                 const popup = $('fvp-res-popup');
                 if (popup.style.display === 'flex') popup.style.display = 'none';
@@ -140,7 +177,10 @@
             };
 
             const onWindowMessage = (event) => {
-                if (event.data?.type === 'fvp-page-quality-result' || (event.data?.type === 'fvp-iframe-quality-result' && ctx.floatedIframe?.contentWindow === event.source)) {
+                if (
+                    event.data?.type === 'fvp-page-quality-result' ||
+                    (event.data?.type === 'fvp-iframe-quality-result' && ctx.floatedIframe?.contentWindow === event.source)
+                ) {
                     const popup = $('fvp-res-popup');
                     popup.innerHTML = '';
                     (event.data.detail || []).forEach((level) => {
@@ -172,7 +212,7 @@
             };
             const onPointerDownOutside = (event) => {
                 const target = event.target instanceof Element ? event.target : null;
-                
+
                 const resPopup = $('fvp-res-popup');
                 const resButton = $('fvp-res');
                 if (resPopup && resPopup.style.display === 'flex') {
@@ -180,7 +220,7 @@
                         closePopup();
                     }
                 }
-                
+
                 const speedPopup = $('fvp-speed-popup');
                 const speedButton = $('fvp-speed');
                 if (speedPopup && speedPopup.style.display === 'flex') {

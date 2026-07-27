@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
 
     quickSearch.createBubbleManager = (ui, getConfig, onImageHoverTimerReset, onImageHoverHideTimerStart) => {
         let textBubble;

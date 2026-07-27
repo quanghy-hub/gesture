@@ -2,9 +2,10 @@
     const ext = globalThis.GestureExtension;
     const { DEFAULT_POPUP_PANEL_ORDER } = ext.shared.config;
 
-    const getPanelOrder = (popupRoot) => Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'))
-        .map((card) => card.dataset.panelId)
-        .filter((value) => typeof value === 'string' && value);
+    const getPanelOrder = (popupRoot) =>
+        Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'))
+            .map((card) => card.dataset.panelId)
+            .filter((value) => typeof value === 'string' && value);
 
     const getOrderedPanelCards = (order, panelCards) => {
         const requestedOrder = Array.isArray(order) && order.length ? order : DEFAULT_POPUP_PANEL_ORDER;
@@ -26,8 +27,8 @@
     const applyPanelOrder = (order, popupRoot, panelCards) => {
         const orderedCards = getOrderedPanelCards(order, panelCards);
         const currentCards = Array.from(popupRoot.querySelectorAll('.card[data-panel-id]'));
-        const isAlreadyApplied = orderedCards.length === currentCards.length
-            && orderedCards.every((card, index) => card === currentCards[index]);
+        const isAlreadyApplied =
+            orderedCards.length === currentCards.length && orderedCards.every((card, index) => card === currentCards[index]);
         if (isAlreadyApplied) {
             return;
         }

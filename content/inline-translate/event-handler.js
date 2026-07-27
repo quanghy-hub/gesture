@@ -1,12 +1,12 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
     const touch = ext.shared.touchCore;
     const THREE_TOUCH_TRANSLATE_MS = 550;
 
     inlineTranslate.createEventHandler = (deps) => {
         const { dom, getSettings, editableSelectionManager, blockTranslationManager } = deps;
-        
+
         let lastPointer = { x: 0, y: 0 };
         let startX = 0;
         let startY = 0;
@@ -38,9 +38,10 @@
             }
 
             const hotkey = settings.hotkey;
-            const matches = hotkey === 'ctrl+d'
-                ? event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'KeyD'
-                : hotkey === 'f2' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'F2';
+            const matches =
+                hotkey === 'ctrl+d'
+                    ? event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'KeyD'
+                    : hotkey === 'f2' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'F2';
 
             if (!matches) {
                 return;
@@ -139,11 +140,7 @@
                 (settings.swipeDir === 'right' && deltaX > 0) ||
                 (settings.swipeDir === 'left' && deltaX < 0);
 
-            if (
-                Math.abs(deltaX) > settings.swipePx &&
-                Math.abs(deltaY) < Math.abs(deltaX) * settings.swipeSlopeMax &&
-                validDirection
-            ) {
+            if (Math.abs(deltaX) > settings.swipePx && Math.abs(deltaY) < Math.abs(deltaX) * settings.swipeSlopeMax && validDirection) {
                 blockTranslationManager.toggleTranslationAtPoint(endX - deltaX / 2, endY - deltaY / 2);
             }
 

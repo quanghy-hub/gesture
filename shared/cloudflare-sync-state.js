@@ -1,7 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     ext.shared = ext.shared || {};
-    
+
     const APP_ID = 'gesture';
     const DEFAULT_WORKER_URL = 'https://extension.quavav15-6.workers.dev';
     const PROFILE_IDS = ['macbook', 'mobile'];
@@ -23,19 +23,23 @@
     const getLocal = (keys) => ext.shared.storage.getLocal(keys);
     const setLocal = (payload) => ext.shared.storage.setLocal(payload);
 
-    const normalizeWorkerUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
-    const normalizeMode = (value) => value === 'auto' ? 'auto' : 'manual';
-    const normalizeProfileId = (value) => value === 'mobile' ? 'mobile' : 'macbook';
-    const isSafeRevision = (value) => Number.isSafeInteger(value) ? value : null;
+    const normalizeWorkerUrl = (value) =>
+        String(value || '')
+            .trim()
+            .replace(/\/+$/, '');
+    const normalizeMode = (value) => (value === 'auto' ? 'auto' : 'manual');
+    const normalizeProfileId = (value) => (value === 'mobile' ? 'mobile' : 'macbook');
+    const isSafeRevision = (value) => (Number.isSafeInteger(value) ? value : null);
 
-    const formatSyncStamp = (date = new Date()) => date.toLocaleString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
+    const formatSyncStamp = (date = new Date()) =>
+        date.toLocaleString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
 
     const statusSuffix = (revision) => `revision ${Number.isSafeInteger(revision) ? revision : 0} · ${formatSyncStamp()}`;
 
@@ -98,11 +102,9 @@
         next.readyProfiles = normalizeReadyProfiles(next.readyProfiles, next.ready, next.profile);
         next.ready = next.readyProfiles[next.profile] === true;
 
-        const resetReady = (
-            Object.prototype.hasOwnProperty.call(patch, 'workerUrl') && next.workerUrl !== current.workerUrl
-        ) || (
-            Object.prototype.hasOwnProperty.call(patch, 'apiCode') && next.apiCode !== current.apiCode
-        );
+        const resetReady =
+            (Object.prototype.hasOwnProperty.call(patch, 'workerUrl') && next.workerUrl !== current.workerUrl) ||
+            (Object.prototype.hasOwnProperty.call(patch, 'apiCode') && next.apiCode !== current.apiCode);
 
         const payload = {
             [KEYS.workerUrl]: next.workerUrl,

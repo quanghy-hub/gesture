@@ -1,32 +1,28 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoScreenshot = ext.videoScreenshot = ext.videoScreenshot || {};
+    const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
     const { queryAllDeep } = ext.shared.domUtils;
 
     videoScreenshot.createCaptureVideo = (ctx) => {
         const { CONFIG, buildFilename, fallbackDownload } = videoScreenshot;
 
-        const isEligibleVideo = (video) => Boolean(
-            video &&
-            video.isConnected &&
-            video.videoWidth &&
-            video.videoHeight &&
-            video.getBoundingClientRect &&
-            video.getBoundingClientRect().width >= CONFIG.minVideoWidth &&
-            video.getBoundingClientRect().height >= CONFIG.minVideoHeight
-        );
+        const isEligibleVideo = (video) =>
+            Boolean(
+                video &&
+                video.isConnected &&
+                video.videoWidth &&
+                video.videoHeight &&
+                video.getBoundingClientRect &&
+                video.getBoundingClientRect().width >= CONFIG.minVideoWidth &&
+                video.getBoundingClientRect().height >= CONFIG.minVideoHeight
+            );
 
         const findActiveVideo = () => {
             const candidates = queryAllDeep('video')
                 .filter((video) => isEligibleVideo(video))
                 .map((video) => ({ video, rect: video.getBoundingClientRect() }))
-                .filter(({ rect }) =>
-                    rect.top < window.innerHeight &&
-                    rect.bottom > 0 &&
-                    rect.left < window.innerWidth &&
-                    rect.right > 0
-                )
-                .sort((left, right) => (right.rect.width * right.rect.height) - (left.rect.width * left.rect.height));
+                .filter(({ rect }) => rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0)
+                .sort((left, right) => right.rect.width * right.rect.height - left.rect.width * left.rect.height);
             return candidates[0]?.video || null;
         };
 

@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
 
     quickSearch.createActionMenu = ({
         CONFIG,
@@ -12,13 +12,10 @@
         sessionManager,
         bubbleManager
     }) => {
-
         const getEnabledTextProviders = () => {
             const config = getFeatureConfig();
             const enabledProviderIds = Array.isArray(config.enabledProviderIds) ? config.enabledProviderIds : [];
-            return DEFAULT_SETTINGS.providers
-                .filter((provider) => enabledProviderIds.includes(provider.id))
-                .slice(0, CONFIG.maxProviders);
+            return DEFAULT_SETTINGS.providers.filter((provider) => enabledProviderIds.includes(provider.id)).slice(0, CONFIG.maxProviders);
         };
 
         const getImageProviders = () => DEFAULT_SETTINGS.imageProviders.slice(0, CONFIG.maxProviders);
@@ -101,7 +98,8 @@
                     title: 'Copy image',
                     glyph: QUICK_GLYPHS.copyImage,
                     onClick: () => {
-                        actions.copyImage(session.image, session.url)
+                        actions
+                            .copyImage(session.image, session.url)
                             .then(() => {
                                 ext.shared.toastCore.createToast('Đã chép ảnh', session.x, session.y, 1200);
                             })

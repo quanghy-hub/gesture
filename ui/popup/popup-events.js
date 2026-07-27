@@ -14,12 +14,15 @@
             };
 
             els.clipboardClear.addEventListener('click', () => {
-                storage.clearClipboardHistory().then((nextConfig) => {
-                    appState.config = nextConfig;
-                    appState.render();
-                }).catch((error) => {
-                    console.error('[GestureExtension][popup] clear clipboard failed', error);
-                });
+                storage
+                    .clearClipboardHistory()
+                    .then((nextConfig) => {
+                        appState.config = nextConfig;
+                        appState.render();
+                    })
+                    .catch((error) => {
+                        console.error('[GestureExtension][popup] clear clipboard failed', error);
+                    });
             });
 
             els.closeButton.addEventListener('click', () => {
@@ -68,9 +71,15 @@
 
             // Feature toggle auto-save
             [
-                els.featureUnblockCopyEnabled, els.featureGesturesEnabled, els.featureClipboardEnabled,
-                els.featureVideoFloatingEnabled, els.featureVideoScreenshotEnabled, els.featureQuickSearchEnabled,
-                els.featureInlineTranslateEnabled, els.featureYoutubeSubtitlesEnabled, els.featureForumEnabled
+                els.featureUnblockCopyEnabled,
+                els.featureGesturesEnabled,
+                els.featureClipboardEnabled,
+                els.featureVideoFloatingEnabled,
+                els.featureVideoScreenshotEnabled,
+                els.featureQuickSearchEnabled,
+                els.featureInlineTranslateEnabled,
+                els.featureYoutubeSubtitlesEnabled,
+                els.featureForumEnabled
             ].forEach((control) => {
                 registerAutoSave(control, 'change', { syncCards: true });
             });
@@ -85,17 +94,27 @@
                 safeGetElementById('youtube-subtitles-show-original'),
                 safeGetElementById('quick-search-image-search-enabled'),
                 els.forumWide,
-                els.gLpEnabled, els.gLpMode, els.gRcEnabled, els.gRcMode, els.gCloseTabEnabled,
-                els.gEdgeEnabled, els.gEdgeSide, els.gPagerEnabled,
-                els.hostBlacklistToggle, els.videoFloatingBackgroundSeekBlocked, els.gestureBlockHostToggle
+                els.gLpEnabled,
+                els.gLpMode,
+                els.gRcEnabled,
+                els.gRcMode,
+                els.gCloseTabEnabled,
+                els.gEdgeEnabled,
+                els.gEdgeSide,
+                els.gPagerEnabled,
+                els.hostBlacklistToggle,
+                els.videoFloatingBackgroundSeekBlocked,
+                els.gestureBlockHostToggle
             ].forEach((control) => {
                 registerAutoSave(control, 'change');
             });
 
             // API provider select auto-save (re-render to update API key fields)
-            [els.apiTranslateProvider, els.apiTranslateFallbackProvider, els.apiOcrProvider, els.apiOcrFallbackProvider].forEach((control) => {
-                registerAutoSave(control, 'change', { renderAfter: true });
-            });
+            [els.apiTranslateProvider, els.apiTranslateFallbackProvider, els.apiOcrProvider, els.apiOcrFallbackProvider].forEach(
+                (control) => {
+                    registerAutoSave(control, 'change', { renderAfter: true });
+                }
+            );
 
             // API fallback toggles
             [safeGetElementById('api-translate-fallback-enabled'), safeGetElementById('api-ocr-fallback-enabled')].forEach((control) => {
@@ -105,8 +124,10 @@
             // Text/color inputs with input+change dual-save
             [
                 safeGetElementById('inline-translate-muted-color'),
-                els.apiTranslateApiKey, els.apiTranslateFallbackApiKey,
-                els.apiOcrApiKey, els.apiOcrFallbackApiKey,
+                els.apiTranslateApiKey,
+                els.apiTranslateFallbackApiKey,
+                els.apiOcrApiKey,
+                els.apiOcrFallbackApiKey,
                 safeGetElementById('youtube-subtitles-target-lang'),
                 safeGetElementById('youtube-subtitles-original-color'),
                 safeGetElementById('youtube-subtitles-translated-color')
@@ -132,8 +153,15 @@
                 safeGetElementById('video-floating-diagonal-threshold'),
                 safeGetElementById('video-floating-throttle'),
                 safeGetElementById('video-floating-notice-font-size'),
-                els.forumMinWidth, els.forumGap, els.forumFade, els.forumDelay,
-                els.gLpMs, els.gCloseTabMs, els.gPagerHops, els.gEdgeWidth, els.gEdgeSpeed
+                els.forumMinWidth,
+                els.forumGap,
+                els.forumFade,
+                els.forumDelay,
+                els.gLpMs,
+                els.gCloseTabMs,
+                els.gPagerHops,
+                els.gEdgeWidth,
+                els.gEdgeSpeed
             ].forEach((control) => {
                 registerAutoSave(control, 'change', { restoreWhenEmpty: true });
             });

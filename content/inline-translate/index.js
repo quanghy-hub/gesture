@@ -7,8 +7,8 @@
             const body = document.body;
             if (window.top !== window || body?.dataset?.gestureInlineTranslateMounted === 'true') {
                 return {
-                    onConfigChange() { },
-                    destroy() { }
+                    onConfigChange() {},
+                    destroy() {}
                 };
             }
 

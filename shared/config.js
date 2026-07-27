@@ -25,14 +25,14 @@
         next.runtime.excludedHosts = [...current];
         return normalizeConfig(next);
     };
-    const getVideoFloatingBackgroundSeekExcludedHosts = (config) => (
-        normalizeExcludedHosts(config?.videoFloating?.backgroundSeekExcludedHosts)
-    );
+    const getVideoFloatingBackgroundSeekExcludedHosts = (config) =>
+        normalizeExcludedHosts(config?.videoFloating?.backgroundSeekExcludedHosts);
     const isVideoFloatingBackgroundSeekExcluded = (config, host) => {
         const normalizedHost = normalizeHost(host);
         if (!normalizedHost) return false;
-        return getVideoFloatingBackgroundSeekExcludedHosts(config)
-            .some((entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`));
+        return getVideoFloatingBackgroundSeekExcludedHosts(config).some(
+            (entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`)
+        );
     };
     const setVideoFloatingBackgroundSeekExcluded = (config, host, excluded) => {
         const next = normalizeConfig(config);
@@ -48,14 +48,11 @@
         next.videoFloating.backgroundSeekExcludedHosts = [...current];
         return normalizeConfig(next);
     };
-    const getGestureExcludedHosts = (config) => (
-        normalizeExcludedHosts(config?.gestures?.excludedHosts)
-    );
+    const getGestureExcludedHosts = (config) => normalizeExcludedHosts(config?.gestures?.excludedHosts);
     const isGestureHostExcluded = (config, host) => {
         const normalizedHost = normalizeHost(host);
         if (!normalizedHost) return false;
-        return getGestureExcludedHosts(config)
-            .some((entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`));
+        return getGestureExcludedHosts(config).some((entry) => normalizedHost === entry || normalizedHost.endsWith(`.${entry}`));
     };
     const setGestureHostExcluded = (config, host, excluded) => {
         const next = normalizeConfig(config);
@@ -72,7 +69,7 @@
         return normalizeConfig(next);
     };
     const getExcludedMatchPatterns = (excludedHosts) => {
-        return normalizeExcludedHosts(excludedHosts).flatMap((host) => ([`*://${host}/*`, `*://*.${host}/*`]));
+        return normalizeExcludedHosts(excludedHosts).flatMap((host) => [`*://${host}/*`, `*://*.${host}/*`]);
     };
 
     const getForumConfig = (config, host) => {

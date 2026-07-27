@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
 
     quickSearch.createController = ({ tabActions, getConfig }) => {
         const touch = ext.shared.touchCore;
@@ -10,16 +10,16 @@
         const imageSessionApi = quickSearch.imageSession;
         const ui = quickSearch.ui;
 
-        let featureConfig = window.__gestureQuickSearchConfig = getConfig()?.quickSearch || {};
+        let featureConfig = (window.__gestureQuickSearchConfig = getConfig()?.quickSearch || {});
 
         const getFeatureConfig = () => featureConfig;
-        
+
         let sessionManager;
 
         const bubbleManager = quickSearch.createBubbleManager(
-            ui, 
-            getConfig, 
-            () => sessionManager?.resetHoverTimer(), 
+            ui,
+            getConfig,
+            () => sessionManager?.resetHoverTimer(),
             (bubble) => sessionManager?.startHoverHideTimer(bubble)
         );
 
@@ -100,21 +100,33 @@
         };
 
         const onTouchStart = (event) => {
-            if (bubbleManager.isEventInsideTextBubble(event) || bubbleManager.isEventInsideImageBubble(event) || !event.touches || event.touches.length !== 1) {
+            if (
+                bubbleManager.isEventInsideTextBubble(event) ||
+                bubbleManager.isEventInsideImageBubble(event) ||
+                !event.touches ||
+                event.touches.length !== 1
+            ) {
                 return;
             }
             const point = touch.getPrimaryPoint(event);
             const image = imageSessionApi.getImageElement(event.target);
             sessionManager.setTouchCandidate({ x: point.x, y: point.y, image });
-            if (featureConfig.imageSearchEnabled === false || !(image instanceof HTMLImageElement) || !imageSessionApi.isSearchableImage(image)) {
+            if (
+                featureConfig.imageSearchEnabled === false ||
+                !(image instanceof HTMLImageElement) ||
+                !imageSessionApi.isSearchableImage(image)
+            ) {
                 return;
             }
-            sessionManager.setLongPressTimer(() => {
-                const candidate = sessionManager.getTouchCandidate();
-                if (candidate?.image?.isConnected) {
-                    sessionManager.evaluateImageCandidate(candidate.image, { clientX: candidate.x, clientY: candidate.y });
-                }
-            }, IS_ANDROID ? 160 : (featureConfig.imageLongPressMs || 320));
+            sessionManager.setLongPressTimer(
+                () => {
+                    const candidate = sessionManager.getTouchCandidate();
+                    if (candidate?.image?.isConnected) {
+                        sessionManager.evaluateImageCandidate(candidate.image, { clientX: candidate.x, clientY: candidate.y });
+                    }
+                },
+                IS_ANDROID ? 160 : featureConfig.imageLongPressMs || 320
+            );
         };
 
         const onTouchMove = (event) => {

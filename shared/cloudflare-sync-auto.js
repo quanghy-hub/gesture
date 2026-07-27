@@ -3,7 +3,7 @@
     const stateManager = ext.shared.cloudflareSyncState;
     const api = ext.shared.cloudflareSyncApi;
     const AUTO_SYNC_DELAY = 10000;
-    
+
     let autoSyncTimer = 0;
     let autoSyncRunning = false;
 

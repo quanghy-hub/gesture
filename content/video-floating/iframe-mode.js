@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
 
     videoFloating.createIframeController = () => {
         const iframeUiState = { fitIdx: 0, zoomIdx: 0, rotationAngle: 0 };
@@ -40,13 +40,13 @@
             messageBridge.postIframeState();
         };
         window.addEventListener('play', onVideoPlay, true);
-        
+
         reportTimer = window.setInterval(messageBridge.reportVideos, videoFloating.VIDEO_CHECK_INTERVAL);
         messageBridge.reportVideos();
         messageBridge.postIframeState();
 
         return {
-            onConfigChange() { },
+            onConfigChange() {},
             destroy() {
                 videoManager.unbindActiveIframeState();
                 uninstallMessageBridge();

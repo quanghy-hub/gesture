@@ -1,8 +1,15 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
 
-    quickSearch.createActions = ({ tabActions, hideAllBubbles, clearActiveSelection, suppressSelectionFor, getSelectionSnapshot, getCurrentSelectionKey }) => ({
+    quickSearch.createActions = ({
+        tabActions,
+        hideAllBubbles,
+        clearActiveSelection,
+        suppressSelectionFor,
+        getSelectionSnapshot,
+        getCurrentSelectionKey
+    }) => ({
         async openSearchTab(url) {
             if (!url) {
                 return;
@@ -50,8 +57,11 @@
                     return;
                 }
 
-                const existing = targetNode.querySelector('.gesture-inline-translate-box')
-                    || (targetNode.nextElementSibling?.classList.contains('gesture-inline-translate-box') ? targetNode.nextElementSibling : null);
+                const existing =
+                    targetNode.querySelector('.gesture-inline-translate-box') ||
+                    (targetNode.nextElementSibling?.classList.contains('gesture-inline-translate-box')
+                        ? targetNode.nextElementSibling
+                        : null);
                 existing?.remove();
 
                 const box = document.createElement('div');

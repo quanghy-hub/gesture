@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const forumEarlyStyle = ext.forumEarlyStyle = ext.forumEarlyStyle || {};
+    const forumEarlyStyle = (ext.forumEarlyStyle = ext.forumEarlyStyle || {});
     const { isHttpPage } = ext.shared.runtime;
 
     forumEarlyStyle.EARLY_STYLE_ID = 'gesture-ext-forum-early-style';

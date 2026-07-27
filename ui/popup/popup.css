@@ -9,7 +9,9 @@ body {
     max-width: 420px;
     background: #111827;
     color: #f9fafb;
-    font: 14px/1.45 system-ui, sans-serif;
+    font:
+        14px/1.45 system-ui,
+        sans-serif;
     overflow-x: hidden;
 }
 
@@ -57,7 +59,10 @@ body {
 }
 
 .card[data-panel-id] {
-    transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+    transition:
+        opacity 120ms ease,
+        transform 120ms ease,
+        box-shadow 120ms ease;
 }
 
 .card.is-dragging {
@@ -91,7 +96,7 @@ body {
     outline-offset: 2px;
 }
 
-.card-title-with-toggle input[type="checkbox"] {
+.card-title-with-toggle input[type='checkbox'] {
     width: 15px;
     height: 15px;
     accent-color: #22c55e;
@@ -130,7 +135,7 @@ body {
 }
 
 .drag-handle::before {
-    content: "::";
+    content: '::';
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -140,7 +145,7 @@ body {
     cursor: grabbing;
 }
 
-.card-title-actions input[type="checkbox"] {
+.card-title-actions input[type='checkbox'] {
     position: absolute;
     right: 0;
 }
@@ -175,7 +180,7 @@ body {
     white-space: nowrap;
 }
 
-.host-blacklist-row input[type="checkbox"] {
+.host-blacklist-row input[type='checkbox'] {
     width: 15px;
     height: 15px;
     accent-color: #22c55e;
@@ -262,7 +267,7 @@ body {
 }
 
 .table-api-services .param select,
-.table-api-services .param input[type="text"] {
+.table-api-services .param input[type='text'] {
     width: 100%;
     min-width: 0;
     grid-column: 1 / span 2;
@@ -306,8 +311,8 @@ body {
     user-select: none;
 }
 
-.radio-label input[type="radio"],
-.checkbox-label input[type="checkbox"] {
+.radio-label input[type='radio'],
+.checkbox-label input[type='checkbox'] {
     accent-color: #22c55e;
     cursor: pointer;
     margin: 0;
@@ -351,11 +356,11 @@ body {
 }
 
 select,
-input[type="number"],
-input[type="text"],
-input[type="url"],
-input[type="password"],
-input[type="color"] {
+input[type='number'],
+input[type='text'],
+input[type='url'],
+input[type='password'],
+input[type='color'] {
     height: 30px;
     padding: 4px 8px;
     border: 0;
@@ -383,40 +388,40 @@ select {
     -webkit-appearance: none;
 }
 
-input[type="text"],
-input[type="password"] {
+input[type='text'],
+input[type='password'] {
     width: 100%;
     min-width: 0;
 }
 
-input[type="color"] {
+input[type='color'] {
     padding: 0;
     width: 34px;
     min-width: 34px;
     overflow: hidden;
 }
 
-input[type="color"]::-webkit-color-swatch-wrapper {
+input[type='color']::-webkit-color-swatch-wrapper {
     padding: 0;
 }
 
-input[type="color"]::-webkit-color-swatch {
+input[type='color']::-webkit-color-swatch {
     border: 0;
     border-radius: 8px;
 }
 
-input[type="checkbox"] {
+input[type='checkbox'] {
     width: 16px;
     height: 16px;
     margin: 0;
     flex: 0 0 auto;
 }
 
-.param input[type="checkbox"] {
+.param input[type='checkbox'] {
     justify-self: end;
 }
 
-.param input[type="number"],
+.param input[type='number'],
 .param select {
     flex: 0 0 auto;
 }
@@ -468,7 +473,7 @@ button.secondary {
     object-fit: contain;
 }
 
-.provider-tile input[type="checkbox"] {
+.provider-tile input[type='checkbox'] {
     position: absolute;
     top: 6px;
     right: 6px;

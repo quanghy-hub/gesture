@@ -2,7 +2,7 @@
     const ext = globalThis.GestureExtension;
     ext.shared = ext.shared || {};
     const utils = ext.shared.floatingUtils;
-    
+
     const SHARED_ACTION_STYLE_ID = 'gesture-shared-floating-action-style';
     const SHARED_ICONS = Object.freeze({
         camera: `
@@ -105,7 +105,8 @@
             } else {
                 // Fallback to a sensible default if it was hidden via inline style
                 if (element.style.display === 'none') {
-                    const isPanel = element.tagName === 'DIV' || element.classList.contains('gesture-panel') || element.className.includes('panel');
+                    const isPanel =
+                        element.tagName === 'DIV' || element.classList.contains('gesture-panel') || element.className.includes('panel');
                     if (isPanel) {
                         element.style.display = 'flex';
                         element.style.flexDirection = 'column';
@@ -115,11 +116,11 @@
                 }
             }
         },
-        hide() { 
+        hide() {
             if (!element) {
                 return;
             }
-            element.hidden = true; 
+            element.hidden = true;
             if (utils.hasStyleApi(element)) {
                 element.style.display = 'none';
             }
@@ -155,7 +156,9 @@
         setActive(value) {
             element?.classList?.toggle?.('is-active', !!value);
         },
-        destroy() { element?.remove?.(); }
+        destroy() {
+            element?.remove?.();
+        }
     });
 
     const createTriggerElement = ({ className, textContent, htmlContent, hidden = false }) => {
@@ -174,7 +177,17 @@
         return createFloatingElementApi(element);
     };
 
-    const createActionButton = ({ id, className = '', title = '', ariaLabel = '', htmlContent = '', hidden = false, parent, position = 'fixed', zIndex = '2147483646' }) => {
+    const createActionButton = ({
+        id,
+        className = '',
+        title = '',
+        ariaLabel = '',
+        htmlContent = '',
+        hidden = false,
+        parent,
+        position = 'fixed',
+        zIndex = '2147483646'
+    }) => {
         ensureSharedActionButtonStyles();
         const element = document.createElement('button');
         element.type = 'button';

@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.core = videoFloating.core || {};
 
     const viewport = ext?.shared?.viewportCore;
@@ -14,15 +14,15 @@
     };
 
     const $ = (id) => document.getElementById(id);
-    
+
     const getCoord = (event) => touch?.getPrimaryPoint?.(event) || { x: 0, y: 0 };
-    
+
     const formatTime = (seconds) => `${Math.floor(seconds / 60)}.${(Math.floor(seconds) % 60).toString().padStart(2, '0')}`;
-    
+
     const clamp = (value, min, max) => viewport?.clamp?.(value, min, max) ?? Math.max(min, Math.min(max, value));
-    
+
     const getRect = (node) => node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
-    
+
     const queryAllDeep = (selector, root = document) => {
         const results = [];
         const visited = new Set();
@@ -68,8 +68,8 @@
     const getViewportCenterDistance = (rect) => {
         const centerX = (window.innerWidth || 0) / 2;
         const centerY = (window.innerHeight || 0) / 2;
-        const videoX = rect.left + (rect.width / 2);
-        const videoY = rect.top + (rect.height / 2);
+        const videoX = rect.left + rect.width / 2;
+        const videoY = rect.top + rect.height / 2;
         return Math.hypot(videoX - centerX, videoY - centerY);
     };
 
@@ -77,7 +77,7 @@
         if (typeof document.elementsFromPoint === 'function') {
             for (const node of document.elementsFromPoint(x, y)) {
                 if (!(node instanceof Element)) continue;
-                const video = (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') ? node : node.closest?.('video, audio');
+                const video = node.tagName === 'VIDEO' || node.tagName === 'AUDIO' ? node : node.closest?.('video, audio');
                 if (video?.isConnected && !video.closest('#fvp-wrapper')) return video;
             }
         }

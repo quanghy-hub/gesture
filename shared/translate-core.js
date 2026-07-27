@@ -12,13 +12,19 @@
             oldestKeys.forEach((key) => store.delete(key));
         };
         return {
-            get(key) { return store.get(key); },
+            get(key) {
+                return store.get(key);
+            },
             set(key, value) {
                 store.set(key, { ...value, ts: value?.ts ?? Date.now() });
                 trim();
             },
-            delete(key) { store.delete(key); },
-            clear() { store.clear(); }
+            delete(key) {
+                store.delete(key);
+            },
+            clear() {
+                store.clear();
+            }
         };
     };
 

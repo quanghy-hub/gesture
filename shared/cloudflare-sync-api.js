@@ -60,7 +60,7 @@
 
     const requestState = async (method, body, overrideSettings = {}) => {
         const settings = {
-            ...await stateManager.loadSettings(),
+            ...(await stateManager.loadSettings()),
             ...overrideSettings
         };
         const { endpoint, headers } = assertConfigured(settings);
@@ -90,7 +90,7 @@
 
     const pullConfig = async (overrideSettings = {}) => {
         const settings = {
-            ...await stateManager.loadSettings(),
+            ...(await stateManager.loadSettings()),
             ...overrideSettings
         };
         const state = await requestState('GET', null, settings);
@@ -103,7 +103,7 @@
 
     const bootstrapProfile = async (overrideSettings = {}) => {
         const settings = {
-            ...await stateManager.loadSettings(),
+            ...(await stateManager.loadSettings()),
             ...overrideSettings
         };
         const state = await requestState('GET', null, settings);
@@ -122,7 +122,7 @@
 
     const pushConfig = async (config, overrideSettings = {}) => {
         const settings = {
-            ...await stateManager.loadSettings(),
+            ...(await stateManager.loadSettings()),
             ...overrideSettings
         };
         let state;

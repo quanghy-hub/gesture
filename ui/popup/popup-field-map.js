@@ -20,29 +20,64 @@
         // Inline translate settings
         { elementId: 'inline-translate-hotkey-enabled', configPath: 'inlineTranslate.hotkeyEnabled', type: 'checkbox', fallback: true },
         { elementId: 'inline-translate-hotkey', configPath: 'inlineTranslate.hotkey', type: 'select', fallback: 'ctrl+d' },
-        { elementId: 'inline-translate-selection-translate-enabled', configPath: 'inlineTranslate.selectionTranslateEnabled', type: 'checkbox', fallback: true },
+        {
+            elementId: 'inline-translate-selection-translate-enabled',
+            configPath: 'inlineTranslate.selectionTranslateEnabled',
+            type: 'checkbox',
+            fallback: true
+        },
         { elementId: 'inline-translate-swipe-enabled', configPath: 'inlineTranslate.swipeEnabled', type: 'checkbox', fallback: true },
         { elementId: 'inline-translate-swipe-dir', configPath: 'inlineTranslate.swipeDir', type: 'select', fallback: 'both' },
         { elementId: 'inline-translate-swipe-px', configPath: 'inlineTranslate.swipePx', type: 'number', fallback: 60 },
-        { elementId: 'inline-translate-swipe-max-duration-ms', configPath: 'inlineTranslate.swipeMaxDurationMs', type: 'number', fallback: 500 },
+        {
+            elementId: 'inline-translate-swipe-max-duration-ms',
+            configPath: 'inlineTranslate.swipeMaxDurationMs',
+            type: 'number',
+            fallback: 500
+        },
         { elementId: 'inline-translate-font-scale', configPath: 'inlineTranslate.fontScale', type: 'number', fallback: 0.95 },
         { elementId: 'inline-translate-muted-color', configPath: 'inlineTranslate.mutedColor', type: 'color', fallback: '#00bfff' },
 
         // YouTube subtitles
         { elementId: 'youtube-subtitles-target-lang', configPath: 'youtubeSubtitles.targetLang', type: 'text', fallback: 'vi' },
         { elementId: 'youtube-subtitles-font-size', configPath: 'youtubeSubtitles.fontSize', type: 'number', fallback: 16 },
-        { elementId: 'youtube-subtitles-translated-font-size', configPath: 'youtubeSubtitles.translatedFontSize', type: 'number', fallback: 16 },
+        {
+            elementId: 'youtube-subtitles-translated-font-size',
+            configPath: 'youtubeSubtitles.translatedFontSize',
+            type: 'number',
+            fallback: 16
+        },
         { elementId: 'youtube-subtitles-show-original', configPath: 'youtubeSubtitles.showOriginal', type: 'checkbox', fallback: true },
         { elementId: 'youtube-subtitles-original-color', configPath: 'youtubeSubtitles.originalColor', type: 'color', fallback: '#ffffff' },
-        { elementId: 'youtube-subtitles-translated-color', configPath: 'youtubeSubtitles.translatedColor', type: 'color', fallback: '#0e8cef' },
+        {
+            elementId: 'youtube-subtitles-translated-color',
+            configPath: 'youtubeSubtitles.translatedColor',
+            type: 'color',
+            fallback: '#0e8cef'
+        },
 
         // API services — simple selects/checkboxes (not the dynamic apiKey fields)
         { elementId: 'api-translate-provider', configPath: 'apiServices.translate.activeProvider', type: 'select', fallback: 'google' },
-        { elementId: 'api-translate-fallback-enabled', configPath: 'apiServices.translate.fallbackEnabled', type: 'checkbox', fallback: false },
-        { elementId: 'api-translate-fallback-provider', configPath: 'apiServices.translate.fallbackProvider', type: 'select', fallback: 'mymemory' },
+        {
+            elementId: 'api-translate-fallback-enabled',
+            configPath: 'apiServices.translate.fallbackEnabled',
+            type: 'checkbox',
+            fallback: false
+        },
+        {
+            elementId: 'api-translate-fallback-provider',
+            configPath: 'apiServices.translate.fallbackProvider',
+            type: 'select',
+            fallback: 'mymemory'
+        },
         { elementId: 'api-ocr-provider', configPath: 'apiServices.ocr.activeProvider', type: 'select', fallback: 'ocrspace' },
         { elementId: 'api-ocr-fallback-enabled', configPath: 'apiServices.ocr.fallbackEnabled', type: 'checkbox', fallback: false },
-        { elementId: 'api-ocr-fallback-provider', configPath: 'apiServices.ocr.fallbackProvider', type: 'select', fallback: 'ocrspace-alt' },
+        {
+            elementId: 'api-ocr-fallback-provider',
+            configPath: 'apiServices.ocr.fallbackProvider',
+            type: 'select',
+            fallback: 'ocrspace-alt'
+        },
 
         // Quick search
         { elementId: 'quick-search-columns', configPath: 'quickSearch.columns', type: 'number', fallback: 5 },
@@ -59,7 +94,7 @@
         { elementId: 'video-floating-vertical-tolerance', configPath: 'videoFloating.verticalTolerance', type: 'number', fallback: 80 },
         { elementId: 'video-floating-diagonal-threshold', configPath: 'videoFloating.diagonalThreshold', type: 'number', fallback: 1.5 },
         { elementId: 'video-floating-throttle', configPath: 'videoFloating.throttle', type: 'number', fallback: 15 },
-        { elementId: 'video-floating-notice-font-size', configPath: 'videoFloating.noticeFontSize', type: 'number', fallback: 14 },
+        { elementId: 'video-floating-notice-font-size', configPath: 'videoFloating.noticeFontSize', type: 'number', fallback: 14 }
     ];
 
     /**

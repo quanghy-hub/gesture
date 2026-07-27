@@ -13,9 +13,7 @@
         '.gesture-quick-search-bubble'
     ];
 
-    const getSelectorList = (extraSelectors = []) => (
-        [...new Set([...BASE_EXTENSION_UI_SELECTORS, ...extraSelectors].filter(Boolean))]
-    );
+    const getSelectorList = (extraSelectors = []) => [...new Set([...BASE_EXTENSION_UI_SELECTORS, ...extraSelectors].filter(Boolean))];
 
     const matchesExtensionUi = (node, selector) => node instanceof Element && !!node.closest?.(selector);
 

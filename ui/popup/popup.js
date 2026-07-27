@@ -12,9 +12,7 @@
     const saveEngine = ext.ui.popupSave;
     const eventsEngine = ext.ui.popupEvents;
 
-    const fieldMapElements = Object.fromEntries(
-        FIELD_MAP.map((f) => [f.elementId, safeGetElementById(f.elementId)])
-    );
+    const fieldMapElements = Object.fromEntries(FIELD_MAP.map((f) => [f.elementId, safeGetElementById(f.elementId)]));
 
     const appState = {
         config: null,
@@ -47,8 +45,8 @@
     fillProviderOptions(els.apiOcrFallbackProvider, OCR_PROVIDER_OPTIONS);
 
     const panelReorder = initPanelReorder({
-        popupRoot: els.popupRoot, 
-        panelCards: els.panelCards, 
+        popupRoot: els.popupRoot,
+        panelCards: els.panelCards,
         dragHandles: els.dragHandles,
         getConfig: () => appState.config,
         scheduleAutoSave: () => appState.scheduleAutoSave()
@@ -56,7 +54,9 @@
 
     const syncPanel = initSyncPanel({
         getConfig: () => appState.config,
-        setConfig: (c) => { appState.config = c; },
+        setConfig: (c) => {
+            appState.config = c;
+        },
         render: () => appState.render(),
         getPendingSave: () => appState.pendingSave
     });
@@ -65,7 +65,8 @@
         if (appState.pendingSave) {
             return appState.pendingSave;
         }
-        appState.pendingSave = saveEngine.save(appState.config, appState.activeHost, els, storage, FIELD_MAP, fieldMapElements)
+        appState.pendingSave = saveEngine
+            .save(appState.config, appState.activeHost, els, storage, FIELD_MAP, fieldMapElements)
             .then((savedConfig) => {
                 appState.config = savedConfig;
                 appState.render();
@@ -74,28 +75,33 @@
             .catch((error) => {
                 console.error('[GestureExtension][popup] save failed', error);
                 throw error;
-            }).finally(() => {
+            })
+            .finally(() => {
                 appState.pendingSave = null;
             });
         return appState.pendingSave;
     };
 
-    const getActiveTab = () => new Promise((resolve) => {
-        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
-    });
+    const getActiveTab = () =>
+        new Promise((resolve) => {
+            chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
+        });
 
-    Promise.all([storage.getConfig(), getActiveTab()]).then(([loadedConfig, activeTab]) => {
-        appState.config = loadedConfig;
-        appState.activeHost = getHostFromUrl(activeTab?.url || '');
-        appState.render();
-        appState.isReady = true;
-        return ext.shared.cloudflareSync.loadSettings();
-    }).then((syncSettings) => {
-        syncPanel.renderSyncSettings(syncSettings);
-        return syncPanel.loadBackupStatus();
-    }).catch((error) => {
-        console.error('[GestureExtension][popup] init failed', error);
-    });
+    Promise.all([storage.getConfig(), getActiveTab()])
+        .then(([loadedConfig, activeTab]) => {
+            appState.config = loadedConfig;
+            appState.activeHost = getHostFromUrl(activeTab?.url || '');
+            appState.render();
+            appState.isReady = true;
+            return ext.shared.cloudflareSync.loadSettings();
+        })
+        .then((syncSettings) => {
+            syncPanel.renderSyncSettings(syncSettings);
+            return syncPanel.loadBackupStatus();
+        })
+        .catch((error) => {
+            console.error('[GestureExtension][popup] init failed', error);
+        });
 
     eventsEngine.registerAll(els, appState, storage);
 })();

@@ -1,13 +1,13 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
 
     youtubeSubtitles.createCaptionManager = (deps) => {
-        const { state, settings, persistSettings, invalidatePendingRender, releaseCaptionTrack } = deps;
-        
+        const { state, settings, persistSettings, releaseCaptionTrack } = deps;
+
         const getCurrentVideo = () => ext.shared.domUtils.queryDeep('video') || document.querySelector('video');
-        const getNativeCaptionButton = () => ext.shared.domUtils.queryDeep('.ytp-subtitles-button')
-            || document.querySelector('.ytp-subtitles-button');
+        const getNativeCaptionButton = () =>
+            ext.shared.domUtils.queryDeep('.ytp-subtitles-button') || document.querySelector('.ytp-subtitles-button');
         const isNativeCaptionEnabled = (video = getCurrentVideo()) => {
             const button = getNativeCaptionButton();
             if (button?.getAttribute('aria-pressed') === 'true') {
@@ -43,7 +43,7 @@
                 return;
             }
 
-            let source = '';
+            let source;
             const captionTrack = youtubeSubtitles.captionSource.getActiveCaptionTrack(video, state.captionTrack);
             if (captionTrack) {
                 state.captionTrack = captionTrack;

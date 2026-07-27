@@ -1,11 +1,11 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.core = videoFloating.core || {};
 
     videoFloating.createTopFrameController = () => {
         const ctx = videoFloating.core.createContext();
-        
+
         const layoutManager = videoFloating.ui.createLayoutManager(ctx);
         const shell = videoFloating.ui.createShell(ctx);
         const autoSync = videoFloating.media.createAutoSync(ctx);
@@ -35,7 +35,7 @@
         // Wire up circular dependencies
         menu.setFloatingSession?.(floatingSession);
         autoSync.setFloatingSession?.(floatingSession);
-        
+
         menu.floatFirstAvailableMedia = () => {
             if (!videoFloating.core.config.isFeatureEnabled()) return;
             const preferredVideo = videoFloating.media.detector.getDirectVideos()[0];
@@ -73,11 +73,13 @@
         const iconHandler = videoFloating.interactions.createIconHandler(ctx, menu, shell);
 
         shell.ensureInitialized(menu.menuVideoIcon);
-        
-        ctx.cleanup.push(videoFloating.core.config.bindStorageListener(() => {
-            if (!videoFloating.core.config.isFeatureEnabled()) floatingSession.restore();
-            floatingSession.updateVideoDetectionUI();
-        }));
+
+        ctx.cleanup.push(
+            videoFloating.core.config.bindStorageListener(() => {
+                if (!videoFloating.core.config.isFeatureEnabled()) floatingSession.restore();
+                floatingSession.updateVideoDetectionUI();
+            })
+        );
 
         const onWindowMessage = (event) => {
             if (!event.data) return;
@@ -107,23 +109,22 @@
         iconHandler.setupIconGestures();
         shell.setupOutsideClickGuard();
         uiControls.bindButtons();
-        
+
         ctx.cleanup.push(seekController.bind());
         ctx.cleanup.push(uiControls.bindQualityEvents());
 
         // Wire up resize/drag handles in DOM
-        const wrapperEl = videoFloating.core.utils.$('fvp-wrapper');
         const dragHandle = videoFloating.core.utils.$('fvp-left-drag');
         const resizeBr = document.querySelector('.fvp-resize-br');
         const resizeBl = document.querySelector('.fvp-resize-bl');
-        
+
         if (dragHandle) {
             dragHandle.addEventListener('pointerdown', (e) => dragResizeHandler.beginBoxInteraction(e, 'drag'), true);
             dragHandle.addEventListener('pointermove', dragResizeHandler.handleBoxPointerMove, true);
             dragHandle.addEventListener('pointerup', dragResizeHandler.handleBoxPointerEnd, true);
             dragHandle.addEventListener('pointercancel', dragResizeHandler.handleBoxPointerEnd, true);
         }
-        
+
         if (resizeBr) {
             resizeBr.addEventListener('pointerdown', (e) => dragResizeHandler.beginBoxInteraction(e, 'resize', 'br'), true);
             resizeBr.addEventListener('pointermove', dragResizeHandler.handleBoxPointerMove, true);
@@ -141,8 +142,11 @@
         videoFloating.core.config.loadCfgAsync();
         autoSync.syncFloatingWithPlayingDirectVideo();
         floatingSession.updateVideoDetectionUI();
-        
-        const detectionTimer = window.setInterval(() => floatingSession.updateVideoDetectionUI(), videoFloating.core.config.VIDEO_CHECK_INTERVAL || 2000);
+
+        const detectionTimer = window.setInterval(
+            () => floatingSession.updateVideoDetectionUI(),
+            videoFloating.core.config.VIDEO_CHECK_INTERVAL || 2000
+        );
         ctx.cleanup.push(() => window.clearInterval(detectionTimer));
 
         return {
@@ -156,7 +160,9 @@
                 ctx.cleanup.splice(0).forEach((fn) => {
                     try {
                         fn();
-                    } catch {}
+                    } catch {
+                        /* ignore */
+                    }
                 });
                 ctx.iconRef?.destroy();
                 ctx.menuRef?.destroy();

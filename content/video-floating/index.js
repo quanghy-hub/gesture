@@ -14,9 +14,7 @@
             if (controller) {
                 return controller;
             }
-            controller = window !== window.top
-                ? ext.videoFloating.createIframeController()
-                : ext.videoFloating.createTopFrameController();
+            controller = window !== window.top ? ext.videoFloating.createIframeController() : ext.videoFloating.createTopFrameController();
             return controller;
         };
 

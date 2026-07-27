@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const clipboard = ext.clipboard = ext.clipboard || {};
+    const clipboard = (ext.clipboard = ext.clipboard || {});
     const floating = ext.shared.floatingCore;
     const { UI } = clipboard;
 
@@ -8,8 +8,8 @@
         const posStorage = floating.createPositionStorage('gesture_clipboard_icon_pos', { left: 20, top: 200 });
         let triggerRef = null;
         let panelRef = null;
-        let removeDragBinding = () => { };
-        let removeOutsideClick = () => { };
+        let removeDragBinding = () => {};
+        let removeOutsideClick = () => {};
 
         const renderPanel = (markup) => {
             if (panelRef) {
@@ -99,7 +99,8 @@
 
             removeOutsideClick = floating.bindOutsideClickGuard({
                 isOpen: onPanelOpenChange.isOpen,
-                containsTarget: (target) => target instanceof Node && (panelRef.element.contains(target) || triggerRef.element.contains(target)),
+                containsTarget: (target) =>
+                    target instanceof Node && (panelRef.element.contains(target) || triggerRef.element.contains(target)),
                 onOutside: () => {
                     onPanelOpenChange.close();
                 },
@@ -107,14 +108,22 @@
                 capture: true
             });
 
-            triggerRef.element.addEventListener('mousedown', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-            }, true);
-            triggerRef.element.addEventListener('pointerdown', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-            }, false);
+            triggerRef.element.addEventListener(
+                'mousedown',
+                (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                },
+                true
+            );
+            triggerRef.element.addEventListener(
+                'pointerdown',
+                (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                },
+                false
+            );
             panelRef.element.addEventListener('mousedown', (event) => event.stopPropagation(), true);
             triggerRef.element.addEventListener('click', (event) => event.stopPropagation(), true);
 
@@ -150,9 +159,9 @@
                 }
             },
             containsNode(node) {
-                return node instanceof Node && !!(
-                    (panelRef?.element && panelRef.element.contains(node))
-                    || (triggerRef?.element && triggerRef.element.contains(node))
+                return (
+                    node instanceof Node &&
+                    !!((panelRef?.element && panelRef.element.contains(node)) || (triggerRef?.element && triggerRef.element.contains(node)))
                 );
             },
             focusTriggerAndPanel() {

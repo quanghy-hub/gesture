@@ -1,14 +1,17 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.ui = videoFloating.ui || {};
 
-    const menuVideoIcon = '<svg class="fvp-menu-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16h-4.4l-3.3 3.1c-.65.62-1.8.16-1.8-.74V16H6.5A2.5 2.5 0 0 1 4 13.5zm6.2 1.9v3.2c0 .62.67 1 1.2.68l2.7-1.6a.8.8 0 0 0 0-1.36l-2.7-1.6a.8.8 0 0 0-1.2.68Z"/></svg>';
+    const menuVideoIcon =
+        '<svg class="fvp-menu-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16h-4.4l-3.3 3.1c-.65.62-1.8.16-1.8-.74V16H6.5A2.5 2.5 0 0 1 4 13.5zm6.2 1.9v3.2c0 .62.67 1 1.2.68l2.7-1.6a.8.8 0 0 0 0-1.36l-2.7-1.6a.8.8 0 0 0-1.2.68Z"/></svg>';
 
     videoFloating.ui.createMenu = (ctx) => {
         let floatingSession = null;
-        
-        const setFloatingSession = (fs) => { floatingSession = fs; };
+
+        const setFloatingSession = (fs) => {
+            floatingSession = fs;
+        };
         const { el } = videoFloating.core.utils;
         const { isFeatureEnabled } = videoFloating.core.config;
 
@@ -21,7 +24,13 @@
                 onSelect: () => floatingSession.float(video)
             }));
             const iframeItems = videoFloating.media.detector.getTrackedIframeEntries(ctx.iframeVideoMap).map(([iframe], index) => {
-                const domain = (() => { try { return new URL(iframe.src).hostname; } catch { return 'iframe'; } })();
+                const domain = (() => {
+                    try {
+                        return new URL(iframe.src).hostname;
+                    } catch {
+                        return 'iframe';
+                    }
+                })();
                 return {
                     type: 'iframe',
                     key: `iframe-${index}`,
@@ -42,7 +51,11 @@
                 return;
             }
             items.forEach((entry) => {
-                const item = el('div', `fvp-menu-item${entry.active ? ' active' : ''}`, `<span class="fvp-menu-icon">${menuVideoIcon}</span><span>${entry.label}</span>`);
+                const item = el(
+                    'div',
+                    `fvp-menu-item${entry.active ? ' active' : ''}`,
+                    `<span class="fvp-menu-icon">${menuVideoIcon}</span><span>${entry.label}</span>`
+                );
                 item.onclick = () => {
                     entry.onSelect();
                     ctx.menuRef.hide();
@@ -60,12 +73,12 @@
             const rect = anchor.getBoundingClientRect();
             ctx.menuRef.element.style.width = '';
             ctx.menuRef.element.style.maxHeight = '';
-            
+
             const clamp = videoFloating.core.utils.clamp;
             ctx.menuRef.setPosition(clamp(rect.left, 10, innerWidth - 206), innerHeight - rect.bottom < 300 ? 'auto' : rect.bottom + 10);
             if (innerHeight - rect.bottom < 300) ctx.menuRef.element.style.bottom = `${innerHeight - rect.top + 10}px`;
             else ctx.menuRef.element.style.bottom = 'auto';
-            
+
             renderMenu();
             ctx.menuRef.show('flex');
         };
@@ -86,7 +99,7 @@
             ctx.menuRef?.hide();
             firstItem.onSelect();
         };
-        
+
         return {
             openMenuAtAnchor,
             floatFirstAvailableMedia,

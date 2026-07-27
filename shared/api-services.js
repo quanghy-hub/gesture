@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const apiServices = ext.shared.apiServices = ext.shared.apiServices || {};
+    const apiServices = (ext.shared.apiServices = ext.shared.apiServices || {});
 
     const TRANSLATE_PROVIDER_OPTIONS = Object.freeze([
         { id: 'google', label: 'Google Translate' },
@@ -55,7 +55,7 @@
         }
     });
 
-    const getDefaultProviderId = (serviceType) => serviceType === 'ocr' ? 'ocrspace' : 'google';
+    const getDefaultProviderId = (serviceType) => (serviceType === 'ocr' ? 'ocrspace' : 'google');
 
     const getDefaultFallbackProviderId = (serviceType) => {
         if (serviceType === 'translate') return 'mymemory';

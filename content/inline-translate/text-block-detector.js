@@ -1,29 +1,25 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
-    const {
-        JUNK,
-        IS_REDDIT,
-        REDDIT_SELECTORS,
-        REDDIT_TITLE_SELECTORS,
-        VALID_TAGS,
-        PARAGRAPH_TAGS,
-        HEADING_TAGS,
-        CONTAINER_FALLBACK_TAGS
-    } = inlineTranslate;
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
+    const { JUNK, IS_REDDIT, REDDIT_SELECTORS, REDDIT_TITLE_SELECTORS, VALID_TAGS, PARAGRAPH_TAGS, HEADING_TAGS, CONTAINER_FALLBACK_TAGS } =
+        inlineTranslate;
 
     const hasMeaningfulText = (text) => text.replace(JUNK, '').length > 0;
-    const normalizeBlockText = (text) => String(text || '').replace(/\s+/g, ' ').trim();
+    const normalizeBlockText = (text) =>
+        String(text || '')
+            .replace(/\s+/g, ' ')
+            .trim();
     const getTextKey = (text) => normalizeBlockText(text).slice(0, 240);
     const getElementText = (element) => normalizeBlockText(element?.innerText || '');
 
-    const getMeaningfulChildBlocks = (element) => [...(element?.children || [])].filter((child) => {
-        if (!(child instanceof HTMLElement) || child.classList.contains('gesture-inline-translate-box')) {
-            return false;
-        }
-        const text = getElementText(child);
-        return hasMeaningfulText(text) && text.length >= 24;
-    });
+    const getMeaningfulChildBlocks = (element) =>
+        [...(element?.children || [])].filter((child) => {
+            if (!(child instanceof HTMLElement) || child.classList.contains('gesture-inline-translate-box')) {
+                return false;
+            }
+            const text = getElementText(child);
+            return hasMeaningfulText(text) && text.length >= 24;
+        });
 
     const isParagraphLikeCandidate = (element, text) => {
         if (!(element instanceof HTMLElement) || !VALID_TAGS.test(element.tagName)) return false;
@@ -34,7 +30,9 @@
 
         const childBlocks = getMeaningfulChildBlocks(element);
         const childCount = childBlocks.length;
-        const textNodes = [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE && normalizeBlockText(node.textContent || '').length >= 20);
+        const textNodes = [...element.childNodes].filter(
+            (node) => node.nodeType === Node.TEXT_NODE && normalizeBlockText(node.textContent || '').length >= 20
+        );
         const ownParagraphChildren = childBlocks.filter((child) => PARAGRAPH_TAGS.test(child.tagName) || HEADING_TAGS.test(child.tagName));
 
         if (childCount === 0) return text.length >= 30;
@@ -71,7 +69,11 @@
     };
 
     const isClippedContainer = (element) => {
-        for (let current = element, depth = 0; current && current !== document.body && depth < 3; current = current.parentElement, depth += 1) {
+        for (
+            let current = element, depth = 0;
+            current && current !== document.body && depth < 3;
+            current = current.parentElement, depth += 1
+        ) {
             const style = window.getComputedStyle(current);
             if (/hidden|scroll|auto|clip/.test(`${style.overflow}${style.overflowY}`)) {
                 return true;
@@ -170,8 +172,12 @@
         };
         return (
             [...document.querySelectorAll('video')].some((video) => video.offsetWidth && inRect(video)) ||
-            [...document.querySelectorAll('iframe')].some((frame) => frame.offsetWidth && inRect(frame) && /youtube|vimeo|dailymotion|twitch|facebook.*video|tiktok/i.test(frame.src)) ||
-            document.elementsFromPoint(x, y).some((element) => element.closest?.('video, .html5-video-player, .jwplayer, .vjs-tech, .plyr, .flowplayer'))
+            [...document.querySelectorAll('iframe')].some(
+                (frame) => frame.offsetWidth && inRect(frame) && /youtube|vimeo|dailymotion|twitch|facebook.*video|tiktok/i.test(frame.src)
+            ) ||
+            document
+                .elementsFromPoint(x, y)
+                .some((element) => element.closest?.('video, .html5-video-player, .jwplayer, .vjs-tech, .plyr, .flowplayer'))
         );
     };
 

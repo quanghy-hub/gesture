@@ -18,7 +18,11 @@
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-    transition: box-shadow 140ms ease, opacity 140ms ease, filter 140ms ease, background 140ms ease;
+    transition:
+        box-shadow 140ms ease,
+        opacity 140ms ease,
+        filter 140ms ease,
+        background 140ms ease;
     will-change: box-shadow, filter;
     backface-visibility: hidden;
     transform-origin: center center;

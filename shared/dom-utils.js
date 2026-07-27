@@ -1,9 +1,8 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const permissionsPolicy = document.permissionsPolicy || document.featurePolicy;
-    const allowsFeature = (feature) => typeof permissionsPolicy?.allowsFeature === 'function'
-        ? permissionsPolicy.allowsFeature(feature)
-        : true;
+    const allowsFeature = (feature) =>
+        typeof permissionsPolicy?.allowsFeature === 'function' ? permissionsPolicy.allowsFeature(feature) : true;
     const queryAllDeep = (selector, root = document) => {
         const visited = new Set();
         const resultSet = new Set();
@@ -20,11 +19,12 @@
                 }
             }
 
-            const children = node instanceof Document
-                ? [node.documentElement]
-                : node instanceof ShadowRoot
-                    ? Array.from(node.children)
-                    : Array.from(node.children || []);
+            const children =
+                node instanceof Document
+                    ? [node.documentElement]
+                    : node instanceof ShadowRoot
+                      ? Array.from(node.children)
+                      : Array.from(node.children || []);
 
             for (const child of children) {
                 if (child?.shadowRoot) {
@@ -39,18 +39,21 @@
     };
 
     ext.shared.domUtils = {
-        escapeHtml: (text) => text
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;'),
+        escapeHtml: (text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'),
         encodeAttribute: (text) => encodeURIComponent(text),
         decodeAttribute: (text) => {
-            try { return decodeURIComponent(text || ''); } 
-            catch { return text || ''; }
+            try {
+                return decodeURIComponent(text || '');
+            } catch {
+                return text || '';
+            }
         },
         previewText: (text, max = 140) => (text.length > max ? `${text.slice(0, max - 3)}...` : text),
-        sanitizeFilename: (input) => input.replace(/[<>:"/\\|?*]+/g, '_').replace(/\s+/g, ' ').trim(),
+        sanitizeFilename: (input) =>
+            input
+                .replace(/[<>:"/\\|?*]+/g, '_')
+                .replace(/\s+/g, ' ')
+                .trim(),
         copyText: async (value) => {
             try {
                 if (allowsFeature('clipboard-write') && navigator.clipboard?.writeText) {

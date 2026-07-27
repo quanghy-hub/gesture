@@ -1,512 +1,772 @@
 <!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Gesture</title>
+        <link rel="stylesheet" href="popup.css" />
+    </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gesture</title>
-  <link rel="stylesheet" href="popup.css">
-</head>
+    <body>
+        <main class="popup">
+            <header class="header">
+                <div>
+                    <h1>Gesture</h1>
+                    <p id="current-host">Loading...</p>
+                </div>
+                <div class="header-actions">
+                    <button id="close-popup" class="secondary" type="button">Close</button>
+                </div>
+            </header>
 
-<body>
-  <main class="popup">
-    <header class="header">
-      <div>
-        <h1>Gesture</h1>
-        <p id="current-host">Loading...</p>
-      </div>
-      <div class="header-actions">
-        <button id="close-popup" class="secondary" type="button">Close</button>
-      </div>
-    </header>
+            <section class="card" data-panel-id="host-blacklist">
+                <div class="host-blacklist-row">
+                    <h2 class="card-title">Host Blacklist</h2>
+                    <span id="host-blacklist-label" class="host-blacklist-host">No active host</span>
+                    <span class="card-title-actions">
+                        <button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Host Blacklist"></button>
+                        <input id="host-blacklist-toggle" type="checkbox" aria-label="Disable extension on current host" />
+                    </span>
+                </div>
+            </section>
 
-    <section class="card" data-panel-id="host-blacklist">
-      <div class="host-blacklist-row">
-        <h2 class="card-title">Host Blacklist</h2>
-        <span id="host-blacklist-label" class="host-blacklist-host">No active host</span>
-        <span class="card-title-actions">
-          <button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Host Blacklist"></button>
-          <input id="host-blacklist-toggle" type="checkbox" aria-label="Disable extension on current host">
-        </span>
-      </div>
-    </section>
+            <!-- Unblock Copy -->
+            <section class="card" data-panel-id="unblock-copy">
+                <h2 class="card-title card-title-with-toggle">
+                    <span>Unblock Copy</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Unblock Copy"></button
+                        ><input id="feature-unblock-copy-enabled" type="checkbox" aria-label="Enable Unblock Copy"
+                    /></span>
+                </h2>
+            </section>
 
-    <!-- Unblock Copy -->
-    <section class="card" data-panel-id="unblock-copy">
-      <h2 class="card-title card-title-with-toggle"><span>Unblock Copy</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Unblock Copy"></button><input id="feature-unblock-copy-enabled" type="checkbox" aria-label="Enable Unblock Copy"></span></h2>
-    </section>
+            <!-- Gestures -->
+            <section class="card" data-panel-id="gestures">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-gestures"
+                    aria-expanded="false"
+                    aria-label="Open Gestures settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Gestures</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Gestures"></button
+                        ><input id="feature-gestures-enabled" type="checkbox" aria-label="Enable Gestures"
+                    /></span>
+                </h2>
+                <div id="panel-gestures" class="panel-body is-collapsed">
+                    <div class="table">
+                        <div class="item host-scope-toggle">
+                            <span class="label-main">Gestures</span>
+                            <span class="label-sub">Block site</span>
+                            <span class="param"><span id="gesture-block-host-label" class="host-chip">No host</span></span>
+                            <span class="toggle"><input id="gesture-block-host-toggle" type="checkbox" /></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Long press</span>
+                            <span class="label-sub">Mode</span>
+                            <span class="param"
+                                ><span class="param-name">Open</span
+                                ><select id="g-lp-mode">
+                                    <option value="bg">Bg</option>
+                                    <option value="fg">Fg</option>
+                                </select></span
+                            >
+                            <span class="toggle"><input id="g-lp-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Delay</span>
+                            <span class="param"
+                                ><span class="param-name">Ms</span
+                                ><input id="g-lp-ms" class="num small" type="number" min="200" max="2000" step="50"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
 
-    <!-- Gestures -->
-    <section class="card" data-panel-id="gestures">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-gestures" aria-expanded="false" aria-label="Open Gestures settings" role="button" tabindex="0"><span>Gestures</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Gestures"></button><input id="feature-gestures-enabled" type="checkbox" aria-label="Enable Gestures"></span></h2>
-      <div id="panel-gestures" class="panel-body is-collapsed">
-      <div class="table">
-        <div class="item host-scope-toggle">
-          <span class="label-main">Gestures</span>
-          <span class="label-sub">Block site</span>
-          <span class="param"><span id="gesture-block-host-label" class="host-chip">No host</span></span>
-          <span class="toggle"><input id="gesture-block-host-toggle" type="checkbox"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Long press</span>
-          <span class="label-sub">Mode</span>
-          <span class="param"><span class="param-name">Open</span><select id="g-lp-mode">
-              <option value="bg">Bg</option>
-              <option value="fg">Fg</option>
-            </select></span>
-          <span class="toggle"><input id="g-lp-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Delay</span>
-          <span class="param"><span class="param-name">Ms</span><input id="g-lp-ms" class="num small" type="number"
-              min="200" max="2000" step="50"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
+                        <div class="item">
+                            <span class="label-main">Right click link</span>
+                            <span class="label-sub">Mode</span>
+                            <span class="param"
+                                ><span class="param-name">Open</span
+                                ><select id="g-rc-mode">
+                                    <option value="bg">Bg</option>
+                                    <option value="fg">Fg</option>
+                                </select></span
+                            >
+                            <span class="toggle"><input id="g-rc-enabled" type="checkbox" /></span>
+                        </div>
 
-        <div class="item">
-          <span class="label-main">Right click link</span>
-          <span class="label-sub">Mode</span>
-          <span class="param"><span class="param-name">Open</span><select id="g-rc-mode">
-              <option value="bg">Bg</option>
-              <option value="fg">Fg</option>
-            </select></span>
-          <span class="toggle"><input id="g-rc-enabled" type="checkbox"></span>
-        </div>
+                        <div class="item">
+                            <span class="label-main">Double click/tap</span>
+                            <span class="label-sub">Close tab</span>
+                            <span class="param"
+                                ><span class="param-name">Ms</span
+                                ><input id="g-close-tab-ms" class="num small" type="number" min="50" max="1000" step="10"
+                            /></span>
+                            <span class="toggle"><input id="g-close-tab-enabled" type="checkbox" /></span>
+                        </div>
 
-        <div class="item">
-          <span class="label-main">Double click/tap</span>
-          <span class="label-sub">Close tab</span>
-          <span class="param"><span class="param-name">Ms</span><input id="g-close-tab-ms" class="num small" type="number"
-              min="50" max="1000" step="10"></span>
-          <span class="toggle"><input id="g-close-tab-enabled" type="checkbox"></span>
-        </div>
+                        <div class="item">
+                            <span class="label-main">Pager</span>
+                            <span class="label-sub">Hops</span>
+                            <span class="param"
+                                ><span class="param-name">Max</span><input id="g-pager-hops" class="num xs" type="number" min="1" max="5"
+                            /></span>
+                            <span class="toggle"><input id="g-pager-enabled" type="checkbox" /></span>
+                        </div>
 
-        <div class="item">
-          <span class="label-main">Pager</span>
-          <span class="label-sub">Hops</span>
-          <span class="param"><span class="param-name">Max</span><input id="g-pager-hops" class="num xs" type="number"
-              min="1" max="5"></span>
-          <span class="toggle"><input id="g-pager-enabled" type="checkbox"></span>
-        </div>
+                        <div class="item">
+                            <span class="label-main">Edge scroll</span>
+                            <span class="label-sub">Side</span>
+                            <span class="param"
+                                ><span class="param-name">Side</span
+                                ><select id="g-edge-side">
+                                    <option value="both">Both</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select></span
+                            >
+                            <span class="toggle"><input id="g-edge-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Width</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span><input id="g-edge-width" class="num xs" type="number" min="20" max="120"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Speed</span>
+                            <span class="param"
+                                ><span class="param-name">Rate</span><input id="g-edge-speed" class="num xs" type="number" min="1" max="10"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        <div class="item">
-          <span class="label-main">Edge scroll</span>
-          <span class="label-sub">Side</span>
-          <span class="param"><span class="param-name">Side</span><select id="g-edge-side">
-              <option value="both">Both</option>
-              <option value="left">Left</option>
-              <option value="right">Right</option>
-            </select></span>
-          <span class="toggle"><input id="g-edge-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Width</span>
-          <span class="param"><span class="param-name">Px</span><input id="g-edge-width" class="num xs" type="number"
-              min="20" max="120"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Speed</span>
-          <span class="param"><span class="param-name">Rate</span><input id="g-edge-speed" class="num xs" type="number"
-              min="1" max="10"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-      </div>
-      </div>
-    </section>
+            <!-- Clipboard -->
+            <section class="card" data-panel-id="clipboard">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-clipboard"
+                    aria-expanded="false"
+                    aria-label="Open Clipboard settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Clipboard</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Clipboard"></button
+                        ><input id="feature-clipboard-enabled" type="checkbox" aria-label="Enable Clipboard"
+                    /></span>
+                </h2>
+                <div id="panel-clipboard" class="panel-body is-collapsed">
+                    <div class="table">
+                        <div class="item">
+                            <span class="label-main">History</span>
+                            <span class="label-sub">Panels</span>
+                            <span class="param"
+                                ><span class="param-name">Count</span
+                                ><input id="clipboard-max-history" class="num xs" type="number" min="1" max="20" step="1"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">History</span>
+                            <span class="label-sub">Clear</span>
+                            <span class="param"
+                                ><span class="param-name">Clear</span
+                                ><button id="clipboard-clear" class="secondary inline-button" type="button">Clear</button></span
+                            >
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <!-- Clipboard -->
-    <section class="card" data-panel-id="clipboard">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-clipboard" aria-expanded="false" aria-label="Open Clipboard settings" role="button" tabindex="0"><span>Clipboard</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Clipboard"></button><input id="feature-clipboard-enabled" type="checkbox" aria-label="Enable Clipboard"></span></h2>
-      <div id="panel-clipboard" class="panel-body is-collapsed">
-      <div class="table">
-        <div class="item">
-          <span class="label-main">History</span>
-          <span class="label-sub">Panels</span>
-          <span class="param"><span class="param-name">Count</span><input id="clipboard-max-history" class="num xs"
-              type="number" min="1" max="20" step="1"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">History</span>
-          <span class="label-sub">Clear</span>
-          <span class="param"><span class="param-name">Clear</span><button id="clipboard-clear"
-              class="secondary inline-button" type="button">Clear</button></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-      </div>
-      </div>
-    </section>
+            <!-- Floating Video -->
+            <section class="card" data-panel-id="floating-video">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-video-floating"
+                    aria-expanded="false"
+                    aria-label="Open Floating Video settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Floating Video</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Floating Video"></button
+                        ><input id="feature-video-floating-enabled" type="checkbox" aria-label="Enable Floating Video"
+                    /></span>
+                </h2>
+                <div id="panel-video-floating" class="panel-body is-collapsed">
+                    <div class="table">
+                        <div class="item">
+                            <span class="label-main">Swipe</span>
+                            <span class="label-sub">Min</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span
+                                ><input id="video-floating-min-distance" class="num xs" type="number" min="10" max="200" step="1"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Short</span>
+                            <span class="param"
+                                ><span class="param-name">Rate</span
+                                ><input id="video-floating-swipe-short" class="num xs" type="number" min="0.05" max="1" step="0.05"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Long</span>
+                            <span class="param"
+                                ><span class="param-name">Rate</span
+                                ><input id="video-floating-swipe-long" class="num xs" type="number" min="0.05" max="1" step="0.05"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Switch</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span
+                                ><input id="video-floating-short-threshold" class="num xs" type="number" min="50" max="1000" step="10"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Gesture</span>
+                            <span class="label-sub">Vertical</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span
+                                ><input id="video-floating-vertical-tolerance" class="num xs" type="number" min="20" max="300" step="5"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Diagonal</span>
+                            <span class="param"
+                                ><span class="param-name">Rate</span
+                                ><input id="video-floating-diagonal-threshold" class="num xs" type="number" min="0.5" max="5" step="0.05"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Throttle</span>
+                            <span class="param"
+                                ><span class="param-name">Ms</span
+                                ><input id="video-floating-throttle" class="num xs" type="number" min="0" max="100" step="5"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Notice</span>
+                            <span class="label-sub">Font</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span
+                                ><input id="video-floating-notice-font-size" class="num xs" type="number" min="8" max="48" step="1"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item host-scope-toggle">
+                            <span class="label-main">Background seek</span>
+                            <span class="label-sub">Block site</span>
+                            <span class="param"><span id="video-floating-background-seek-host" class="host-chip">No host</span></span>
+                            <span class="toggle"><input id="video-floating-background-seek-blocked" type="checkbox" /></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <!-- Floating Video -->
-    <section class="card" data-panel-id="floating-video">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-video-floating" aria-expanded="false" aria-label="Open Floating Video settings" role="button" tabindex="0"><span>Floating Video</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Floating Video"></button><input id="feature-video-floating-enabled" type="checkbox" aria-label="Enable Floating Video"></span></h2>
-      <div id="panel-video-floating" class="panel-body is-collapsed">
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Swipe</span>
-          <span class="label-sub">Min</span>
-          <span class="param"><span class="param-name">Px</span><input id="video-floating-min-distance" class="num xs" type="number"
-              min="10" max="200" step="1"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Short</span>
-          <span class="param"><span class="param-name">Rate</span><input id="video-floating-swipe-short" class="num xs" type="number"
-              min="0.05" max="1" step="0.05"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Long</span>
-          <span class="param"><span class="param-name">Rate</span><input id="video-floating-swipe-long" class="num xs" type="number"
-              min="0.05" max="1" step="0.05"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Switch</span>
-          <span class="param"><span class="param-name">Px</span><input id="video-floating-short-threshold" class="num xs" type="number"
-              min="50" max="1000" step="10"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Gesture</span>
-          <span class="label-sub">Vertical</span>
-          <span class="param"><span class="param-name">Px</span><input id="video-floating-vertical-tolerance" class="num xs" type="number"
-              min="20" max="300" step="5"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Diagonal</span>
-          <span class="param"><span class="param-name">Rate</span><input id="video-floating-diagonal-threshold" class="num xs" type="number"
-              min="0.5" max="5" step="0.05"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Throttle</span>
-          <span class="param"><span class="param-name">Ms</span><input id="video-floating-throttle" class="num xs" type="number"
-              min="0" max="100" step="5"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Notice</span>
-          <span class="label-sub">Font</span>
-          <span class="param"><span class="param-name">Px</span><input id="video-floating-notice-font-size" class="num xs" type="number"
-              min="8" max="48" step="1"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item host-scope-toggle">
-          <span class="label-main">Background seek</span>
-          <span class="label-sub">Block site</span>
-          <span class="param"><span id="video-floating-background-seek-host" class="host-chip">No host</span></span>
-          <span class="toggle"><input id="video-floating-background-seek-blocked" type="checkbox"></span>
-        </div>
-      </div>
-      </div>
-    </section>
+            <!-- Video Screenshot -->
+            <section class="card" data-panel-id="video-screenshot">
+                <h2 class="card-title card-title-with-toggle">
+                    <span>Video Screenshot</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Video Screenshot"></button
+                        ><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Enable Video Screenshot"
+                    /></span>
+                </h2>
+            </section>
 
-    <!-- Video Screenshot -->
-    <section class="card" data-panel-id="video-screenshot">
-      <h2 class="card-title card-title-with-toggle"><span>Video Screenshot</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Video Screenshot"></button><input id="feature-video-screenshot-enabled" type="checkbox" aria-label="Enable Video Screenshot"></span></h2>
-    </section>
+            <!-- Quick Search -->
+            <section class="card" data-panel-id="quick-search">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-quick-search"
+                    aria-expanded="false"
+                    aria-label="Open Quick Search settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Quick Search</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Quick Search"></button
+                        ><input id="feature-quick-search-enabled" type="checkbox" aria-label="Enable Quick Search"
+                    /></span>
+                </h2>
+                <div id="panel-quick-search" class="panel-body is-collapsed">
+                    <div class="table">
+                        <div class="item">
+                            <span class="label-main">Bubble</span>
+                            <span class="label-sub">Columns</span>
+                            <span class="param"
+                                ><span class="param-name">Cols</span
+                                ><input id="quick-search-columns" class="num xs" type="number" min="3" max="8" step="1"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Image search</span>
+                            <span class="label-sub"></span>
+                            <span class="param"></span>
+                            <span class="toggle"><input id="quick-search-image-search-enabled" type="checkbox" /></span>
+                        </div>
+                    </div>
+                    <div class="provider-picker" id="quick-search-provider-picker">
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-google" type="checkbox" /><img
+                                src="../../icons/providers/google.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Google</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-perplexity" type="checkbox" /><img
+                                src="../../icons/providers/perplexity.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Perplexity</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-chatgpt" type="checkbox" /><img
+                                src="../../icons/providers/chatgpt.svg"
+                                alt=""
+                            /><span class="provider-tile-label">ChatGPT</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-gemini" type="checkbox" /><img
+                                src="../../icons/providers/gemini.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Gemini</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-claude" type="checkbox" /><img
+                                src="../../icons/providers/claude.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Claude</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-copilot" type="checkbox" /><img
+                                src="../../icons/providers/copilot.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Copilot</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-bing" type="checkbox" /><img
+                                src="../../icons/providers/bing.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Bing</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-duckduckgo" type="checkbox" /><img
+                                src="../../icons/providers/duckduckgo.svg"
+                                alt=""
+                            /><span class="provider-tile-label">DuckDuckGo</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-youtube" type="checkbox" /><img
+                                src="../../icons/providers/youtube.svg"
+                                alt=""
+                            /><span class="provider-tile-label">YouTube</span></label
+                        >
+                        <label class="provider-tile"
+                            ><input id="quick-search-provider-google-images" type="checkbox" /><img
+                                src="../../icons/providers/google.svg"
+                                alt=""
+                            /><span class="provider-tile-label">Google Images</span></label
+                        >
+                    </div>
+                </div>
+            </section>
 
-    <!-- Quick Search -->
-    <section class="card" data-panel-id="quick-search">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-quick-search" aria-expanded="false" aria-label="Open Quick Search settings" role="button" tabindex="0"><span>Quick Search</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Quick Search"></button><input id="feature-quick-search-enabled" type="checkbox" aria-label="Enable Quick Search"></span></h2>
-      <div id="panel-quick-search" class="panel-body is-collapsed">
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Bubble</span>
-          <span class="label-sub">Columns</span>
-          <span class="param"><span class="param-name">Cols</span><input id="quick-search-columns" class="num xs" type="number"
-              min="3" max="8" step="1"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Image search</span>
-          <span class="label-sub"></span>
-          <span class="param"></span>
-          <span class="toggle"><input id="quick-search-image-search-enabled" type="checkbox"></span>
-        </div>
-      </div>
-      <div class="provider-picker" id="quick-search-provider-picker">
-        <label class="provider-tile"><input id="quick-search-provider-google" type="checkbox"><img src="../../icons/providers/google.svg" alt=""><span class="provider-tile-label">Google</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-perplexity" type="checkbox"><img src="../../icons/providers/perplexity.svg" alt=""><span class="provider-tile-label">Perplexity</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-chatgpt" type="checkbox"><img src="../../icons/providers/chatgpt.svg" alt=""><span class="provider-tile-label">ChatGPT</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-gemini" type="checkbox"><img src="../../icons/providers/gemini.svg" alt=""><span class="provider-tile-label">Gemini</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-claude" type="checkbox"><img src="../../icons/providers/claude.svg" alt=""><span class="provider-tile-label">Claude</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-copilot" type="checkbox"><img src="../../icons/providers/copilot.svg" alt=""><span class="provider-tile-label">Copilot</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-bing" type="checkbox"><img src="../../icons/providers/bing.svg" alt=""><span class="provider-tile-label">Bing</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-duckduckgo" type="checkbox"><img src="../../icons/providers/duckduckgo.svg" alt=""><span class="provider-tile-label">DuckDuckGo</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-youtube" type="checkbox"><img src="../../icons/providers/youtube.svg" alt=""><span class="provider-tile-label">YouTube</span></label>
-        <label class="provider-tile"><input id="quick-search-provider-google-images" type="checkbox"><img src="../../icons/providers/google.svg" alt=""><span class="provider-tile-label">Google Images</span></label>
-      </div>
-      </div>
-    </section>
+            <!-- Inline Translate -->
+            <section class="card" data-panel-id="inline-translate">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-inline-translate"
+                    aria-expanded="false"
+                    aria-label="Open Inline Translate settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Inline Translate</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Inline Translate"></button
+                        ><input id="feature-inline-translate-enabled" type="checkbox" aria-label="Enable Inline Translate"
+                    /></span>
+                </h2>
+                <div id="panel-inline-translate" class="panel-body is-collapsed">
+                    <div class="table">
+                        <div class="item">
+                            <span class="label-main">Hotkey</span>
+                            <span class="label-sub">Key</span>
+                            <span class="param"
+                                ><span class="param-name">Key</span
+                                ><select id="inline-translate-hotkey">
+                                    <option value="ctrl+d">Ctrl + D</option>
+                                    <option value="f2">F2</option>
+                                </select></span
+                            >
+                            <span class="toggle"><input id="inline-translate-hotkey-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Selection</span>
+                            <span class="label-sub">Translate</span>
+                            <span class="param"></span>
+                            <span class="toggle"><input id="inline-translate-selection-translate-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Swipe</span>
+                            <span class="label-sub"></span>
+                            <span class="param"></span>
+                            <span class="toggle"><input id="inline-translate-swipe-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Direction</span>
+                            <span class="param"
+                                ><span class="param-name">Swipe</span
+                                ><select id="inline-translate-swipe-dir">
+                                    <option value="both">Both</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                </select></span
+                            >
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Distance</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span
+                                ><input id="inline-translate-swipe-px" class="num xs" type="number" min="20" max="240" step="5"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Duration</span>
+                            <span class="param"
+                                ><span class="param-name">Ms</span
+                                ><input
+                                    id="inline-translate-swipe-max-duration-ms"
+                                    class="num xs"
+                                    type="number"
+                                    min="100"
+                                    max="1500"
+                                    step="50"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Font</span>
+                            <span class="label-sub">Scale</span>
+                            <span class="param"
+                                ><span class="param-name">Scale</span
+                                ><input id="inline-translate-font-scale" class="num xs" type="number" min="0.5" max="2" step="0.05"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Color</span>
+                            <span class="label-sub">Muted</span>
+                            <span class="param"
+                                ><span class="param-name">Muted</span><input id="inline-translate-muted-color" type="color"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <!-- Inline Translate -->
-    <section class="card" data-panel-id="inline-translate">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-inline-translate" aria-expanded="false" aria-label="Open Inline Translate settings" role="button" tabindex="0"><span>Inline Translate</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Inline Translate"></button><input id="feature-inline-translate-enabled" type="checkbox" aria-label="Enable Inline Translate"></span></h2>
-      <div id="panel-inline-translate" class="panel-body is-collapsed">
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Hotkey</span>
-          <span class="label-sub">Key</span>
-          <span class="param"><span class="param-name">Key</span><select id="inline-translate-hotkey">
-              <option value="ctrl+d">Ctrl + D</option>
-              <option value="f2">F2</option>
-            </select></span>
-          <span class="toggle"><input id="inline-translate-hotkey-enabled" type="checkbox"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Selection</span>
-          <span class="label-sub">Translate</span>
-          <span class="param"></span>
-          <span class="toggle"><input id="inline-translate-selection-translate-enabled" type="checkbox"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Swipe</span>
-          <span class="label-sub"></span>
-          <span class="param"></span>
-          <span class="toggle"><input id="inline-translate-swipe-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Direction</span>
-          <span class="param"><span class="param-name">Swipe</span><select id="inline-translate-swipe-dir">
-              <option value="both">Both</option>
-              <option value="left">Left</option>
-              <option value="right">Right</option>
-            </select></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Distance</span>
-          <span class="param"><span class="param-name">Px</span><input id="inline-translate-swipe-px" class="num xs" type="number"
-              min="20" max="240" step="5"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Duration</span>
-          <span class="param"><span class="param-name">Ms</span><input id="inline-translate-swipe-max-duration-ms" class="num xs" type="number"
-              min="100" max="1500" step="50"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Font</span>
-          <span class="label-sub">Scale</span>
-          <span class="param"><span class="param-name">Scale</span><input id="inline-translate-font-scale" class="num xs" type="number"
-              min="0.5" max="2" step="0.05"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Color</span>
-          <span class="label-sub">Muted</span>
-          <span class="param"><span class="param-name">Muted</span><input id="inline-translate-muted-color" type="color"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-      </div>
-      </div>
-    </section>
+            <!-- YouTube Subtitles -->
+            <section class="card" data-panel-id="youtube-subtitles">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-youtube-subtitles"
+                    aria-expanded="false"
+                    aria-label="Open YouTube Subtitles settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>YouTube Subtitles</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder YouTube Subtitles"></button
+                        ><input id="feature-youtube-subtitles-enabled" type="checkbox" aria-label="Enable YouTube Subtitles"
+                    /></span>
+                </h2>
+                <div id="panel-youtube-subtitles" class="panel-body is-collapsed">
+                    <div class="table">
+                        <div class="item">
+                            <span class="label-main">Target</span>
+                            <span class="label-sub">Lang</span>
+                            <span class="param"
+                                ><span class="param-name">Lang</span
+                                ><input id="youtube-subtitles-target-lang" class="num small" type="text" maxlength="8"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Original</span>
+                            <span class="label-sub">Font</span>
+                            <span class="param"
+                                ><span class="param-name">Font</span
+                                ><input id="youtube-subtitles-font-size" class="num xs" type="number" min="12" max="32"
+                            /></span>
+                            <span class="toggle"><input id="youtube-subtitles-show-original" type="checkbox" /></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Translated</span>
+                            <span class="label-sub">Font</span>
+                            <span class="param"
+                                ><span class="param-name">Font</span
+                                ><input id="youtube-subtitles-translated-font-size" class="num xs" type="number" min="12" max="32"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Original</span>
+                            <span class="label-sub">Color</span>
+                            <span class="param"
+                                ><span class="param-name">Color</span><input id="youtube-subtitles-original-color" type="color"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
+                            <span class="label-main">Translated</span>
+                            <span class="label-sub">Color</span>
+                            <span class="param"
+                                ><span class="param-name">Color</span><input id="youtube-subtitles-translated-color" type="color"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <!-- YouTube Subtitles -->
-    <section class="card" data-panel-id="youtube-subtitles">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-youtube-subtitles" aria-expanded="false" aria-label="Open YouTube Subtitles settings" role="button" tabindex="0"><span>YouTube Subtitles</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder YouTube Subtitles"></button><input id="feature-youtube-subtitles-enabled" type="checkbox" aria-label="Enable YouTube Subtitles"></span></h2>
-      <div id="panel-youtube-subtitles" class="panel-body is-collapsed">
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Target</span>
-          <span class="label-sub">Lang</span>
-          <span class="param"><span class="param-name">Lang</span><input id="youtube-subtitles-target-lang" class="num small" type="text"
-              maxlength="8"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Original</span>
-          <span class="label-sub">Font</span>
-          <span class="param"><span class="param-name">Font</span><input id="youtube-subtitles-font-size" class="num xs" type="number"
-              min="12" max="32"></span>
-          <span class="toggle"><input id="youtube-subtitles-show-original" type="checkbox"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Translated</span>
-          <span class="label-sub">Font</span>
-          <span class="param"><span class="param-name">Font</span><input id="youtube-subtitles-translated-font-size" class="num xs" type="number"
-              min="12" max="32"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Original</span>
-          <span class="label-sub">Color</span>
-          <span class="param"><span class="param-name">Color</span><input id="youtube-subtitles-original-color" type="color"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item">
-          <span class="label-main">Translated</span>
-          <span class="label-sub">Color</span>
-          <span class="param"><span class="param-name">Color</span><input id="youtube-subtitles-translated-color" type="color"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-      </div>
-      </div>
-    </section>
+            <!-- API Services -->
+            <section class="card" data-panel-id="api-services">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-api-services"
+                    aria-expanded="false"
+                    aria-label="Open API Services settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>API Services</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder API Services"></button
+                    ></span>
+                </h2>
+                <div id="panel-api-services" class="panel-body is-collapsed">
+                    <div class="table table-api-services">
+                        <div class="item">
+                            <span class="label-main">Translate</span>
+                            <span class="label-sub">Provider</span>
+                            <span class="param"><select id="api-translate-provider"></select></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Fallback</span>
+                            <span class="param"><select id="api-translate-fallback-provider"></select></span>
+                            <span class="toggle"><input id="api-translate-fallback-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">API key</span>
+                            <span class="param"><input id="api-translate-api-key" type="text" autocomplete="off" /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Fallback key</span>
+                            <span class="param"><input id="api-translate-fallback-api-key" type="text" autocomplete="off" /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
 
-    <!-- API Services -->
-    <section class="card" data-panel-id="api-services">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-api-services" aria-expanded="false" aria-label="Open API Services settings" role="button" tabindex="0"><span>API Services</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder API Services"></button></span></h2>
-      <div id="panel-api-services" class="panel-body is-collapsed">
-      <div class="table table-api-services">
-        <div class="item">
-          <span class="label-main">Translate</span>
-          <span class="label-sub">Provider</span>
-          <span class="param"><select id="api-translate-provider"></select></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Fallback</span>
-          <span class="param"><select id="api-translate-fallback-provider"></select></span>
-          <span class="toggle"><input id="api-translate-fallback-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">API key</span>
-          <span class="param"><input id="api-translate-api-key" type="text" autocomplete="off"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Fallback key</span>
-          <span class="param"><input id="api-translate-fallback-api-key" type="text" autocomplete="off"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
+                        <div class="item">
+                            <span class="label-main">OCR</span>
+                            <span class="label-sub">Provider</span>
+                            <span class="param"><select id="api-ocr-provider"></select></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Fallback</span>
+                            <span class="param"><select id="api-ocr-fallback-provider"></select></span>
+                            <span class="toggle"><input id="api-ocr-fallback-enabled" type="checkbox" /></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">API key</span>
+                            <span class="param"><input id="api-ocr-api-key" type="text" autocomplete="off" /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Fallback key</span>
+                            <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off" /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        <div class="item">
-          <span class="label-main">OCR</span>
-          <span class="label-sub">Provider</span>
-          <span class="param"><select id="api-ocr-provider"></select></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Fallback</span>
-          <span class="param"><select id="api-ocr-fallback-provider"></select></span>
-          <span class="toggle"><input id="api-ocr-fallback-enabled" type="checkbox"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">API key</span>
-          <span class="param"><input id="api-ocr-api-key" type="text" autocomplete="off"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Fallback key</span>
-          <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        </div>
-      </div>
-    </section>
+            <!-- Cloudflare Sync -->
+            <section class="card" data-panel-id="backup">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-backup"
+                    aria-expanded="false"
+                    aria-label="Open Cloudflare Sync settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Cloudflare Sync</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Cloudflare Sync"></button
+                    ></span>
+                </h2>
+                <div id="panel-backup" class="panel-body is-collapsed">
+                    <div class="backup-controls">
+                        <input id="backup-worker-url" class="wide" type="url" autocomplete="off" placeholder="Worker URL" />
+                        <input id="backup-api-code" class="wide" type="password" autocomplete="off" placeholder="API Code" />
 
-    <!-- Cloudflare Sync -->
-    <section class="card" data-panel-id="backup">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-backup" aria-expanded="false" aria-label="Open Cloudflare Sync settings" role="button" tabindex="0"><span>Cloudflare Sync</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Cloudflare Sync"></button></span></h2>
-      <div id="panel-backup" class="panel-body is-collapsed">
-        <div class="backup-controls">
-          <input id="backup-worker-url" class="wide" type="url" autocomplete="off" placeholder="Worker URL">
-          <input id="backup-api-code" class="wide" type="password" autocomplete="off" placeholder="API Code">
-          
-          <div class="sync-profile-selection">
-            <span class="sync-label">Active Profile:</span>
-            <label class="radio-label"><input type="radio" name="sync-profile" id="profile-macbook" value="macbook" checked> MacBook</label>
-            <label class="radio-label"><input type="radio" name="sync-profile" id="profile-mobile" value="mobile"> Mobile</label>
-          </div>
+                        <div class="sync-profile-selection">
+                            <span class="sync-label">Active Profile:</span>
+                            <label class="radio-label"
+                                ><input type="radio" name="sync-profile" id="profile-macbook" value="macbook" checked /> MacBook</label
+                            >
+                            <label class="radio-label"
+                                ><input type="radio" name="sync-profile" id="profile-mobile" value="mobile" /> Mobile</label
+                            >
+                        </div>
 
-          <button id="backup-verify" class="secondary inline-button" type="button">Test</button>
-          <button id="backup-push" class="secondary inline-button" type="button">Push</button>
-          <button id="backup-pull" class="secondary inline-button" type="button">Pull</button>
-        </div>
-        <p id="backup-status" class="section-note backup-status"></p>
-      </div>
-    </section>
+                        <button id="backup-verify" class="secondary inline-button" type="button">Test</button>
+                        <button id="backup-push" class="secondary inline-button" type="button">Push</button>
+                        <button id="backup-pull" class="secondary inline-button" type="button">Pull</button>
+                    </div>
+                    <p id="backup-status" class="section-note backup-status"></p>
+                </div>
+            </section>
 
-    <!-- Forum -->
-    <section class="card" data-panel-id="forum">
-      <h2 class="card-title card-title-with-toggle" data-panel-header aria-controls="panel-forum" aria-expanded="false" aria-label="Open Forum settings" role="button" tabindex="0"><span>Forum</span><span class="card-title-actions"><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Forum"></button><input id="feature-forum-enabled" type="checkbox" aria-label="Enable Forum"></span></h2>
-      <div id="panel-forum" class="panel-body is-collapsed">
-      <p id="forum-scope" class="section-note"></p>
-      <div class="table">
-        <div class="item">
-          <span class="label-main">Wide</span>
-          <span class="label-sub"></span>
-          <span class="param"></span>
-          <span class="toggle"><input id="forum-wide" type="checkbox"></span>
-        </div>
+            <!-- Forum -->
+            <section class="card" data-panel-id="forum">
+                <h2
+                    class="card-title card-title-with-toggle"
+                    data-panel-header
+                    aria-controls="panel-forum"
+                    aria-expanded="false"
+                    aria-label="Open Forum settings"
+                    role="button"
+                    tabindex="0"
+                >
+                    <span>Forum</span
+                    ><span class="card-title-actions"
+                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Forum"></button
+                        ><input id="feature-forum-enabled" type="checkbox" aria-label="Enable Forum"
+                    /></span>
+                </h2>
+                <div id="panel-forum" class="panel-body is-collapsed">
+                    <p id="forum-scope" class="section-note"></p>
+                    <div class="table">
+                        <div class="item">
+                            <span class="label-main">Wide</span>
+                            <span class="label-sub"></span>
+                            <span class="param"></span>
+                            <span class="toggle"><input id="forum-wide" type="checkbox" /></span>
+                        </div>
 
-        <div class="item host-only">
-          <span class="label-main">Min width</span>
-          <span class="label-sub">Px</span>
-          <span class="param"><span class="param-name">Px</span><input id="forum-min-width" class="num" type="number"
-              min="0" max="4000" step="50"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub host-only">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Gap</span>
-          <span class="param"><span class="param-name">Px</span><input id="forum-gap" class="num xs" type="number"
-              min="0" max="24"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub host-only">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Fade</span>
-          <span class="param"><span class="param-name">Ms</span><input id="forum-fade" class="num xs" type="number"
-              min="0" max="1000"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-        <div class="item item-sub host-only">
-          <span class="label-main label-main-empty"></span>
-          <span class="label-sub">Delay</span>
-          <span class="param"><span class="param-name">Ms</span><input id="forum-delay" class="num xs" type="number"
-              min="0" max="1000"></span>
-          <span class="toggle toggle-empty"></span>
-        </div>
-      </div>
-      </div>
-    </section>
+                        <div class="item host-only">
+                            <span class="label-main">Min width</span>
+                            <span class="label-sub">Px</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span
+                                ><input id="forum-min-width" class="num" type="number" min="0" max="4000" step="50"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub host-only">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Gap</span>
+                            <span class="param"
+                                ><span class="param-name">Px</span><input id="forum-gap" class="num xs" type="number" min="0" max="24"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub host-only">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Fade</span>
+                            <span class="param"
+                                ><span class="param-name">Ms</span><input id="forum-fade" class="num xs" type="number" min="0" max="1000"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item item-sub host-only">
+                            <span class="label-main label-main-empty"></span>
+                            <span class="label-sub">Delay</span>
+                            <span class="param"
+                                ><span class="param-name">Ms</span><input id="forum-delay" class="num xs" type="number" min="0" max="1000"
+                            /></span>
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
 
-  </main>
-
-  <script src="../../shared/namespace.js"></script>
-  <script src="../../shared/api-services.js"></script>
-  <script src="../../shared/config-utils.js"></script>
-  <script src="../../shared/config-schema.js"></script>
-  <script src="../../shared/config-normalize.js"></script>
-  <script src="../../shared/config.js"></script>
-  <script src="../../shared/storage.js"></script>
-  <script src="../../shared/cloudflare-sync-state.js"></script>
-  <script src="../../shared/cloudflare-sync-api.js"></script>
-  <script src="../../shared/cloudflare-sync-auto.js"></script>
-  <script src="../../shared/cloudflare-sync.js"></script>
-  <script src="popup-utils.js"></script>
-  <script src="popup-field-map.js"></script>
-  <script src="popup-sync-panel.js"></script>
-  <script src="popup-panel-reorder.js"></script>
-  <script src="popup-elements.js"></script>
-  <script src="popup-render.js"></script>
-  <script src="popup-save.js"></script>
-  <script src="popup-events.js"></script>
-  <script src="popup.js"></script>
-</body>
-
+        <script src="../../shared/namespace.js"></script>
+        <script src="../../shared/api-services.js"></script>
+        <script src="../../shared/config-utils.js"></script>
+        <script src="../../shared/config-schema.js"></script>
+        <script src="../../shared/config-normalize.js"></script>
+        <script src="../../shared/config.js"></script>
+        <script src="../../shared/storage.js"></script>
+        <script src="../../shared/cloudflare-sync-state.js"></script>
+        <script src="../../shared/cloudflare-sync-api.js"></script>
+        <script src="../../shared/cloudflare-sync-auto.js"></script>
+        <script src="../../shared/cloudflare-sync.js"></script>
+        <script src="popup-utils.js"></script>
+        <script src="popup-field-map.js"></script>
+        <script src="popup-sync-panel.js"></script>
+        <script src="popup-panel-reorder.js"></script>
+        <script src="popup-elements.js"></script>
+        <script src="popup-render.js"></script>
+        <script src="popup-save.js"></script>
+        <script src="popup-events.js"></script>
+        <script src="popup.js"></script>
+    </body>
 </html>

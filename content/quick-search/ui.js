@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const quickSearch = ext.quickSearch = ext.quickSearch || {};
+    const quickSearch = (ext.quickSearch = ext.quickSearch || {});
     const viewport = ext.shared.viewportCore;
 
     let uiHost;
@@ -23,9 +23,13 @@
             const image = document.createElement('img');
             image.src = item.icon;
             image.alt = '';
-            image.addEventListener('error', () => {
-                image.replaceWith(createFallbackIcon(item.label));
-            }, { once: true });
+            image.addEventListener(
+                'error',
+                () => {
+                    image.replaceWith(createFallbackIcon(item.label));
+                },
+                { once: true }
+            );
             return image;
         }
 
@@ -141,7 +145,7 @@
     const applyBubblePosition = (bubble, x, y) => {
         const width = bubble.offsetWidth;
         const height = bubble.offsetHeight;
-        const centeredLeft = x - (width / 2);
+        const centeredLeft = x - width / 2;
         const next = viewport?.fitPanelToViewport?.({
             preferredLeft: centeredLeft,
             preferredTop: y,

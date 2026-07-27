@@ -19,33 +19,33 @@
         if (!backupStatus) return;
         backupStatus.textContent = message;
         backupStatus.className = `section-note backup-status${type ? ` ${type}` : ''}`;
-        storage.setLocal({
-            [cloudflareSync.KEYS.status]: message,
-            [cloudflareSync.KEYS.statusType]: type
-        }).catch((error) => {
-            console.error('[GestureExtension][popup] Failed to persist sync status', error);
-        });
+        storage
+            .setLocal({
+                [cloudflareSync.KEYS.status]: message,
+                [cloudflareSync.KEYS.statusType]: type
+            })
+            .catch((error) => {
+                console.error('[GestureExtension][popup] Failed to persist sync status', error);
+            });
     };
 
     const loadBackupStatus = async () => {
-        const result = await storage.getLocal([
-            cloudflareSync.KEYS.status,
-            cloudflareSync.KEYS.statusType
-        ]);
+        const result = await storage.getLocal([cloudflareSync.KEYS.status, cloudflareSync.KEYS.statusType]);
         if (result[cloudflareSync.KEYS.status]) {
             backupStatus.textContent = result[cloudflareSync.KEYS.status];
             backupStatus.className = `section-note backup-status${result[cloudflareSync.KEYS.statusType] ? ` ${result[cloudflareSync.KEYS.statusType]}` : ''}`;
         }
     };
 
-    const formatSyncStamp = (date = new Date()) => date.toLocaleString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
+    const formatSyncStamp = (date = new Date()) =>
+        date.toLocaleString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
 
     const syncStatusSuffix = (revision) => `revision ${Number.isSafeInteger(revision) ? revision : 0} · ${formatSyncStamp()}`;
 
@@ -84,7 +84,6 @@
      * @returns {{ renderSyncSettings, loadBackupStatus }}
      */
     const initSyncPanel = ({ getConfig, setConfig, render, getPendingSave }) => {
-
         const switchProfile = async (nextProfileId) => {
             const config = getConfig();
             if (!config || !nextProfileId) return;

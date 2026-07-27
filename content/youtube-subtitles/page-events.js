@@ -1,10 +1,10 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
 
     youtubeSubtitles.createPageEvents = (deps) => {
         const { state, settings, toggleTranslationMode, stopTranslationMode, startTranslationMode } = deps;
-        
+
         let locationHref = window.location.href;
         let pageEventCleanup = null;
         const NAVIGATION_RETRY_DELAY_MS = 500;
@@ -35,7 +35,13 @@
                 ) {
                     return;
                 }
-                if (event.key.toLowerCase() === 't' && !event.ctrlKey && !event.altKey && !event.metaKey && document.querySelector('video')) {
+                if (
+                    event.key.toLowerCase() === 't' &&
+                    !event.ctrlKey &&
+                    !event.altKey &&
+                    !event.metaKey &&
+                    document.querySelector('video')
+                ) {
                     event.preventDefault();
                     toggleTranslationMode();
                 }
@@ -43,20 +49,23 @@
 
             const scheduleNavigationResume = (shouldResume, attempt = 0) => {
                 window.clearTimeout(state.navigateTimer);
-                state.navigateTimer = window.setTimeout(() => {
-                    state.navigateTimer = 0;
-                    if (youtubeSubtitles.isWatchPage()) {
-                        document.body.dataset.gestureYoutubeSubtitlesMounted = 'true';
-                        youtubeSubtitles.dom.mountControlButtons({ onToggleTranslate: toggleTranslationMode });
-                        youtubeSubtitles.dom.applySettingsStyles(settings());
-                        if (shouldResume && !startTranslationMode() && attempt < MAX_NAVIGATION_RETRY_ATTEMPTS) {
-                            scheduleNavigationResume(shouldResume, attempt + 1);
+                state.navigateTimer = window.setTimeout(
+                    () => {
+                        state.navigateTimer = 0;
+                        if (youtubeSubtitles.isWatchPage()) {
+                            document.body.dataset.gestureYoutubeSubtitlesMounted = 'true';
+                            youtubeSubtitles.dom.mountControlButtons({ onToggleTranslate: toggleTranslationMode });
+                            youtubeSubtitles.dom.applySettingsStyles(settings());
+                            if (shouldResume && !startTranslationMode() && attempt < MAX_NAVIGATION_RETRY_ATTEMPTS) {
+                                scheduleNavigationResume(shouldResume, attempt + 1);
+                            }
+                        } else {
+                            delete document.body.dataset.gestureYoutubeSubtitlesMounted;
+                            youtubeSubtitles.dom.removeTranslateButtons();
                         }
-                    } else {
-                        delete document.body.dataset.gestureYoutubeSubtitlesMounted;
-                        youtubeSubtitles.dom.removeTranslateButtons();
-                    }
-                }, attempt === 0 ? 300 : NAVIGATION_RETRY_DELAY_MS);
+                    },
+                    attempt === 0 ? 300 : NAVIGATION_RETRY_DELAY_MS
+                );
             };
 
             const onNavigateFinish = () => {

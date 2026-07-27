@@ -59,7 +59,7 @@
                     sourceLanguage: utils.detectSourceLanguage(text, effectiveTargetLanguage)
                 };
             } catch (fallbackError) {
-                throw new Error(google.getFriendlyTranslateError(primaryError, fallbackError));
+                throw new Error(google.getFriendlyTranslateError(primaryError, fallbackError), { cause: fallbackError });
             }
         }
     };

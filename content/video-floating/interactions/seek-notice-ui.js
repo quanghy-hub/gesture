@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
     videoFloating.interactions.createSeekNoticeUI = () => {
@@ -10,7 +10,7 @@
         const ensureNotice = (video) => {
             if (!video) return null;
             const fs = videoFloating.core.utils.getFullscreenEl();
-            const container = (fs && (fs === video || fs.contains(video))) ? fs : (video.parentElement || document.body);
+            const container = fs && (fs === video || fs.contains(video)) ? fs : video.parentElement || document.body;
             if (!noticeEl || !container.contains(noticeEl)) {
                 noticeEl?.remove();
                 noticeEl = document.createElement('div');

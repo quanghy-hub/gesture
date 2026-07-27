@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const youtubeSubtitles = ext.youtubeSubtitles = ext.youtubeSubtitles || {};
+    const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
     const { createMemoryCache, translateDetailed } = ext.shared.translateCore;
 
     const cache = createMemoryCache({ maxSize: 500 });

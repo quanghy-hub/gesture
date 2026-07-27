@@ -27,14 +27,8 @@ const CONTENT_SCRIPT_DEFINITIONS = [
         id: 'gesture-content-isolated',
         matches: ['<all_urls>'],
         allFrames: true,
-        css: [
-            'content/video-floating/styles.css',
-            'content/google-search/styles.css',
-            'content/clipboard/styles.css'
-        ],
-        js: [
-            'dist/content-bundle.js'
-        ],
+        css: ['content/video-floating/styles.css', 'content/google-search/styles.css', 'content/clipboard/styles.css'],
+        js: ['dist/content-bundle.js'],
         runAt: 'document_start'
     },
     {
@@ -52,32 +46,41 @@ const isTransientSyncError = (error) => {
     if (!message) {
         return false;
     }
-    return /^(No SW)$/i.test(message)
-        || /Extension context invalidated/i.test(message)
-        || /Service worker context closed/i.test(message);
+    return /^(No SW)$/i.test(message) || /Extension context invalidated/i.test(message) || /Service worker context closed/i.test(message);
 };
 const normalizeSetArray = (value) => [...new Set(Array.isArray(value) ? value : [])].sort();
-const normalizeOrderedArray = (value) => Array.isArray(value) ? [...value] : [];
+const normalizeOrderedArray = (value) => (Array.isArray(value) ? [...value] : []);
 const areSameRegistrations = (left, right) => {
-    return JSON.stringify(left.map((definition) => ({
-        id: definition.id,
-        matches: normalizeSetArray(definition.matches),
-        excludeMatches: normalizeSetArray(definition.excludeMatches),
-        js: normalizeOrderedArray(definition.js),
-        css: normalizeOrderedArray(definition.css),
-        allFrames: !!definition.allFrames,
-        runAt: definition.runAt || '',
-        world: definition.world || ''
-    })).sort((a, b) => a.id.localeCompare(b.id))) === JSON.stringify(right.map((definition) => ({
-        id: definition.id,
-        matches: normalizeSetArray(definition.matches),
-        excludeMatches: normalizeSetArray(definition.excludeMatches),
-        js: normalizeOrderedArray(definition.js),
-        css: normalizeOrderedArray(definition.css),
-        allFrames: !!definition.allFrames,
-        runAt: definition.runAt || '',
-        world: definition.world || ''
-    })).sort((a, b) => a.id.localeCompare(b.id)));
+    return (
+        JSON.stringify(
+            left
+                .map((definition) => ({
+                    id: definition.id,
+                    matches: normalizeSetArray(definition.matches),
+                    excludeMatches: normalizeSetArray(definition.excludeMatches),
+                    js: normalizeOrderedArray(definition.js),
+                    css: normalizeOrderedArray(definition.css),
+                    allFrames: !!definition.allFrames,
+                    runAt: definition.runAt || '',
+                    world: definition.world || ''
+                }))
+                .sort((a, b) => a.id.localeCompare(b.id))
+        ) ===
+        JSON.stringify(
+            right
+                .map((definition) => ({
+                    id: definition.id,
+                    matches: normalizeSetArray(definition.matches),
+                    excludeMatches: normalizeSetArray(definition.excludeMatches),
+                    js: normalizeOrderedArray(definition.js),
+                    css: normalizeOrderedArray(definition.css),
+                    allFrames: !!definition.allFrames,
+                    runAt: definition.runAt || '',
+                    world: definition.world || ''
+                }))
+                .sort((a, b) => a.id.localeCompare(b.id))
+        )
+    );
 };
 
 const getStoredConfig = () => GestureExtension.shared.storage.getConfig();
@@ -131,7 +134,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         return;
     }
     queueContentScriptSync();
-    GestureExtension.shared.cloudflareSync.consumeSkipNextConfigChange()
+    GestureExtension.shared.cloudflareSync
+        .consumeSkipNextConfigChange()
         .then((shouldSkip) => {
             if (shouldSkip) return;
             return GestureExtension.shared.cloudflareSync.scheduleAutoSync(getStoredConfig);

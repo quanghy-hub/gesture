@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
 
     inlineTranslate.createController = ({ getConfig }) => {
         let settings = getConfig().inlineTranslate;

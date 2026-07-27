@@ -1,30 +1,20 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
 
     videoFloating.createVideoCollection = (ctx, deps) => {
-        const {
-            $,
-            getDirectVideos,
-            getDirectVideoSequence,
-            getTrackedIframeEntries,
-            isFeatureEnabled,
-            updateLeftPanelLayout
-        } = deps;
+        const { $, getDirectVideos, getDirectVideoSequence, getTrackedIframeEntries, isFeatureEnabled, updateLeftPanelLayout } = deps;
 
-        const getSwitchVideos = () => (
-            typeof getDirectVideoSequence === 'function'
-                ? getDirectVideoSequence()
-                : getDirectVideos()
-        );
+        const getSwitchVideos = () => (typeof getDirectVideoSequence === 'function' ? getDirectVideoSequence() : getDirectVideos());
 
         const getVideos = () => {
             const liveVideos = getSwitchVideos();
             const snapshot = Array.isArray(ctx.videoSequence)
-                ? ctx.videoSequence.filter((video) => (
-                    video?.isConnected
-                    && (video === ctx.curVid || video === ctx.state.switchTransition?.nextVideo || !video.closest?.('#fvp-wrapper'))
-                ))
+                ? ctx.videoSequence.filter(
+                      (video) =>
+                          video?.isConnected &&
+                          (video === ctx.curVid || video === ctx.state.switchTransition?.nextVideo || !video.closest?.('#fvp-wrapper'))
+                  )
                 : [];
             const merged = [];
             const seen = new Set();

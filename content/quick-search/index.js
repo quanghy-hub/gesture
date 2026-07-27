@@ -9,7 +9,7 @@
                     onConfigChange(nextConfig) {
                         window.__gestureQuickSearchConfig = nextConfig?.quickSearch || window.__gestureQuickSearchConfig || {};
                     },
-                    destroy() { }
+                    destroy() {}
                 };
             }
 

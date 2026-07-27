@@ -8,17 +8,17 @@
         const width = Math.max(widthConfig, 1);
 
         if (sideConfig === 'left') {
-            return Math.max(0, 1 - (x / width));
+            return Math.max(0, 1 - x / width);
         }
         if (sideConfig === 'right') {
-            return Math.max(0, 1 - ((innerWidth - x) / width));
+            return Math.max(0, 1 - (innerWidth - x) / width);
         }
 
         if (x <= width) {
-            return Math.max(0, 1 - (x / width));
+            return Math.max(0, 1 - x / width);
         }
         if (x >= innerWidth - width) {
-            return Math.max(0, 1 - ((innerWidth - x) / width));
+            return Math.max(0, 1 - (innerWidth - x) / width);
         }
         return 0;
     };
@@ -46,7 +46,8 @@
                 state.edge.renderTime = time;
                 const follow = state.edge.active ? 0.95 : 0.35;
                 const maxStep = Math.max(12, deltaTime * 2.8);
-                const next = current + Math.sign(delta) * Math.min(Math.abs(delta) * follow, Math.abs(delta), maxStep + Math.abs(delta) * 0.25);
+                const next =
+                    current + Math.sign(delta) * Math.min(Math.abs(delta) * follow, Math.abs(delta), maxStep + Math.abs(delta) * 0.25);
                 element.scrollTop = next;
                 state.edge.renderRAF = requestAnimationFrame(step);
             };
@@ -84,7 +85,7 @@
                     return;
                 }
                 const previous = element.scrollTop;
-                element.scrollTop = clampScrollTop(previous + ((velocity * deltaTime) / 1000), element);
+                element.scrollTop = clampScrollTop(previous + (velocity * deltaTime) / 1000, element);
                 if (element.scrollTop === previous) {
                     state.momentumRAF = null;
                     state.momentumTime = 0;

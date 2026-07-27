@@ -1,9 +1,10 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const videoFloating = ext.videoFloating = ext.videoFloating || {};
+    const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.media = videoFloating.media || {};
 
-    const { getRect, getViewportIntersection, getViewportCenterDistance, getTopVideoAtPoint, queryAllDeep, getFullscreenEl } = videoFloating.core.utils || {};
+    const { getRect, getViewportIntersection, getViewportCenterDistance, getTopVideoAtPoint, queryAllDeep, getFullscreenEl } =
+        videoFloating.core.utils || {};
     const { hasVisibleSize } = ext?.shared?.domUtils || {};
 
     const isTopVideoCandidate = (video, rect = getRect(video)) => {
@@ -20,8 +21,6 @@
     };
 
     const isVideoActivelyPlaying = (video) => !!(video && !video.paused && !video.ended && video.readyState > 1);
-
-
 
     const getVideoPriority = (video) => {
         const rect = getRect(video);
@@ -66,6 +65,7 @@
             const style = window.getComputedStyle(video);
             if (style.display === 'none' || style.visibility === 'hidden') return false;
         } catch {
+            /* ignore */
         }
 
         const rect = getRect(video);
@@ -74,20 +74,11 @@
         const visibleArea = viewport.area || (viewport.ratio > 0 ? elementArea : 0);
         const shortSide = Math.min(rect.width, rect.height);
         const longSide = Math.max(rect.width, rect.height);
-        if (
-            visibleArea < AUTO_SYNC_MIN_VISIBLE_AREA
-            || shortSide < AUTO_SYNC_MIN_SHORT_SIDE
-            || longSide < AUTO_SYNC_MIN_LONG_SIDE
-        ) return false;
+        if (visibleArea < AUTO_SYNC_MIN_VISIBLE_AREA || shortSide < AUTO_SYNC_MIN_SHORT_SIDE || longSide < AUTO_SYNC_MIN_LONG_SIDE)
+            return false;
 
-        const referenceArea = referenceRect?.width && referenceRect?.height
-            ? Math.max(0, referenceRect.width * referenceRect.height)
-            : 0;
-        if (
-            referenceArea
-            && visibleArea < AUTO_SYNC_REFERENCE_AREA_FLOOR
-            && visibleArea < referenceArea * AUTO_SYNC_REFERENCE_AREA_RATIO
-        ) {
+        const referenceArea = referenceRect?.width && referenceRect?.height ? Math.max(0, referenceRect.width * referenceRect.height) : 0;
+        if (referenceArea && visibleArea < AUTO_SYNC_REFERENCE_AREA_FLOOR && visibleArea < referenceArea * AUTO_SYNC_REFERENCE_AREA_RATIO) {
             return false;
         }
 
@@ -96,32 +87,29 @@
 
     const getVideoSourceCandidate = (video) => {
         const source = video?.querySelector?.('source[src], source[data-source], source[data-src], source[data-video-src]');
-        return video?.currentSrc
-            || video?.src
-            || video?.getAttribute?.('src')
-            || video?.dataset?.source
-            || video?.dataset?.src
-            || video?.dataset?.videoSrc
-            || video?.getAttribute?.('data-source')
-            || video?.getAttribute?.('data-src')
-            || video?.getAttribute?.('data-video-src')
-            || source?.src
-            || source?.dataset?.source
-            || source?.dataset?.src
-            || source?.dataset?.videoSrc
-            || source?.getAttribute?.('data-source')
-            || source?.getAttribute?.('data-src')
-            || source?.getAttribute?.('data-video-src')
-            || '';
+        return (
+            video?.currentSrc ||
+            video?.src ||
+            video?.getAttribute?.('src') ||
+            video?.dataset?.source ||
+            video?.dataset?.src ||
+            video?.dataset?.videoSrc ||
+            video?.getAttribute?.('data-source') ||
+            video?.getAttribute?.('data-src') ||
+            video?.getAttribute?.('data-video-src') ||
+            source?.src ||
+            source?.dataset?.source ||
+            source?.dataset?.src ||
+            source?.dataset?.videoSrc ||
+            source?.getAttribute?.('data-source') ||
+            source?.getAttribute?.('data-src') ||
+            source?.getAttribute?.('data-video-src') ||
+            ''
+        );
     };
 
-    const getDirectVideoKey = (video, rect = getRect(video), sourceCandidate = getVideoSourceCandidate(video)) => [
-        sourceCandidate,
-        Math.round(rect.left),
-        Math.round(rect.top),
-        Math.round(rect.width),
-        Math.round(rect.height)
-    ].join('|');
+    const getDirectVideoKey = (video, rect = getRect(video), sourceCandidate = getVideoSourceCandidate(video)) =>
+        [sourceCandidate, Math.round(rect.left), Math.round(rect.top), Math.round(rect.width), Math.round(rect.height)].join('|');
 
     const collectDirectVideos = () => {
         const unique = new Map();
@@ -134,6 +122,7 @@
                 const style = window.getComputedStyle(video);
                 if (style.display === 'none' || style.visibility === 'hidden') continue;
             } catch {
+                /* ignore */
             }
 
             const isYouTube = location.hostname.includes('youtube.com') || location.hostname.includes('youtube-nocookie.com');
@@ -196,6 +185,7 @@
         try {
             host = new URL(getIframeSrc(iframe)).hostname;
         } catch {
+            /* ignore */
         }
 
         const iframeRect = getRect(iframe);

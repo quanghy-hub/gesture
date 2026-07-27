@@ -63,13 +63,14 @@
         preferredLeft = anchorLeft,
         preferredTop = anchorTop,
         margin = 8
-    }) => clampFixedPosition({
-        left: preferredLeft,
-        top: preferredTop,
-        width: panelWidth,
-        height: panelHeight,
-        margin
-    });
+    }) =>
+        clampFixedPosition({
+            left: preferredLeft,
+            top: preferredTop,
+            width: panelWidth,
+            height: panelHeight,
+            margin
+        });
 
     ext.shared.viewportCore = {
         clamp,

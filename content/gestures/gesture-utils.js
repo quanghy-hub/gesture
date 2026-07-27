@@ -1,16 +1,18 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const gestures = ext.gestures = ext.gestures || {};
+    const gestures = (ext.gestures = ext.gestures || {});
     const touch = ext.shared.touchCore;
 
     const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
     const isEditable = (el) => el && (EDITABLE_TAGS.has(el.tagName) || el.isContentEditable);
 
-    const isInteractive = (el) => el instanceof Element && !!el.closest('a[href], button, input, textarea, select, summary, video, audio, [role="button"], [role="link"]');
+    const isInteractive = (el) =>
+        el instanceof Element &&
+        !!el.closest('a[href], button, input, textarea, select, summary, video, audio, [role="button"], [role="link"]');
 
     const getValidLink = (event) => {
-        for (const node of (event.composedPath?.() || [])) {
+        for (const node of event.composedPath?.() || []) {
             if (node?.tagName === 'A' && node.href && !/^(javascript|mailto|tel|sms|#):/i.test(node.href)) {
                 return node;
             }

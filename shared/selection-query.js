@@ -7,7 +7,9 @@
         if (!(element instanceof Element)) return false;
         if (element instanceof HTMLInputElement) {
             const type = (element.type || 'text').toLowerCase();
-            return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'password', 'radio', 'range', 'reset', 'submit'].includes(type);
+            return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'password', 'radio', 'range', 'reset', 'submit'].includes(
+                type
+            );
         }
         return element instanceof HTMLTextAreaElement || element.isContentEditable;
     };
@@ -30,10 +32,11 @@
 
     const getActiveSelectionText = () => {
         const focusedTarget = getEditableTarget(document.activeElement);
-        return [
-            getSelectionTextFromTarget(focusedTarget),
-            document.getSelection()?.toString() || ''
-        ].find((value) => typeof value === 'string' && value.trim()) || '';
+        return (
+            [getSelectionTextFromTarget(focusedTarget), document.getSelection()?.toString() || ''].find(
+                (value) => typeof value === 'string' && value.trim()
+            ) || ''
+        );
     };
 
     ext.shared.selectionQuery = {

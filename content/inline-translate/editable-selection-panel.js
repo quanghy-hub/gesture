@@ -1,6 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const inlineTranslate = ext.inlineTranslate = ext.inlineTranslate || {};
+    const inlineTranslate = (ext.inlineTranslate = ext.inlineTranslate || {});
     const viewport = ext.shared.viewportCore;
     const EDITABLE_SELECTION_PANEL_MARGIN = 8;
 
@@ -15,7 +15,7 @@
         }
         const width = editableSelectionPanel.offsetWidth;
         const height = editableSelectionPanel.offsetHeight;
-        const centeredLeft = anchor.x - (width / 2);
+        const centeredLeft = anchor.x - width / 2;
         const next = viewport?.fitPanelToViewport?.({
             preferredLeft: centeredLeft,
             preferredTop: anchor.y,
@@ -23,8 +23,14 @@
             panelHeight: height,
             margin: EDITABLE_SELECTION_PANEL_MARGIN
         }) || {
-            left: Math.max(EDITABLE_SELECTION_PANEL_MARGIN, Math.min(centeredLeft, window.innerWidth - width - EDITABLE_SELECTION_PANEL_MARGIN)),
-            top: Math.max(EDITABLE_SELECTION_PANEL_MARGIN, Math.min(anchor.y, window.innerHeight - height - EDITABLE_SELECTION_PANEL_MARGIN))
+            left: Math.max(
+                EDITABLE_SELECTION_PANEL_MARGIN,
+                Math.min(centeredLeft, window.innerWidth - width - EDITABLE_SELECTION_PANEL_MARGIN)
+            ),
+            top: Math.max(
+                EDITABLE_SELECTION_PANEL_MARGIN,
+                Math.min(anchor.y, window.innerHeight - height - EDITABLE_SELECTION_PANEL_MARGIN)
+            )
         };
 
         editableSelectionPanel.style.left = `${next.left}px`;
