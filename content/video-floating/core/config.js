@@ -82,7 +82,7 @@
     };
 
     const bindStorageListener = (onChange) => {
-        if (!globalThis.chrome?.storage?.onChanged?.addListener) {
+        if (!globalThis.browser?.storage?.onChanged?.addListener) {
             return () => {};
         }
         const handler = (changes, areaName) => {
