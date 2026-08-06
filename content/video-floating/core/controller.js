@@ -104,6 +104,13 @@
         window.addEventListener('message', onWindowMessage);
         ctx.cleanup.push(() => window.removeEventListener('message', onWindowMessage));
 
+        const onTouchSwitchVideo = (event) => {
+            const dir = Number(event.detail?.dir) || 0;
+            if (dir) floatingSession.switchVid(dir);
+        };
+        window.addEventListener(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
+        ctx.cleanup.push(() => window.removeEventListener(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo));
+
         autoSync.bindEvents(floatingSession);
         gesturesHandler.setupWrapperGestures();
         iconHandler.setupIconGestures();

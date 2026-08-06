@@ -400,7 +400,7 @@ async function runAllTests() {
         );
         assert.match(
             triggerSource,
-            /triggerRef\.element\.addEventListener\('pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/
+            /triggerRef\.element\.addEventListener\(\s*'pointerdown',\s*\(event\)\s*=>\s*\{\s*floating\.stopFloatingEvent\(event\);/
         );
     });
 

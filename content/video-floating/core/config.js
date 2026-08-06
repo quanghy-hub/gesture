@@ -100,6 +100,7 @@
 
     videoFloating.core.config = {
         CONFIG_STORAGE_KEY,
+        TOUCH_SWITCH_VIDEO_EVENT: 'fvp-touch-switch-video',
         VIDEO_CHECK_INTERVAL: videoFloating.VIDEO_CHECK_INTERVAL,
         getFeatureConfig,
         isFeatureEnabled,
