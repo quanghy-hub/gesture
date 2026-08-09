@@ -2,5 +2,6 @@
 node_modules/
 test-results/
 *.zip
-dist/
+dist-zip/
+
 

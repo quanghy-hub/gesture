@@ -23,8 +23,8 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ### 📑 Tài liệu & CI/CD
 
-- **[CHROMEWEBSTORE.md](file:///Users/best/github/gesture/CHROMEWEBSTORE.md)**: Tạo hồ sơ giải trình chi tiết từng quyền hạn (`storage`, `tabs`, `downloads`, `scripting`, `clipboardWrite`, `<all_urls>`), Single Purpose Statement, và Privacy Disclosures phục vụ phát hành Chrome Web Store.
-- **GitHub Actions CI**: Thêm [.github/workflows/ci.yml](file:///Users/best/github/gesture/.github/workflows/ci.yml) tự động build và chạy bộ kiểm thử trên mỗi commit/PR.
+- **[CHROMEWEBSTORE.md](./CHROMEWEBSTORE.md)**: Tạo hồ sơ giải trình chi tiết từng quyền hạn (`storage`, `tabs`, `downloads`, `scripting`, `clipboardWrite`, `<all_urls>`), Single Purpose Statement, và Privacy Disclosures phục vụ phát hành Chrome Web Store.
+- **GitHub Actions CI**: Thêm [.github/workflows/ci.yml](./.github/workflows/ci.yml) tự động build và chạy bộ kiểm thử trên mỗi commit/PR.
 - **`package.json`**: Định nghĩa chuẩn câu lệnh `npm run build`, `npm run watch`, và `npm test`.
 
 ---

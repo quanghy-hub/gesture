@@ -5,7 +5,7 @@
     "main": "background/service-worker.js",
     "scripts": {
         "build": "node scripts/build.js",
-        "build:zip": "npm run build && mkdir -p /Users/best/github/extension && zip -r /Users/best/github/extension/gesture.zip manifest.json background content dist icons shared ui",
+        "build:zip": "node scripts/zip.js",
         "watch": "node scripts/build.js --watch",
         "test": "node tests/run.js",
         "lint": "eslint .",
