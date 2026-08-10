@@ -1,6 +1,6 @@
 /**
  * Gesture Extension Bundle: content-bundle.js
- * Generated: 2026-08-09T12:49:38.871Z
+ * Generated: 2026-08-10T14:31:41.486Z
  */
 
 /* --- Source: shared/namespace.js --- */
@@ -9866,7 +9866,7 @@ html.fs-active .p-body-content{width:100%!important;max-width:100%!important}
                     wheelSeekBaseTime = ctx.curVid.currentTime || 0;
                     wheelSeekDeltaX = 0;
                 }
-                wheelSeekDeltaX -= deltaX;
+                wheelSeekDeltaX += deltaX;
                 const nextTime = clamp(
                     wheelSeekBaseTime + wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel,
                     0,
@@ -10518,7 +10518,7 @@ html.fs-active .p-body-content{width:100%!important;max-width:100%!important}
                 wheel.baseTime = video.currentTime || 0;
                 wheel.deltaX = 0;
             }
-            wheel.deltaX -= deltaX;
+            wheel.deltaX += deltaX;
             const nextTime = videoFloating.core.utils.clamp(
                 wheel.baseTime + wheel.deltaX * (videoFloating.WHEEL_GESTURE?.seekSecondsPerPixel || 0.1),
                 0,
@@ -11045,7 +11045,7 @@ html.fs-active .p-body-content{width:100%!important;max-width:100%!important}
                 wheelSeekBaseTime = video.currentTime || 0;
                 wheelSeekDeltaX = 0;
             }
-            wheelSeekDeltaX -= deltaX;
+            wheelSeekDeltaX += deltaX;
             video.currentTime = clamp(wheelSeekBaseTime + wheelSeekDeltaX * WHEEL_GESTURE.seekSecondsPerPixel, 0, video.duration);
             postIframeState();
             return true;
