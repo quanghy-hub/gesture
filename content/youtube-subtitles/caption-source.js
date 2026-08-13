@@ -52,15 +52,15 @@
     };
 
     const extractCaptionTextFromDom = () => {
-        const captionRoots = queryAllDeep(
-            '.caption-window, .ytp-caption-window-container, .captions-text, .caption-visual-line, .ytp-caption-segment'
+        const captionContainers = queryAllDeep(
+            '.caption-window, .ytp-caption-window-container, .captions-text'
         );
-        for (const root of [...captionRoots].reverse()) {
-            const lineNodes = root.querySelectorAll?.('.caption-visual-line') || [];
+        for (const root of [...captionContainers].reverse()) {
+            const lineNodes = root.querySelectorAll?.('.caption-visual-line, .ytp-caption-segment') || [];
             if (lineNodes.length) {
                 const lineText = Array.from(lineNodes)
                     .map((line) =>
-                        Array.from(line.querySelectorAll('.ytp-caption-segment, .captions-text span'))
+                        Array.from(line.querySelectorAll('.ytp-caption-segment, span'))
                             .map((segment) => segment.textContent.trim())
                             .filter(Boolean)
                             .join(' ')
@@ -73,7 +73,7 @@
                 }
             }
 
-            const segmentText = Array.from(root.querySelectorAll?.('.ytp-caption-segment, .captions-text, .captions-text span') || [])
+            const segmentText = Array.from(root.querySelectorAll?.('.ytp-caption-segment, span') || [])
                 .map((segment) => segment.textContent.trim())
                 .filter(Boolean)
                 .join(' ')
@@ -161,26 +161,35 @@
             if (!currentWords.length) {
                 return '';
             }
+
             const isProgressiveAutoCaption =
                 previousWords.length > 0 &&
                 previousWords.length < currentWords.length &&
                 previousWords.every((word, index) => currentWords[index] === word);
+
+            let availableWords;
             if (isProgressiveAutoCaption) {
-                const remainingWords = currentWords.slice(state.consumedWordCount);
-                const requiredWords = state.consumedWordCount === 0 ? EARLY_VISIBLE_CAPTION_WORDS : MIN_VISIBLE_CAPTION_WORDS;
-                if (remainingWords.length < requiredWords) {
-                    return '';
-                }
-                const chunkWords = remainingWords.slice(0, MAX_VISIBLE_CAPTION_WORDS);
-                state.consumedWordCount += chunkWords.length;
-                return chunkWords.join(' ');
+                availableWords = currentWords.slice(state.consumedWordCount);
+            } else {
+                state.consumedWordCount = 0;
+                availableWords = currentWords;
             }
-            state.consumedWordCount = 0;
-            if (currentWords.length <= MAX_VISIBLE_CAPTION_WORDS) {
-                return currentWords.join(' ');
+
+            if (!availableWords.length) {
+                return '';
             }
-            const chunkWords = currentWords.slice(0, MAX_VISIBLE_CAPTION_WORDS);
-            state.consumedWordCount = chunkWords.length;
+
+            const lastWord = availableWords[availableWords.length - 1] || '';
+            const hasPunctuation = /[.?!;:,'"]$/.test(lastWord);
+            const minWordsThreshold = state.consumedWordCount === 0 ? EARLY_VISIBLE_CAPTION_WORDS : MIN_VISIBLE_CAPTION_WORDS;
+            const effectiveMinWords = hasPunctuation ? 1 : Math.max(5, minWordsThreshold);
+
+            if (availableWords.length < effectiveMinWords) {
+                return '';
+            }
+
+            const chunkWords = availableWords.slice(0, MAX_VISIBLE_CAPTION_WORDS);
+            state.consumedWordCount += chunkWords.length;
             return chunkWords.join(' ');
         }
     };

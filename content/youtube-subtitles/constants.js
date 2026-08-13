@@ -9,8 +9,8 @@
         nativeCaptionNodes: '.ytp-caption-window-container, .caption-window, .captions-text, .ytp-caption-segment'
     });
 
-    youtubeSubtitles.EARLY_VISIBLE_CAPTION_WORDS = 3;
-    youtubeSubtitles.MIN_VISIBLE_CAPTION_WORDS = 6;
-    youtubeSubtitles.MAX_VISIBLE_CAPTION_WORDS = 12;
+    youtubeSubtitles.EARLY_VISIBLE_CAPTION_WORDS = 6;
+    youtubeSubtitles.MIN_VISIBLE_CAPTION_WORDS = 10;
+    youtubeSubtitles.MAX_VISIBLE_CAPTION_WORDS = 18;
     youtubeSubtitles.isWatchPage = () => /\/watch|[?&]v=/.test(window.location.href);
 })();

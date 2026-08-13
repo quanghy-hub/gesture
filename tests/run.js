@@ -377,6 +377,23 @@ async function runAllTests() {
         assert.equal(captionSource.extractCaptionText(video, showingTrack), 'Hello world');
     });
 
+    runTest('captionSource: gom cụm từ dịch phụ đề dài hơn và xử lý dấu câu', () => {
+        const state = { consumedWordCount: 0 };
+        // Single word or short fragments (< 5 words) without punctuation should return empty
+        assert.equal(captionSource.getDisplayCaptionText('Hello', '', state), '');
+        assert.equal(captionSource.getDisplayCaptionText('Today we are going', 'Today we are', state), '');
+
+        // Short sentence WITH punctuation should return immediately
+        assert.equal(captionSource.getDisplayCaptionText('Yes.', '', state), 'Yes.');
+
+        // Reaching full word threshold should return full chunk
+        state.consumedWordCount = 0;
+        const fullSource = 'Today we are going to explore how to build modern Chrome extensions step by step';
+        const t2 = captionSource.getDisplayCaptionText(fullSource, 'Today we are going', state);
+        assert.equal(t2, fullSource);
+        assert.equal(state.consumedWordCount, 15);
+    });
+
     runTest('youtubeSubtitles: hỗ trợ caption fallback khi mobile YouTube không expose nút CC desktop', () => {
         const managerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-manager.js'), 'utf8');
         const captionSourceSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-source.js'), 'utf8');
