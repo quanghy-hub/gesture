@@ -21,6 +21,7 @@ importScripts(
     '/background/message-handlers.js'
 );
 
+const { STORAGE_KEY } = GestureExtension.shared.config;
 const CONTENT_SCRIPT_IDS = ['gesture-content-isolated', 'gesture-content-main'];
 
 const getStoredConfig = () => GestureExtension.shared.storage.getConfig();
@@ -47,6 +48,8 @@ chrome.runtime.onStartup.addListener(() => {
     cleanupLegacyDynamicScripts();
 });
 
+cleanupLegacyDynamicScripts();
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local' || !changes[STORAGE_KEY]) {
         return;
@@ -61,8 +64,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
             console.error('[GestureExtension] Failed to schedule Cloudflare sync', error);
         });
 });
-
-queueContentScriptSync();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string') {
