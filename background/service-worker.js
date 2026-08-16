@@ -1,139 +1,56 @@
 /* global GestureExtension, importScripts */
 importScripts(
-    chrome.runtime.getURL('shared/namespace.js'),
-    chrome.runtime.getURL('shared/api-services.js'),
-    chrome.runtime.getURL('shared/config-utils.js'),
-    chrome.runtime.getURL('shared/config-schema.js'),
-    chrome.runtime.getURL('shared/config-normalize.js'),
-    chrome.runtime.getURL('shared/config.js'),
-    chrome.runtime.getURL('shared/storage.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync-state.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync-api.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync-auto.js'),
-    chrome.runtime.getURL('shared/cloudflare-sync.js'),
-    chrome.runtime.getURL('background/api-services/translate-utils.js'),
-    chrome.runtime.getURL('background/api-services/translate-google.js'),
-    chrome.runtime.getURL('background/api-services/translate-providers.js'),
-    chrome.runtime.getURL('background/api-services/translate-api.js'),
-    chrome.runtime.getURL('background/api-services/ocr-api.js'),
-    chrome.runtime.getURL('background/api-service-registry.js'),
-    chrome.runtime.getURL('background/message-handlers.js')
+    '/shared/namespace.js',
+    '/shared/messaging.js',
+    '/shared/api-services.js',
+    '/shared/config-utils.js',
+    '/shared/config-schema.js',
+    '/shared/config-normalize.js',
+    '/shared/config.js',
+    '/shared/storage.js',
+    '/shared/cloudflare-sync-state.js',
+    '/shared/cloudflare-sync-api.js',
+    '/shared/cloudflare-sync-auto.js',
+    '/shared/cloudflare-sync.js',
+    '/background/api-services/translate-utils.js',
+    '/background/api-services/translate-google.js',
+    '/background/api-services/translate-providers.js',
+    '/background/api-services/translate-api.js',
+    '/background/api-services/ocr-api.js',
+    '/background/api-service-registry.js',
+    '/background/message-handlers.js'
 );
 
-const { STORAGE_KEY, getExcludedMatchPatterns } = GestureExtension.shared.config;
-
-const CONTENT_SCRIPT_DEFINITIONS = [
-    {
-        id: 'gesture-content-isolated',
-        matches: ['<all_urls>'],
-        allFrames: true,
-        css: ['content/video-floating/styles.css', 'content/google-search/styles.css', 'content/clipboard/styles.css'],
-        js: ['dist/content-bundle.js'],
-        runAt: 'document_start'
-    },
-    {
-        id: 'gesture-content-main',
-        matches: ['<all_urls>'],
-        allFrames: true,
-        js: ['dist/page-api-bundle.js'],
-        runAt: 'document_start',
-        world: 'MAIN'
-    }
-];
-const CONTENT_SCRIPT_IDS = CONTENT_SCRIPT_DEFINITIONS.map((definition) => definition.id);
-const isTransientSyncError = (error) => {
-    const message = String(error?.message || error || '').trim();
-    if (!message) {
-        return false;
-    }
-    return /^(No SW)$/i.test(message) || /Extension context invalidated/i.test(message) || /Service worker context closed/i.test(message);
-};
-const normalizeSetArray = (value) => [...new Set(Array.isArray(value) ? value : [])].sort();
-const normalizeOrderedArray = (value) => (Array.isArray(value) ? [...value] : []);
-const areSameRegistrations = (left, right) => {
-    return (
-        JSON.stringify(
-            left
-                .map((definition) => ({
-                    id: definition.id,
-                    matches: normalizeSetArray(definition.matches),
-                    excludeMatches: normalizeSetArray(definition.excludeMatches),
-                    js: normalizeOrderedArray(definition.js),
-                    css: normalizeOrderedArray(definition.css),
-                    allFrames: !!definition.allFrames,
-                    runAt: definition.runAt || '',
-                    world: definition.world || ''
-                }))
-                .sort((a, b) => a.id.localeCompare(b.id))
-        ) ===
-        JSON.stringify(
-            right
-                .map((definition) => ({
-                    id: definition.id,
-                    matches: normalizeSetArray(definition.matches),
-                    excludeMatches: normalizeSetArray(definition.excludeMatches),
-                    js: normalizeOrderedArray(definition.js),
-                    css: normalizeOrderedArray(definition.css),
-                    allFrames: !!definition.allFrames,
-                    runAt: definition.runAt || '',
-                    world: definition.world || ''
-                }))
-                .sort((a, b) => a.id.localeCompare(b.id))
-        )
-    );
-};
+const CONTENT_SCRIPT_IDS = ['gesture-content-isolated', 'gesture-content-main'];
 
 const getStoredConfig = () => GestureExtension.shared.storage.getConfig();
 
-const syncRegisteredContentScripts = async () => {
-    if (!chrome.scripting?.registerContentScripts) {
+const cleanupLegacyDynamicScripts = async () => {
+    if (!chrome.scripting?.getRegisteredContentScripts || !chrome.scripting?.unregisterContentScripts) {
         return;
     }
-    const config = await getStoredConfig();
-    const excludeMatches = getExcludedMatchPatterns(config.runtime?.excludedHosts);
-    const nextScripts = CONTENT_SCRIPT_DEFINITIONS.map((definition) => ({
-        ...definition,
-        excludeMatches
-    }));
-    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: CONTENT_SCRIPT_IDS });
-    if (areSameRegistrations(existing, nextScripts)) {
-        return;
+    try {
+        const existing = await chrome.scripting.getRegisteredContentScripts({ ids: CONTENT_SCRIPT_IDS });
+        if (existing && existing.length > 0) {
+            await chrome.scripting.unregisterContentScripts({ ids: CONTENT_SCRIPT_IDS });
+        }
+    } catch {
+        // Ignore errors in environments where dynamic registration API is not supported.
     }
-    if (existing.length) {
-        await chrome.scripting.unregisterContentScripts({ ids: CONTENT_SCRIPT_IDS });
-    }
-    await chrome.scripting.registerContentScripts(nextScripts);
-};
-
-let syncQueue = Promise.resolve();
-const queueContentScriptSync = () => {
-    syncQueue = syncQueue
-        .catch(() => {
-            // Keep the queue alive after a previous sync failure.
-        })
-        .then(() => syncRegisteredContentScripts())
-        .catch((error) => {
-            if (isTransientSyncError(error)) {
-                return;
-            }
-            console.error('[GestureExtension] Failed to sync content scripts', error);
-        });
-    return syncQueue;
 };
 
 chrome.runtime.onInstalled.addListener(() => {
-    queueContentScriptSync();
+    cleanupLegacyDynamicScripts();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-    queueContentScriptSync();
+    cleanupLegacyDynamicScripts();
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local' || !changes[STORAGE_KEY]) {
         return;
     }
-    queueContentScriptSync();
     GestureExtension.shared.cloudflareSync
         .consumeSkipNextConfigChange()
         .then((shouldSkip) => {

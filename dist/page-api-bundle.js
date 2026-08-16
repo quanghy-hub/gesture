@@ -1,6 +1,6 @@
 /**
  * Gesture Extension Bundle: page-api-bundle.js
- * Generated: 2026-08-16T15:58:04.049Z
+ * Generated: 2026-08-16T16:07:55.746Z
  */
 
 /* --- Source: content/video-floating/page-api.js --- */
