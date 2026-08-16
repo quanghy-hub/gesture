@@ -10,7 +10,10 @@
         const ensureNotice = (video) => {
             if (!video) return null;
             const fs = videoFloating.core.utils.getFullscreenEl();
-            const container = fs && (fs === video || fs.contains(video)) ? fs : video.parentElement || document.body;
+            const container =
+                video instanceof Element && fs && (fs === video || fs.contains(video))
+                    ? fs
+                    : video.parentElement || document.body;
             if (!noticeEl || !container.contains(noticeEl)) {
                 noticeEl?.remove();
                 noticeEl = document.createElement('div');

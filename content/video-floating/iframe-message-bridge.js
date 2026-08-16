@@ -57,6 +57,16 @@
             }
         };
 
+        const forwardCommandToChildren = (data) => {
+            for (const frame of [...childFrameVideoMap.keys()]) {
+                try {
+                    frame.contentWindow?.postMessage({ type: 'fvp-iframe-command', ...data }, '*');
+                } catch {
+                    // Best-effort forwarding to nested frames.
+                }
+            }
+        };
+
         const pruneChildFrames = () => {
             for (const frame of [...childFrameVideoMap.keys()]) {
                 if (!frame?.isConnected) childFrameVideoMap.delete(frame);
@@ -132,6 +142,15 @@
                 return;
             }
 
+            if (event.data?.type === 'fvp-iframe-state' && event.source !== window) {
+                try {
+                    window.parent.postMessage({ type: 'fvp-iframe-state', state: event.data.state }, '*');
+                } catch {
+                    // Parent may be gone while the iframe is unloading.
+                }
+                return;
+            }
+
             if (event.data?.type !== 'fvp-iframe-command') return;
 
             // Security check: Only process iframe commands originating from top/parent frames or self
@@ -146,9 +165,17 @@
 
             if (command === 'set-floating-active') {
                 setFloatingActive(!!event.data.active);
+                forwardCommandToChildren(event.data);
                 return;
             }
+
             const video = videoManager.getCurrentIframeVideo();
+            if (!video) {
+                // No video in this document — forward to nested frames that reported videos.
+                forwardCommandToChildren(event.data);
+                return;
+            }
+
             switch (command) {
                 case 'play':
                     playIframeVideo(video);

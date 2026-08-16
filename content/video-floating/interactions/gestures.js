@@ -3,7 +3,7 @@
     const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.interactions = videoFloating.interactions || {};
 
-    videoFloating.interactions.createGesturesHandler = (ctx, floatingSession, seekController, uiControls, shell) => {
+    videoFloating.interactions.createGesturesHandler = (ctx, floatingSession, seekController, uiControls, shell, postToFloatedIframe) => {
         const { clamp, $ } = videoFloating.core.utils;
 
         const isWrapperToggleBlockedTarget = (target) => {
@@ -71,6 +71,23 @@
             };
 
             const seekFromWheel = (deltaX) => {
+                if (ctx.floatedIframe) {
+                    const duration = ctx.iframePlaybackState.duration || 0;
+                    if (!duration) return false;
+                    if (wheelSeekBaseTime === null) {
+                        wheelSeekBaseTime = ctx.iframePlaybackState.currentTime || 0;
+                        wheelSeekDeltaX = 0;
+                    }
+                    wheelSeekDeltaX += deltaX;
+                    const nextTime = clamp(
+                        wheelSeekBaseTime + wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel,
+                        0,
+                        duration
+                    );
+                    postToFloatedIframe?.({ command: 'seek-to-ratio', ratio: nextTime / duration });
+                    seekController.renderSeekPreview(nextTime / duration);
+                    return true;
+                }
                 if (!ctx.curVid?.duration) return false;
                 if (wheelSeekBaseTime === null) {
                     wheelSeekBaseTime = ctx.curVid.currentTime || 0;

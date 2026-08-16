@@ -129,6 +129,9 @@
             if (isYouTube) {
                 const isMainPlayer = video.classList.contains('html5-main-video') || video.closest('#movie_player');
                 if (!isMainPlayer) continue;
+                // YouTube re-creates a shadow video inside #movie_player when the real element is floated
+                const wrapper = videoFloating.core.utils.$('fvp-wrapper');
+                if (wrapper?.querySelector('video')) continue;
             }
 
             const rect = getRect(video);

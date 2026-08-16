@@ -20,6 +20,7 @@
         const swipe = {
             active: false,
             video: null,
+            bridge: null,
             startedInsideFloatingBox: false,
             startX: 0,
             startY: 0,
@@ -36,6 +37,7 @@
             swipe.active = false;
             swipe.cancelled = false;
             swipe.video = null;
+            swipe.bridge = null;
             swipe.startedInsideFloatingBox = false;
             swipe.lastDelta = 0;
             swipe.gesture = '';
@@ -81,6 +83,25 @@
                     }
                 }
 
+                if (!video && startedInsideFloatingBox) {
+                    const bridge = targetFinder.getFloatedIframeSeekBridge?.();
+                    if (bridge && Number.isFinite(bridge.getDuration()) && bridge.getDuration() > 0) {
+                        stopTouchEventForFloating(event);
+                        Object.assign(swipe, {
+                            bridge,
+                            video: null,
+                            active: true,
+                            startedInsideFloatingBox,
+                            startX: point.clientX,
+                            startY: point.clientY,
+                            startTime: bridge.getCurrentTime() || 0,
+                            lastUpdate: performance.now(),
+                            allowVerticalSwitch: startedInsideFloatingBox || window !== window.top
+                        });
+                        return;
+                    }
+                }
+
                 if (!video?.isConnected || !Number.isFinite(video.duration) || video.duration <= 0) return;
                 const rect =
                     startedInsideFloatingBox && wrapperRect?.width && wrapperRect?.height
@@ -113,10 +134,10 @@
         };
 
         const onTouchMove = (event) => {
-            if (!swipe.active || !swipe.video || swipe.cancelled) return;
+            if (!swipe.active || (!swipe.video && !swipe.bridge) || swipe.cancelled) return;
             const vfConfig = videoFloating.core.config.getFeatureConfig();
             const point = event.touches?.length === 1 ? event.touches[0] : null;
-            if (!point || !swipe.video.isConnected) {
+            if (!point || (swipe.video && !swipe.video.isConnected)) {
                 swipe.cancelled = true;
                 return;
             }
@@ -158,24 +179,38 @@
             const effectiveMinDistance = Math.max(12, Math.round(vfConfig.minSwipeDistance * 0.45));
             const delta = Math.round((dx > 0 ? dx - effectiveMinDistance : dx + effectiveMinDistance) * scale);
             swipe.lastDelta = delta;
-            noticeUI.showSeekNotice(swipe.video, delta);
+            const seekDuration = swipe.bridge ? swipe.bridge.getDuration() : swipe.video?.duration || 0;
+            if (swipe.bridge) noticeUI.showSeekNotice({ duration: seekDuration, parentElement: videoFloating.core.utils.$('fvp-container') }, delta);
+            else noticeUI.showSeekNotice(swipe.video, delta);
             const now = performance.now();
             if (vfConfig.realtimePreview && now - swipe.lastUpdate > vfConfig.throttle) {
                 swipe.lastUpdate = now;
-                swipe.video.currentTime = videoFloating.core.utils.clamp(swipe.startTime + delta, 0, swipe.video.duration);
+                if (swipe.bridge) {
+                    if (seekDuration > 0) swipe.bridge.seekToRatio(videoFloating.core.utils.clamp(swipe.startTime + delta, 0, seekDuration) / seekDuration);
+                } else {
+                    swipe.video.currentTime = videoFloating.core.utils.clamp(swipe.startTime + delta, 0, swipe.video.duration);
+                }
             }
         };
 
         const onTouchEnd = (event) => {
-            if (!swipe.active || !swipe.video) return;
+            if (!swipe.active || (!swipe.video && !swipe.bridge)) return;
             const vfConfig = videoFloating.core.config.getFeatureConfig();
             if (swipe.startedInsideFloatingBox) {
                 stopTouchEventForFloating(event);
             }
             if (!swipe.cancelled && swipe.gesture === 'switch' && swipe.pendingSwitchDir) {
                 emitTouchSwitchVideo(swipe.pendingSwitchDir);
-            } else if (!swipe.cancelled && !vfConfig.realtimePreview && swipe.video.isConnected) {
-                swipe.video.currentTime = videoFloating.core.utils.clamp(swipe.startTime + (swipe.lastDelta || 0), 0, swipe.video.duration);
+            } else if (!swipe.cancelled && !vfConfig.realtimePreview) {
+                if (swipe.bridge) {
+                    const duration = swipe.bridge.getDuration();
+                    if (duration > 0) swipe.bridge.seekToRatio(videoFloating.core.utils.clamp(swipe.startTime + (swipe.lastDelta || 0), 0, duration) / duration);
+                } else if (swipe.video?.isConnected) {
+                    swipe.video.currentTime = videoFloating.core.utils.clamp(swipe.startTime + (swipe.lastDelta || 0), 0, swipe.video.duration);
+                }
+            } else if (!swipe.cancelled && swipe.bridge && swipe.lastDelta) {
+                const duration = swipe.bridge.getDuration();
+                if (duration > 0) swipe.bridge.seekToRatio(videoFloating.core.utils.clamp(swipe.startTime + swipe.lastDelta, 0, duration) / duration);
             }
             resetSwipe();
         };

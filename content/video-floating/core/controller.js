@@ -13,6 +13,15 @@
 
         const postToFloatedIframe = (cmd) => ctx.floatedIframe?.contentWindow?.postMessage({ type: 'fvp-iframe-command', ...cmd }, '*');
 
+        videoFloating.interactions.floatedIframeSeek = {
+            getDuration: () => ctx.iframePlaybackState.duration || 0,
+            getCurrentTime: () => ctx.iframePlaybackState.currentTime || 0,
+            seekToRatio: (ratio) => postToFloatedIframe({ command: 'seek-to-ratio', ratio: videoFloating.core.utils.clamp(ratio, 0, 1) })
+        };
+        ctx.cleanup.push(() => {
+            videoFloating.interactions.floatedIframeSeek = null;
+        });
+
         const floatingSession = videoFloating.createFloatingSession(ctx, {
             el: videoFloating.core.utils.el,
             $: videoFloating.core.utils.$,
@@ -68,7 +77,7 @@
             applyTransform: () => floatingSession.applyTransform()
         });
 
-        const gesturesHandler = videoFloating.interactions.createGesturesHandler(ctx, floatingSession, seekController, uiControls, shell);
+        const gesturesHandler = videoFloating.interactions.createGesturesHandler(ctx, floatingSession, seekController, uiControls, shell, postToFloatedIframe);
         const dragResizeHandler = videoFloating.interactions.createDragResizeHandler(ctx, layoutManager, shell);
         const iconHandler = videoFloating.interactions.createIconHandler(ctx, menu, shell);
 
@@ -83,7 +92,7 @@
 
         const onWindowMessage = (event) => {
             if (!event.data) return;
-            if (event.data.type === 'fvp-iframe-video-count') {
+            if (event.data.type === 'fvp-iframe-videos') {
                 if (event.source === window) return;
                 const iframes = document.querySelectorAll('iframe');
                 const matched = Array.from(iframes).find((iframe) => iframe.contentWindow === event.source);

@@ -54,6 +54,29 @@
             event.stopPropagation();
             event.stopImmediatePropagation?.();
         };
+        const getFloatingWrapper = () => videoFloating.core.utils.$('fvp-wrapper');
+        const seekFloatedIframeFromWheel = (bridge, deltaX) => {
+            if (wheel.video !== bridge) {
+                wheel.video = bridge;
+                wheel.baseTime = bridge.getCurrentTime() || 0;
+                wheel.deltaX = 0;
+            }
+            wheel.deltaX += deltaX;
+            const duration = bridge.getDuration();
+            const nextTime = videoFloating.core.utils.clamp(
+                wheel.baseTime + wheel.deltaX * (videoFloating.WHEEL_GESTURE?.seekSecondsPerPixel || 0.1),
+                0,
+                duration
+            );
+            bridge.seekToRatio(nextTime / duration);
+            noticeUI.showSeekNotice({ duration, parentElement: getFloatingWrapper() }, Math.round(nextTime - wheel.baseTime));
+        };
+        const seekFloatedIframeBy = (bridge, deltaSeconds) => {
+            const duration = bridge.getDuration();
+            const nextTime = videoFloating.core.utils.clamp((bridge.getCurrentTime() || 0) + deltaSeconds, 0, duration);
+            bridge.seekToRatio(nextTime / duration);
+            noticeUI.showSeekNotice({ duration, parentElement: getFloatingWrapper() }, Math.round(deltaSeconds));
+        };
         const updatePointerPosition = (event) => {
             pointer.active = true;
             pointer.x = event.clientX || 0;
@@ -80,7 +103,14 @@
                     video = activeMedia;
                 }
             }
-            if (!video) return;
+            if (!video) {
+                const bridge = targetFinder.getFloatedIframeSeekBridge?.();
+                if (!bridge || !targetFinder.isPointInFloatingUI(event.clientX || 0, event.clientY || 0)) return;
+                stopSeekEvent(event);
+                scheduleWheelReset();
+                seekFloatedIframeFromWheel(bridge, event.deltaX || 0);
+                return;
+            }
             if (videoFloating.core.config.isBackgroundSeekExcluded() && !video.closest?.('#fvp-wrapper')) return;
 
             stopSeekEvent(event);
@@ -100,7 +130,15 @@
                     video = activeMedia;
                 }
             }
-            if (!video) return;
+            if (!video) {
+                const bridge = targetFinder.getFloatedIframeSeekBridge?.();
+                if (!bridge || !targetFinder.isPointInFloatingUI(pointer.x, pointer.y)) return;
+                const step = Math.max(1, Number(videoFloating.core.config.getFeatureConfig().forwardStep) || 5);
+                stopSeekEvent(event);
+                blurFocusedControl();
+                seekFloatedIframeBy(bridge, event.key === 'ArrowRight' ? step : -step);
+                return;
+            }
             if (videoFloating.core.config.isBackgroundSeekExcluded() && !video.closest?.('#fvp-wrapper')) return;
 
             const step = Math.max(1, Number(videoFloating.core.config.getFeatureConfig().forwardStep) || 5);

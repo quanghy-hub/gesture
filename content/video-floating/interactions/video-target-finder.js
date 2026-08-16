@@ -77,6 +77,13 @@
             return isVideoSeekEditableTarget(node) || Boolean(node.closest('button, a, label, [role="button"]'));
         };
 
+        const getFloatedIframeSeekBridge = () => {
+            const bridge = videoFloating.interactions?.floatedIframeSeek;
+            if (!bridge?.getDuration || !(bridge.getDuration() > 0)) return null;
+            const wrapper = videoFloating.core.utils.$('fvp-wrapper');
+            return wrapper?.querySelector('iframe') ? bridge : null;
+        };
+
         const getVideo = () => {
             const fs = videoFloating.core.utils.getFullscreenEl();
             if (fs) {
@@ -95,6 +102,7 @@
         return {
             getFloatingActiveVideo,
             isPointInFloatingUI,
+            getFloatedIframeSeekBridge,
             getVideoAtPoint,
             getSeekableVideoAtPoint,
             isFloatingGestureBlockedTarget,
