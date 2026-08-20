@@ -1,3 +1,4 @@
+// @ts-check
 (() => {
     const ext = globalThis.GestureExtension;
     const { STORAGE_KEY, normalizeConfig, deepClone } = ext.shared.config;

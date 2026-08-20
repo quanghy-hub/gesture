@@ -4,6 +4,43 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.3.0] - 2026-08-20
+
+### ✨ Cải tiến Inline Translate
+
+- **Fix Reddit comment flair**: `text-block-detector.js` thêm `FLAIR_SELECTOR` và `getRedditCommentBlock()` lọc nhãn `South America` (13 ký tự) và chỉ chọn body `Một Vinh...` qua `pointInElement` + `text.length >=24` và sắp xếp theo độ dài; loại flair khỏi fallback generic (`isFlairElement`).
+- **Cache & dedupe**: `actions.js` dùng `pending Map` share promise, tránh tạo duplicate box và hiện `⏳` sai; `editable-selection-manager.js` thêm cache 120 + pending coalescing, debounce `80->220ms`, giới hạn `4-1800` ký tự.
+- **Block manager**: `block-translation-manager.js` thêm `activeKeys Set`, check `isConnected`, hỗ trợ promise.
+- **Event handler**: `event-handler.js` thêm `getHotkeyPoint()` fallback sang `getSelection()`/viewport, fix `Ctrl+D` qua `event.key`, reset `startY/startTime/startedInVideo` đầy đủ, schedule `80ms`.
+- **Ổn định**: `controller.js` bọc `MutationObserver.observe` với `document.body || document.documentElement` + `DOMContentLoaded` retry + `try/catch`, tránh crash `feature-3` trên `voz.vn` khi body chưa tồn tại.
+- **UX**: `dom.js` box thêm `cursor:pointer`, `title`, click để đóng, thêm `MutationObserver` dọn orphan boxes.
+
+### 🎥 Cải tiến Floating Video cho iframe
+
+- **Mở khóa thu phóng/xoay**: `ui-controls.js` thêm `applyFloatedIframeFallbackTransform()` áp `scale/rotate/objectFit` trực tiếp lên `floatedIframe` song song với `postMessage` (`cycle-fit/zoom/rotate`), đồng bộ `iframePlaybackState`; iframe cross-origin không có inner agent vẫn zoom được toàn khung.
+- **Bỏ hard-lock**: `iframe-lifecycle.js:56` đổi `width:100%!important` sang `width:100%;...transform-origin:center` và reset transform khi float, poll `350->180ms`.
+- **Switch video**: `interactions/gestures.js:49` và `core/controller.js:116` forward `next-video/prev-video` cho `floatedIframe` khi swipe/wheel/touch, trước đó chỉ switch `curVid`.
+- **CSS**: `styles.css:218` thêm `#fvp-wrapper iframe` với `transition:transform 0.3s` và `transform-origin:center`.
+
+---
+
+## [1.2.0] - 2026-08-17
+
+### 🧹 Vệ sinh repo & bảo mật (Repo Hygiene & Security)
+
+- **Build artifacts không còn nằm trong git**: `dist/` và `dist-zip/` được thêm vào `.gitignore` (regenerate bằng `npm run build` / `npm run build:zip`); README cập nhật quy trình build-first khi load unpacked.
+- **Single source of truth cho service worker imports**: Danh sách `importScripts` (~18 files) dời vào `background/imports.js`; `scripts/build.js` validate mọi path (tồn tại, không trùng, đồng bộ với content bundle) ngay tại build time — chống tái phát lỗi ReferenceError kiểu thiếu import.
+- **Gỡ API key OCR demo hardcode**: Xóa key mặc định `'helloworld'` khỏi config schema và runtime fallback; giờ thiếu key sẽ báo lỗi rõ ràng hướng dẫn nhập key trong popup.
+- **Thu gọn permission surface**: Gỡ quyền `tabs` khỏi `manifest.json` — mọi chức năng (tạo/đóng tab, `captureVisibleTab`, đọc `tab.url`) vẫn hoạt động nhờ `<all_urls>` host permission, giảm rủi ro Chrome Web Store review.
+- **Type checking baseline**: Thêm `jsconfig.json` + `types/` (ambient `chrome` API + `GestureConfig` typedefs) + `// @ts-check` trên 6 module core (config, storage, messaging, schema, utils, namespace); `npm run typecheck` (tsc) chạy trong CI.
+- **Commit message guard**: Thêm `.husky/commit-msg` + `scripts/check-commit-msg.js` chặn commit không theo Conventional Commits.
+
+### 🧪 Kiểm thử
+
+- Nâng từ 50 lên **55 tests**: SW imports integrity, single-source-of-truth check, OCR key hygiene, manifest permission surface, build validation end-to-end.
+
+---
+
 ## [1.1.0] - 2026-07-22
 
 ### 🚀 Hiệu năng (Performance)

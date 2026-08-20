@@ -93,6 +93,62 @@
         return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     };
 
+    const FLAIR_SELECTOR = '[slot="flair"], [data-testid*="flair" i], .flair, [id*="flair" i], faceplate-hovercard';
+
+    const isFlairElement = (element) => {
+        if (!(element instanceof Element)) return false;
+        return !!element.matches?.(FLAIR_SELECTOR) || !!element.closest?.(FLAIR_SELECTOR);
+    };
+
+    const getRedditCommentBlock = (comment, originElement, x, y) => {
+        if (!(comment instanceof Element)) return null;
+        const selectors = [
+            '[slot="comment"]',
+            'div[id$="-comment-rtjson-content"]',
+            'div[id$="-rtjson-content"]',
+            '.md',
+            '[data-click-id="text"]',
+            'p'
+        ];
+        const seen = new Set();
+        const candidates = [];
+        for (const selector of selectors) {
+            for (const el of comment.querySelectorAll(selector)) {
+                if (seen.has(el)) continue;
+                seen.add(el);
+                if (isFlairElement(el)) continue;
+                const raw = el.innerText || el.textContent || '';
+                const text = normalizeBlockText(raw);
+                if (!text || !hasMeaningfulText(text)) continue;
+                if (text.length < 24) continue;
+                if (el.closest?.('header, [slot="commentMeta"], [slot="authorName"], faceplate-tracker')) {
+                    if (text.length < 50) continue;
+                }
+                candidates.push({ el, text });
+            }
+        }
+        if (candidates.length) {
+            for (const candidate of candidates) {
+                if (pointInElement(candidate.el, x, y)) {
+                    return { text: candidate.text, node: candidate.el };
+                }
+            }
+            candidates.sort((a, b) => b.text.length - a.text.length);
+            return { text: candidates[0].text, node: candidates[0].el };
+        }
+        let current = originElement;
+        while (current && current !== comment) {
+            if (current instanceof HTMLElement && !isFlairElement(current)) {
+                const t = normalizeBlockText(current.innerText || current.textContent || '');
+                if (hasMeaningfulText(t) && t.length >= 30 && isParagraphLikeCandidate(current, t)) {
+                    return { text: t, node: current };
+                }
+            }
+            current = current.parentElement;
+        }
+        return null;
+    };
+
     const getTextBlock = (element, x = 0, y = 0) => {
         if (!element || element === document.body) {
             return null;
@@ -103,8 +159,9 @@
             if (post) {
                 for (const selector of REDDIT_TITLE_SELECTORS) {
                     for (const candidate of post.querySelectorAll(selector)) {
+                        if (isFlairElement(candidate)) continue;
                         if (!pointInElement(candidate, x, y)) continue;
-                        const titleText = candidate.innerText?.trim() || '';
+                        const titleText = normalizeBlockText(candidate.innerText || candidate.textContent || '');
                         if (hasMeaningfulText(titleText)) {
                             return { text: titleText, node: candidate };
                         }
@@ -113,9 +170,9 @@
             }
             const comment = element.closest('shreddit-comment');
             if (comment) {
-                const candidate = comment.querySelector('.md, [slot="comment"], [id$="-rtjson-content"], [id$="-post-rtjson-content"]');
-                if (candidate?.innerText.trim()) {
-                    return { text: candidate.innerText.trim(), node: candidate };
+                const redditCommentBlock = getRedditCommentBlock(comment, element, x, y);
+                if (redditCommentBlock) {
+                    return redditCommentBlock;
                 }
             }
             if (post) {
@@ -123,8 +180,10 @@
                 if (body) {
                     for (const selector of REDDIT_SELECTORS) {
                         const candidate = body.querySelector(selector);
-                        if (candidate?.innerText.trim()) {
-                            return { text: candidate.innerText.trim(), node: candidate };
+                        if (!candidate || isFlairElement(candidate)) continue;
+                        const bodyText = normalizeBlockText(candidate.innerText || candidate.textContent || '');
+                        if (hasMeaningfulText(bodyText)) {
+                            return { text: bodyText, node: candidate };
                         }
                     }
                 }
@@ -135,6 +194,11 @@
         let best = null;
         let depth = 0;
         while (current && current !== document.body) {
+            if (IS_REDDIT && isFlairElement(current)) {
+                current = current.parentElement;
+                depth += 1;
+                continue;
+            }
             if (window.getComputedStyle(current).display === 'none') {
                 current = current.parentElement;
                 continue;
@@ -193,6 +257,8 @@
         pointInElement,
         getTextBlock,
         hitTestTextBlock,
-        isInVideoZone
+        isInVideoZone,
+        isFlairElement,
+        getRedditCommentBlock
     };
 })();

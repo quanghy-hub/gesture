@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const assert = require('assert').strict;
+const { execFileSync } = require('child_process');
 
 console.log('\x1b[36m==================================================\x1b[0m');
 console.log('\x1b[36m    CHẠY BỘ KIỂM THỬ TỰ ĐỘNG - GESTURE SUITE      \x1b[0m');
@@ -120,6 +121,7 @@ const loadScript = (filePath) => {
 // Nạp các script cần thiết
 try {
     loadScript('shared/namespace.js');
+    loadScript('background/imports.js');
     loadScript('shared/messaging.js');
     loadScript('shared/config-utils.js');
     loadScript('shared/config-schema.js');
@@ -663,6 +665,54 @@ async function runAllTests() {
         const vozConfig = getForumConfig(updated, 'voz.vn');
         assert.equal(vozConfig.enabled, true);
         assert.equal(vozConfig.minWidth, 1200);
+    });
+
+    // ============================================================================
+    // 13. SW Imports, Config Hygiene & Manifest Tests
+    // ============================================================================
+    runTest('swImports: mọi path trong SW_IMPORT_PATHS tồn tại trên disk và không trùng', () => {
+        const paths = toMainContext(sandbox.globalThis.GestureExtension.background.SW_IMPORT_PATHS);
+        assert.ok(Array.isArray(paths) && paths.length > 0, 'SW_IMPORT_PATHS must be a non-empty array');
+        const seen = new Set();
+        for (const rel of paths) {
+            const clean = rel.replace(/^\//, '');
+            assert.equal(seen.has(clean), false, `Duplicate SW import path: ${rel}`);
+            seen.add(clean);
+            assert.equal(fs.existsSync(path.resolve(__dirname, '..', clean)), true, `SW import file missing on disk: ${rel}`);
+        }
+    });
+
+    runTest('swImports: service-worker.js chỉ import từ background/imports.js (single source of truth)', () => {
+        const swSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/service-worker.js'), 'utf8');
+        assert.match(swSource, /importScripts\('\/shared\/namespace\.js', '\/background\/imports\.js'\)/);
+        assert.match(swSource, /\.\.\.GestureExtension\.background\.SW_IMPORT_PATHS/);
+        // Không được phép có importScripts cứng với danh sách dài thủ công nữa
+        const hardcodedList = swSource.match(/importScripts\([^)]*'\/shared\/(?!namespace)[^)]*\)/);
+        assert.equal(hardcodedList, null, 'service-worker.js must not hardcode a manual importScripts list');
+    });
+
+    runTest('config: default OCR apiKey không được hardcode (privacy)', () => {
+        const schema = sandbox.globalThis.GestureExtension.shared.configSchema;
+        const apiKey = schema.DEFAULT_CONFIG.apiServices.ocr.providers.ocrspace.apiKey;
+        assert.equal(apiKey, '');
+        assert.notEqual(apiKey, 'helloworld');
+        const apiKeyInRuntime = sandbox.globalThis.GestureExtension.background.ocrApi;
+        assert.ok(apiKeyInRuntime, 'ocrApi must be loaded');
+        const ocrApiSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/api-services/ocr-api.js'), 'utf8');
+        assert.equal(ocrApiSource.includes('helloworld'), false, 'ocr-api.js must not hardcode a demo API key');
+    });
+
+    runTest('manifest: permission surface tối thiểu (không khai báo quyền tabs)', () => {
+        const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'manifest.json'), 'utf8'));
+        assert.deepEqual(manifest.permissions, ['storage', 'downloads', 'scripting', 'clipboardWrite']);
+    });
+
+    runTest('build: validateSwImports + bundles chạy thành công qua npm run build', () => {
+        const output = execFileSync(process.execPath, [path.resolve(__dirname, '..', 'scripts/build.js')], {
+            encoding: 'utf8'
+        });
+        assert.match(output, /Service worker imports validated/);
+        assert.match(output, /All bundles built successfully/);
     });
 
     // ============================================================================

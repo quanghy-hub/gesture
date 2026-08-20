@@ -1,10 +1,10 @@
 # Chrome Web Store Metadata & Publishing Guide
 
 > **Extension Name**: Gesture
-> **Version**: 1.1.0
+> **Version**: 1.2.0
 > **Category**: Productivity / Accessibility
 > **Manifest Version**: 3
-> **Last Updated**: 2026-07-21
+> **Last Updated**: 2026-08-17
 
 ---
 
@@ -45,13 +45,14 @@ Every permission declared in `manifest.json` is strictly required for the extens
 
 ### API Permissions
 
-| Permission       | Justification                                                                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`        | Required to save user preferences, custom gesture settings, pinned clipboard items, and local host exclusion rules across browser sessions.                               |
-| `tabs`           | Required to create new background/foreground tabs from gesture links, close active tabs via gesture actions, and capture active tab screenshots for video frame analysis. |
-| `downloads`      | Required to save captured video screenshots and recorded video clips directly to the user's Downloads folder upon request.                                                |
-| `scripting`      | Required to dynamically inject content script bundles and MAIN-world video quality APIs into web pages while respecting the user's domain exclusion list.                 |
-| `clipboardWrite` | Required to copy translated text snippets, forum excerpts, and OCR results to the system clipboard when the user clicks copy action buttons.                              |
+| Permission       | Justification                                                                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`        | Required to save user preferences, custom gesture settings, pinned clipboard items, and local host exclusion rules across browser sessions.               |
+| `downloads`      | Required to save captured video screenshots and recorded video clips directly to the user's Downloads folder upon request.                                |
+| `scripting`      | Required to dynamically inject content script bundles and MAIN-world video quality APIs into web pages while respecting the user's domain exclusion list. |
+| `clipboardWrite` | Required to copy translated text snippets, forum excerpts, and OCR results to the system clipboard when the user clicks copy action buttons.              |
+
+> **Note**: The `tabs` permission is intentionally **not** declared. Tab actions (opening/closing tabs via gestures, active-tab screenshot capture) work through the `tabs` API under the `<all_urls>` host permission, which the Chrome docs define as sufficient for `tabs.captureVisibleTab()` and for reading the active tab's `url`/`title` properties. Keeping the permission surface minimal reduces store review risk.
 
 ### Host Permissions
 
@@ -77,12 +78,19 @@ Every permission declared in `manifest.json` is strictly required for the extens
 - [x] All permissions and host permissions have plain-English justifications
 - [x] No `eval()` or dynamic code loading used in extension pages
 - [x] Content scripts bundled locally into `dist/` directory
-- [x] Automated test suite passing (41/41 tests)
+- [x] Automated test suite passing (55/55 tests)
 - [x] No sensitive keys or secrets hardcoded in release artifacts
 
 ---
 
 ## 6. Version History
+
+### Version 1.2.0 (2026-08-17)
+
+- Removed the `tabs` permission — tab actions and screenshot capture work under the `<all_urls>` host permission, per Chrome's official Tabs API documentation.
+- Removed the hardcoded demo OCR API key from defaults; OCR now requires the user's own key entered in the popup.
+- Consolidated service worker `importScripts` into a single-source-of-truth manifest (`background/imports.js`) validated at build time.
+- Added `npm run typecheck` (tsc over JSDoc-typed core modules) to the CI pipeline.
 
 ### Version 1.1.0 (2026-07-21)
 

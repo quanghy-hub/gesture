@@ -16,18 +16,24 @@ Chromium Extension Manifest V3 được tách module từ các userscript:
 
 ## Cài trên Chromium desktop / Helium macOS
 
+0. Cài dependency và build bundle (bắt buộc, vì `dist/` không nằm trong git):
+    ```
+    npm install
+    npm run build
+    ```
 1. Mở `chrome://extensions`
 2. Bật **Developer mode**
 3. Chọn **Load unpacked**
 4. Trỏ đến thư mục repo này, nơi có `manifest.json`
-5. Sau khi đổi branch hoặc sửa file, bấm **Reload** extension trong Helium/Chromium
+5. Sau khi đổi branch hoặc sửa file, chạy lại `npm run build` (hoặc `npm run watch` để tự rebuild) rồi bấm **Reload** extension trong Helium/Chromium
 
 ## Cài trên Kiwi Browser
 
-1. Chép thư mục `extension` lên thiết bị Android
-2. Mở Kiwi → Extensions
-3. Bật developer mode nếu cần
-4. Load unpacked / cài từ thư mục phù hợp với bản Kiwi của bạn
+1. Build và đóng gói zip: `npm run build:zip` (tạo `dist-zip/gesture.zip`)
+2. Chép file zip (hoặc thư mục `extension`) lên thiết bị Android
+3. Mở Kiwi → Extensions
+4. Bật developer mode nếu cần
+5. Load unpacked / cài từ thư mục phù hợp với bản Kiwi của bạn
 
 ## Cloudflare Sync
 
@@ -57,7 +63,7 @@ Popup có panel **Cloudflare Sync** dùng chung Worker `extension` và app names
 - Tua video bằng trackpad macOS: vuốt 2 ngón sang phải để tua tới, vuốt sang trái để tua lùi.
 - macOS không gửi số ngón trackpad cho Chromium extension, và gesture hệ thống như Mission Control/App Exposé được hệ điều hành chặn trước trang web. Muốn dùng 4 ngón cho extension cần tắt hoặc đổi shortcut 4 ngón trong System Settings trước.
 - Pager giờ hoạt động theo số lần cuộn được gom trong cửa sổ thời gian: **1 cuộn = 1 trang, 2 cuộn = 2 trang, 3 cuộn = 3 trang, và từ ngưỡng tối đa trở lên sẽ đi thẳng tới đầu/cuối**.
-- Bản này phù hợp để load unpacked trên Chromium desktop và Kiwi; nếu cần phát hành lâu dài, bước tiếp theo nên thêm build pipeline, lint và test checklist.
+- Bản này phù hợp để load unpacked trên Chromium desktop và Kiwi; build pipeline (`npm run build`), lint, typecheck và test checklist đã có sẵn trong repo.
 
 ## Giải trình về Quyền hạn `<all_urls>` (Host Permissions Rationale)
 

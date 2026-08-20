@@ -1,25 +1,8 @@
 /* global GestureExtension, importScripts */
-importScripts(
-    '/shared/namespace.js',
-    '/shared/messaging.js',
-    '/shared/api-services.js',
-    '/shared/config-utils.js',
-    '/shared/config-schema.js',
-    '/shared/config-normalize.js',
-    '/shared/config.js',
-    '/shared/storage.js',
-    '/shared/cloudflare-sync-state.js',
-    '/shared/cloudflare-sync-api.js',
-    '/shared/cloudflare-sync-auto.js',
-    '/shared/cloudflare-sync.js',
-    '/background/api-services/translate-utils.js',
-    '/background/api-services/translate-google.js',
-    '/background/api-services/translate-providers.js',
-    '/background/api-services/translate-api.js',
-    '/background/api-services/ocr-api.js',
-    '/background/api-service-registry.js',
-    '/background/message-handlers.js'
-);
+// Chỉ nạp trực tiếp 2 file tối thiểu; danh sách còn lại nằm tập trung trong
+// background/imports.js (single source of truth, được build.js kiểm tra).
+importScripts('/shared/namespace.js', '/background/imports.js');
+importScripts(...GestureExtension.background.SW_IMPORT_PATHS);
 
 const { STORAGE_KEY } = GestureExtension.shared.config;
 const CONTENT_SCRIPT_IDS = ['gesture-content-isolated', 'gesture-content-main'];

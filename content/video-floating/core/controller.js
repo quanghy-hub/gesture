@@ -77,7 +77,14 @@
             applyTransform: () => floatingSession.applyTransform()
         });
 
-        const gesturesHandler = videoFloating.interactions.createGesturesHandler(ctx, floatingSession, seekController, uiControls, shell, postToFloatedIframe);
+        const gesturesHandler = videoFloating.interactions.createGesturesHandler(
+            ctx,
+            floatingSession,
+            seekController,
+            uiControls,
+            shell,
+            postToFloatedIframe
+        );
         const dragResizeHandler = videoFloating.interactions.createDragResizeHandler(ctx, layoutManager, shell);
         const iconHandler = videoFloating.interactions.createIconHandler(ctx, menu, shell);
 
@@ -115,7 +122,12 @@
 
         const onTouchSwitchVideo = (event) => {
             const dir = Number(event.detail?.dir) || 0;
-            if (dir) floatingSession.switchVid(dir);
+            if (!dir) return;
+            if (ctx.floatedIframe) {
+                postToFloatedIframe({ command: dir > 0 ? 'next-video' : 'prev-video' });
+                return;
+            }
+            floatingSession.switchVid(dir);
         };
         window.addEventListener(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
         ctx.cleanup.push(() => window.removeEventListener(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo));

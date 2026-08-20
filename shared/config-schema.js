@@ -1,6 +1,8 @@
+// @ts-check
 (() => {
     const ext = globalThis.GestureExtension;
-    const apiServicesUtils = ext.shared.apiServices || {};
+    const apiServicesUtils = /** @type {GestureExtensionShared['apiServices']} */ (ext.shared.apiServices || {});
+    /** @type {ApiServicesConfig} */
     const DEFAULT_API_SERVICES = apiServicesUtils.DEFAULT_API_SERVICES || {
         translate: {
             activeProvider: 'google',
@@ -17,7 +19,7 @@
             fallbackEnabled: false,
             fallbackProvider: 'ocrspace-alt',
             providers: {
-                ocrspace: { enabled: true, apiKey: 'helloworld', endpoint: '' },
+                ocrspace: { enabled: true, apiKey: '', endpoint: '' },
                 'ocrspace-alt': { enabled: false, apiKey: '', endpoint: '' }
             }
         }
@@ -39,6 +41,7 @@
         'forum'
     ]);
 
+    /** @type {GestureConfig} */
     const DEFAULT_CONFIG = Object.freeze({
         version: 1,
         clipboard: {

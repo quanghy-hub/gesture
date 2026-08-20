@@ -215,7 +215,8 @@
     display: none !important;
 }
 
-#fvp-wrapper video {
+#fvp-wrapper video,
+#fvp-wrapper iframe {
     width: 100% !important;
     height: 100% !important;
     max-width: none !important;
@@ -226,6 +227,11 @@
     left: 0;
     transition: transform 0.3s ease;
     pointer-events: none;
+}
+
+#fvp-wrapper iframe {
+    border: none !important;
+    transform-origin: center center;
 }
 
 .fvp-transition-layer {

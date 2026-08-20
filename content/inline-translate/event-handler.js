@@ -18,6 +18,22 @@
             lastPointer = touch.getPrimaryPoint(event);
         };
 
+        const getHotkeyPoint = () => {
+            if (lastPointer.x || lastPointer.y) return lastPointer;
+            const selection = window.getSelection?.();
+            if (selection && selection.rangeCount) {
+                try {
+                    const rect = selection.getRangeAt(0).getBoundingClientRect();
+                    if (rect && (rect.width || rect.height)) {
+                        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+                    }
+                } catch (_e) {
+                    void _e;
+                }
+            }
+            return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        };
+
         const onKeyDown = (event) => {
             if (event.key === 'Escape') {
                 editableSelectionManager.hideEditableSelectionPanel();
@@ -38,17 +54,29 @@
             }
 
             const hotkey = settings.hotkey;
-            const matches =
-                hotkey === 'ctrl+d'
-                    ? event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'KeyD'
-                    : hotkey === 'f2' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'F2';
+            const isCtrlD =
+                hotkey === 'ctrl+d' &&
+                event.ctrlKey &&
+                !event.altKey &&
+                !event.metaKey &&
+                !event.shiftKey &&
+                (event.code === 'KeyD' || event.key.toLowerCase() === 'd');
+            const isF2 =
+                hotkey === 'f2' &&
+                !event.ctrlKey &&
+                !event.altKey &&
+                !event.metaKey &&
+                !event.shiftKey &&
+                (event.code === 'F2' || event.key === 'F2');
+            const matches = isCtrlD || isF2;
 
             if (!matches) {
                 return;
             }
 
             event.preventDefault();
-            blockTranslationManager.toggleTranslationAtPoint(lastPointer.x, lastPointer.y);
+            const point = getHotkeyPoint();
+            blockTranslationManager.toggleTranslationAtPoint(point.x, point.y);
         };
 
         const onSelectionChange = () => {
@@ -117,8 +145,12 @@
         const onTouchEnd = (event) => {
             clearThreeTouchTimer();
             const settings = getSettings();
-            if (!settings.swipeEnabled || !startX || Date.now() - startTime > settings.swipeMaxDurationMs) {
+            const elapsed = Date.now() - startTime;
+            if (!settings.swipeEnabled || !startX || elapsed > settings.swipeMaxDurationMs) {
                 startX = 0;
+                startY = 0;
+                startTime = 0;
+                startedInVideo = false;
                 return;
             }
 
@@ -128,12 +160,18 @@
 
             if (startedInVideo || dom.isInVideoZone(endX, endY)) {
                 startX = 0;
+                startY = 0;
+                startTime = 0;
+                startedInVideo = false;
                 return;
             }
 
             const deltaX = endX - startX;
             const deltaY = endY - startY;
             startX = 0;
+            startY = 0;
+            startTime = 0;
+            startedInVideo = false;
 
             const validDirection =
                 settings.swipeDir === 'both' ||
@@ -144,12 +182,15 @@
                 blockTranslationManager.toggleTranslationAtPoint(endX - deltaX / 2, endY - deltaY / 2);
             }
 
-            editableSelectionManager.scheduleEditableSelectionEvaluation(0);
+            editableSelectionManager.scheduleEditableSelectionEvaluation(80);
         };
 
         const onTouchCancel = () => {
             clearThreeTouchTimer();
             startX = 0;
+            startY = 0;
+            startTime = 0;
+            startedInVideo = false;
         };
 
         const install = () => {

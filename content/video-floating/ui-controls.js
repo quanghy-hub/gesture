@@ -61,6 +61,27 @@
             else ctx.curVid.pause();
         };
 
+        const applyFloatedIframeFallbackTransform = () => {
+            if (!ctx.floatedIframe) return;
+            const zoom = ZOOM_LEVELS[ctx.iframePlaybackState.zoomIdx] || 1;
+            const angle = ctx.iframePlaybackState.rotationAngle || 0;
+            const transforms = [];
+            if (angle) transforms.push(`rotate(${angle}deg)`);
+            if (zoom !== 1) transforms.push(`scale(${zoom})`);
+            ctx.floatedIframe.style.transform = transforms.join(' ');
+            ctx.floatedIframe.style.transformOrigin = 'center center';
+            if (angle === 90 || angle === 270) {
+                ctx.floatedIframe.style.objectFit = 'contain';
+            } else {
+                const fit = FIT_MODES[ctx.iframePlaybackState.fitIdx] || FIT_MODES[0];
+                try {
+                    ctx.floatedIframe.style.objectFit = fit;
+                } catch {
+                    void 0;
+                }
+            }
+        };
+
         const syncFloatedIframeUI = () => {
             const seek = $('fvp-seek');
             const duration = ctx.iframePlaybackState.duration || 0;
@@ -84,6 +105,9 @@
             if (zoom) zoom.textContent = ZOOM_ICONS[ctx.iframePlaybackState.zoomIdx] || ZOOM_ICONS[0];
             const rotate = $('fvp-rotate');
             if (rotate) rotate.style.transform = `rotate(${ctx.iframePlaybackState.rotationAngle || 0}deg)`;
+            if (ctx.floatedIframe) {
+                applyFloatedIframeFallbackTransform();
+            }
         };
 
         const bindButtons = () => {
@@ -101,24 +125,36 @@
                 }
             };
             $('fvp-fit').onclick = () => {
-                if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-fit' });
-                else {
+                if (ctx.floatedIframe) {
+                    ctx.iframePlaybackState.fitIdx = (ctx.iframePlaybackState.fitIdx + 1) % FIT_MODES.length;
+                    applyFloatedIframeFallbackTransform();
+                    syncFloatedIframeUI();
+                    postToFloatedIframe({ command: 'cycle-fit' });
+                } else {
                     ctx.fitIdx = (ctx.fitIdx + 1) % FIT_MODES.length;
                     if (ctx.curVid) ctx.curVid.style.objectFit = FIT_MODES[ctx.fitIdx];
                     $('fvp-fit').textContent = FIT_ICONS[ctx.fitIdx];
                 }
             };
             $('fvp-zoom').onclick = () => {
-                if (ctx.floatedIframe) postToFloatedIframe({ command: 'cycle-zoom' });
-                else if (ctx.curVid) {
+                if (ctx.floatedIframe) {
+                    ctx.iframePlaybackState.zoomIdx = (ctx.iframePlaybackState.zoomIdx + 1) % ZOOM_LEVELS.length;
+                    applyFloatedIframeFallbackTransform();
+                    syncFloatedIframeUI();
+                    postToFloatedIframe({ command: 'cycle-zoom' });
+                } else if (ctx.curVid) {
                     ctx.zoomIdx = (ctx.zoomIdx + 1) % ZOOM_LEVELS.length;
                     deps.applyTransform();
                     $('fvp-zoom').textContent = ZOOM_ICONS[ctx.zoomIdx];
                 }
             };
             $('fvp-rotate').onclick = () => {
-                if (ctx.floatedIframe) postToFloatedIframe({ command: 'rotate' });
-                else if (ctx.curVid) {
+                if (ctx.floatedIframe) {
+                    ctx.iframePlaybackState.rotationAngle = (ctx.iframePlaybackState.rotationAngle + 90) % 360;
+                    applyFloatedIframeFallbackTransform();
+                    syncFloatedIframeUI();
+                    postToFloatedIframe({ command: 'rotate' });
+                } else if (ctx.curVid) {
                     ctx.rotationAngle = (ctx.rotationAngle + 90) % 360;
                     deps.applyTransform();
                     $('fvp-rotate').style.transform = `rotate(${ctx.rotationAngle}deg)`;

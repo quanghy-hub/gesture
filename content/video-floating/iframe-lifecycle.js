@@ -53,8 +53,10 @@
             ctx.iframeOrigPar?.replaceChild(ctx.iframePh, iframe);
             const wrapper = $('fvp-wrapper');
             videoLifecycle.clearWrapper(wrapper);
-            iframe.style.cssText = 'width:100%!important;height:100%!important;border:none!important;position:absolute;top:0;left:0;';
+            iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;top:0;left:0;transform-origin:center center;';
             wrapper.appendChild(iframe);
+            iframe.style.transform = '';
+            iframe.style.objectFit = '';
             videoLifecycle.showFloatingShell({
                 applySavedLayout: shouldApplyLayout,
                 isCurrent: () => ctx.floatedIframe === iframe
@@ -64,7 +66,7 @@
             updatePlaybackOverlayUI?.();
             postToFloatedIframe({ command: 'set-floating-active', active: true });
             postToFloatedIframe({ command: 'get-state' });
-            ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 350);
+            ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 180);
         };
 
         return {

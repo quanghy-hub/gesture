@@ -76,7 +76,9 @@
             throw err;
         }
         if (res.status === 401) {
-            const err = new Error('HTTP 401 Unauthorized: Mã API Code không chính xác hoặc không trùng khớp với SYNC_API_KEY trên Cloudflare Worker.');
+            const err = new Error(
+                'HTTP 401 Unauthorized: Mã API Code không chính xác hoặc không trùng khớp với SYNC_API_KEY trên Cloudflare Worker.'
+            );
             err.status = 401;
             throw err;
         }

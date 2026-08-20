@@ -2,4 +2,6 @@
 node_modules/
 test-results/
 
-
+# Build artifacts — regenerate with `npm run build` / `npm run build:zip`
+dist/
+dist-zip/

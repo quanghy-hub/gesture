@@ -47,6 +47,10 @@
             };
 
             const switchFromWrapper = (dir) => {
+                if (ctx.floatedIframe) {
+                    postToFloatedIframe?.({ command: dir > 0 ? 'next-video' : 'prev-video' });
+                    return;
+                }
                 if (ctx.curVid) {
                     floatingSession.switchVid(dir);
                 }
@@ -79,11 +83,7 @@
                         wheelSeekDeltaX = 0;
                     }
                     wheelSeekDeltaX += deltaX;
-                    const nextTime = clamp(
-                        wheelSeekBaseTime + wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel,
-                        0,
-                        duration
-                    );
+                    const nextTime = clamp(wheelSeekBaseTime + wheelSeekDeltaX * wheelGestureConfig.seekSecondsPerPixel, 0, duration);
                     postToFloatedIframe?.({ command: 'seek-to-ratio', ratio: nextTime / duration });
                     seekController.renderSeekPreview(nextTime / duration);
                     return true;
