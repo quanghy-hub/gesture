@@ -4,6 +4,26 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.1] - 2026-08-21
+
+### 📝 Quick Search
+
+- **Fix nút Save ảnh cross-origin**: `<a download>` bị Chromium bỏ qua với URL ngoài — đổi sang chuỗi 3 tầng: SW fetch dataURL → `chrome.downloads.download`, fallback blob object URL, cuối cùng mở tab. Đuôi file suy diễn từ MIME thật thay vì hardcode `.jpg` (`actions.js`, helper mới `resolveImageExtension`).
+- **Tắt feature có hiệu lực ngay**: gate `enabled` trong `evaluateSelection`/`evaluateImageCandidate` + `onConfigChange` dọn bubble/long-press khi tắt (`controller.js`, `session-manager.js`).
+- **Box Dịch tự chủ**: tự inject styles qua `inlineTranslate.dom.ensureStyles()`, click-to-close, đánh dấu `__gestureSourceNode` cho orphan observer — không còn phụ thuộc Inline Translate có bật hay không.
+- Perf: `pointermove` return sớm khi image search tắt; bỏ dead param `startHoverHideTimer`; thống nhất default `selectionDelay = 300`; UI chuyển sang `adoptedStyleSheets` chống CSP `style-src` của trang.
+- Thêm test `resolveImageExtension`.
+
+### 🎬 YouTube Subtitles — fix phụ đề đứng yên khi tua/kéo nhanh
+
+- **Serialize + coalescing render**: chỉ một `renderCurrentCaption` chạy tại một thời điểm; request mới trong lúc bận được gom và xử lý đúng một lần sau — bản dịch không thể ghi DOM lệch thứ tự nữa (nguyên nhân chính của triệu chứng đứng yên ở text cũ) (`caption-manager.js`).
+- **Reset state khi tua**: event `seeked`/`loadedmetadata` giờ kích hoạt reset `lastSource/consumedWordCount` + vô hiệu hóa bản dịch đang bay trước khi render lại (`video-sync.js`, `controller.js`).
+- **Heuristic time-gap**: nhảy `currentTime` > 0.6s so với lần render trước coi như tua — caption rolling không còn bị slice sai offset (`caption-manager.js`).
+- **Debounce MutationObserver 100ms**: giảm storm render khi player tự mutation liên tục (`video-sync.js`).
+- Thêm test hồi quy cho thứ tự reset → render của videoSync.
+
+---
+
 ## [1.4.0] - 2026-08-21
 
 ### 🎬 Floating Video
