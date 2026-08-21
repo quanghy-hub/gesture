@@ -126,10 +126,11 @@
             };
             $('fvp-fit').onclick = () => {
                 if (ctx.floatedIframe) {
+                    // Outer iframe is the single source of truth for presentation;
+                    // never forward these to the inner agent or the two will fight.
                     ctx.iframePlaybackState.fitIdx = (ctx.iframePlaybackState.fitIdx + 1) % FIT_MODES.length;
                     applyFloatedIframeFallbackTransform();
                     syncFloatedIframeUI();
-                    postToFloatedIframe({ command: 'cycle-fit' });
                 } else {
                     ctx.fitIdx = (ctx.fitIdx + 1) % FIT_MODES.length;
                     if (ctx.curVid) ctx.curVid.style.objectFit = FIT_MODES[ctx.fitIdx];
@@ -141,7 +142,6 @@
                     ctx.iframePlaybackState.zoomIdx = (ctx.iframePlaybackState.zoomIdx + 1) % ZOOM_LEVELS.length;
                     applyFloatedIframeFallbackTransform();
                     syncFloatedIframeUI();
-                    postToFloatedIframe({ command: 'cycle-zoom' });
                 } else if (ctx.curVid) {
                     ctx.zoomIdx = (ctx.zoomIdx + 1) % ZOOM_LEVELS.length;
                     deps.applyTransform();
@@ -153,7 +153,6 @@
                     ctx.iframePlaybackState.rotationAngle = (ctx.iframePlaybackState.rotationAngle + 90) % 360;
                     applyFloatedIframeFallbackTransform();
                     syncFloatedIframeUI();
-                    postToFloatedIframe({ command: 'rotate' });
                 } else if (ctx.curVid) {
                     ctx.rotationAngle = (ctx.rotationAngle + 90) % 360;
                     deps.applyTransform();

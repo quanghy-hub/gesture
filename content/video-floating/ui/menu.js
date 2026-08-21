@@ -113,6 +113,12 @@
                 floatingSession.float(preferredVideo);
                 return;
             }
+            floatFirstAvailableMedia.fallbackToMenuItems?.();
+        };
+
+        // Exposed so core/controller.js's override can delegate the iframe fallback
+        // back here instead of silently dropping it.
+        floatFirstAvailableMedia.fallbackToMenuItems = () => {
             const [firstItem] = getAvailableMediaItems();
             if (!firstItem) {
                 ctx.menuRef?.hide();

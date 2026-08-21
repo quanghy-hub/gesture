@@ -215,8 +215,7 @@
     display: none !important;
 }
 
-#fvp-wrapper video,
-#fvp-wrapper iframe {
+#fvp-wrapper video {
     width: 100% !important;
     height: 100% !important;
     max-width: none !important;
@@ -229,9 +228,21 @@
     pointer-events: none;
 }
 
+/* Cross-origin players need native interaction (play button, quality menu).
+   Wrapper gestures never receive events from inside an OOPIF anyway, while our
+   per-frame agent (iframe-gestures.js) handles wheel/touch inside the frame. */
 #fvp-wrapper iframe {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    position: absolute;
+    top: 0;
+    left: 0;
     border: none !important;
     transform-origin: center center;
+    transition: transform 0.3s ease;
+    pointer-events: auto;
 }
 
 .fvp-transition-layer {

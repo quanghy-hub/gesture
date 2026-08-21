@@ -45,6 +45,7 @@
         menu.setFloatingSession?.(floatingSession);
         autoSync.setFloatingSession?.(floatingSession);
 
+        const menuFloatFallback = menu.floatFirstAvailableMedia?.fallbackToMenuItems;
         menu.floatFirstAvailableMedia = () => {
             if (!videoFloating.core.config.isFeatureEnabled()) return;
             const preferredVideo = videoFloating.media.detector.getDirectVideos()[0];
@@ -53,7 +54,8 @@
                 floatingSession.float(preferredVideo);
                 return;
             }
-            // fallback logic handled in menu.js itself
+            // No direct video — delegate to menu.js which falls back to tracked/generic iframes.
+            menuFloatFallback?.();
         };
 
         const seekController = videoFloating.createSeekController(ctx, {
@@ -112,7 +114,13 @@
             }
             if (event.data.type === 'fvp-iframe-state' && ctx.floatedIframe?.contentWindow === event.source) {
                 if (event.data.state && typeof event.data.state === 'object') {
-                    Object.assign(ctx.iframePlaybackState, event.data.state);
+                    // Presentation (fit/zoom/rotate) is owned by the top frame — strip those
+                    // fields so the inner agent can't overwrite them on every poll.
+                    const playback = { ...event.data.state };
+                    delete playback.fitIdx;
+                    delete playback.zoomIdx;
+                    delete playback.rotationAngle;
+                    Object.assign(ctx.iframePlaybackState, playback);
                     uiControls.syncFloatedIframeUI?.();
                 }
             }
