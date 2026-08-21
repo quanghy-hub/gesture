@@ -146,6 +146,8 @@ try {
     loadScript('shared/extension-ui-guard.js');
     loadScript('shared/dom-utils.js');
     loadScript('shared/touch-core.js');
+    loadScript('content/gestures/desktop-pager.js');
+    loadScript('content/gestures/mobile-scroll.js');
     loadScript('content/quick-search/constants.js');
     loadScript('content/youtube-subtitles/constants.js');
     loadScript('content/youtube-subtitles/caption-source.js');
@@ -171,6 +173,7 @@ const { messageHandlers } = sandbox.globalThis.GestureExtension.background;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
 const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
 const { quickSearch } = sandbox.globalThis.GestureExtension;
+const { desktopPager, mobileScroll } = sandbox.globalThis.GestureExtension.gestures;
 
 // Chuyển đổi dữ liệu từ ngữ cảnh VM sang ngữ cảnh Main để tránh lỗi lệch prototype Array
 const toMainContext = (val) => {
@@ -285,6 +288,58 @@ async function runAllTests() {
 
         const next = setGestureHostExcluded(config, 'https://example.com/watch', true);
         assert.equal(isGestureHostExcluded(next, 'www.example.com'), true);
+    });
+
+    runTest('gestures pager: buildHoppedHref suy diễn param query số', () => {
+        const { buildHoppedHref } = desktopPager;
+
+        // ?page=2 → next ?page=3 (step 1), nhảy 3 trang
+        assert.equal(buildHoppedHref('https://x.com/t?page=2', 'https://x.com/t?page=3', 1, 3), 'https://x.com/t?page=5');
+        // Lùi nhiều trang
+        assert.equal(buildHoppedHref('https://x.com/t?page=10', 'https://x.com/t?page=9', -1, 2), 'https://x.com/t?page=8');
+        // Không bị chặn trần khi nhảy xa về phía trước
+        assert.equal(buildHoppedHref('https://x.com/t?page=1', 'https://x.com/t?page=2', 1, 99), 'https://x.com/t?page=100');
+        // Param chưa có trên URL hiện tại: suy diễn ngược vị trí từ link next
+        assert.equal(buildHoppedHref('https://x.com/t', 'https://x.com/t?page=4', 1, 2), 'https://x.com/t?page=5');
+        // Giữ nguyên param không liên quan
+        assert.equal(
+            buildHoppedHref('https://x.com/t?sort=asc&page=2', 'https://x.com/t?sort=asc&page=3', 1, 2),
+            'https://x.com/t?sort=asc&page=4'
+        );
+    });
+
+    runTest('gestures pager: buildHoppedHref suy diễn segment path kết thúc bằng số', () => {
+        const { buildHoppedHref } = desktopPager;
+
+        assert.equal(buildHoppedHref('https://x.com/thread/10', 'https://x.com/thread/11', 1, 3), 'https://x.com/thread/13');
+        assert.equal(
+            buildHoppedHref('https://x.com/thread/20/page/5', 'https://x.com/thread/20/page/4', -1, 2),
+            'https://x.com/thread/20/page/3'
+        );
+        // Path không có số → trả về null để caller fallback sang href gốc
+        assert.equal(buildHoppedHref('https://x.com/thread/abc', 'https://x.com/thread/def', 1, 2), null);
+    });
+
+    runTest('gestures mobile scroll: getEdgeStrength theo cạnh và khoảng cách', () => {
+        const { getEdgeStrength, clampScrollTop } = mobileScroll;
+        sandbox.innerWidth = 400;
+
+        // side='left': mạnh nhất ở mép trái, tuyến tính giảm dần
+        assert.equal(getEdgeStrength(0, 40, 'left'), 1);
+        assert.ok(Math.abs(getEdgeStrength(20, 40, 'left') - 0.5) < 1e-9);
+        assert.equal(getEdgeStrength(40, 40, 'left'), 0);
+        // side='right': mạnh nhất ở mép phải
+        assert.equal(getEdgeStrength(400, 40, 'right'), 1);
+        assert.equal(getEdgeStrength(0, 40, 'right'), 0);
+        // side='both' (mặc định): hai mép đều mạnh, giữa màn hình = 0
+        assert.equal(getEdgeStrength(0, 40, 'both'), 1);
+        assert.equal(getEdgeStrength(200, 40, 'both'), 0);
+        assert.ok(Math.abs(getEdgeStrength(380, 40, 'both') - 0.5) < 1e-9);
+
+        const element = { scrollHeight: 1000, clientHeight: 100 };
+        assert.equal(clampScrollTop(-50, element), 0);
+        assert.equal(clampScrollTop(2000, element), 900);
+        assert.equal(clampScrollTop(500, element), 500);
     });
 
     runTest('normalizeConfig: tối ưu hóa cờ _isNormalized hoạt động đúng', () => {

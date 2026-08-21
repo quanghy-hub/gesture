@@ -58,11 +58,11 @@ Popup có panel **Cloudflare Sync** dùng chung Worker `extension` và app names
 - Gestures không còn chặn riêng `mail.google.com`; mọi site HTTP/HTTPS đều có thể chạy, trừ khi bị xung đột bởi chính trang đó.
 - Runtime vẫn tách desktop/mobile ở mức event listener nội bộ, nhưng không còn khóa cứng theo nhận diện thiết bị để tránh trường hợp máy cảm ứng hoặc môi trường lai làm gestures bị tắt toàn bộ.
 - Settings giờ được gom trực tiếp trong **popup** thành một bảng duy nhất, không cần mở rộng sang trang hay khung nổi riêng.
-- Scroll gestures được gom trong popup: fast scroll desktop dùng `Command + ↑/↓` trên macOS, `Ctrl + ↑/↓` trên Windows/Linux, hoặc cuộn chuột ở vùng mép phải; mobile chỉ còn edge swipe một ngón.
+- Gesture được cấu hình **riêng cho từng nền tảng** trong popup qua bộ chọn **Settings for**: Desktop gồm long-press link, chuột phải lên link, double-click đóng tab và pager phím `←`/`→`; Mobile gồm long-press link, edge swipe một ngón ở mép màn hình và double-tap đóng tab.
 - Nhánh `macos` ưu tiên Helium/Chromium trên macOS: trackpad được lọc kỹ hơn để tránh kích hoạt nhầm khi swipe ngang, pinch/zoom hoặc scroll nhẹ.
 - Tua video bằng trackpad macOS: vuốt 2 ngón sang phải để tua tới, vuốt sang trái để tua lùi.
 - macOS không gửi số ngón trackpad cho Chromium extension, và gesture hệ thống như Mission Control/App Exposé được hệ điều hành chặn trước trang web. Muốn dùng 4 ngón cho extension cần tắt hoặc đổi shortcut 4 ngón trong System Settings trước.
-- Pager giờ hoạt động theo số lần cuộn được gom trong cửa sổ thời gian: **1 cuộn = 1 trang, 2 cuộn = 2 trang, 3 cuộn = 3 trang, và từ ngưỡng tối đa trở lên sẽ đi thẳng tới đầu/cuối**.
+- Desktop pager hoạt động theo số lần bấm phím được gom trong cửa sổ 180ms: **1 bấm = 1 trang, 2 bấm = 2 trang, 3 bấm = 3 trang**, và từ ngưỡng tối đa trở lên sẽ đi thẳng tới đầu/cuối. Pager chỉ chạy trên site đã bật **Forum layout** cho host đó (có ghi chú ngay trong popup).
 - Bản này phù hợp để load unpacked trên Chromium desktop và Kiwi; build pipeline (`npm run build`), lint, typecheck và test checklist đã có sẵn trong repo.
 
 ## Giải trình về Quyền hạn `<all_urls>` (Host Permissions Rationale)

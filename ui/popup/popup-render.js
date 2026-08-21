@@ -1,17 +1,73 @@
 (() => {
     const ext = globalThis.GestureExtension;
-    const {
-        getForumConfig,
-        getGestureSettings,
-        isHostExcluded,
-        isVideoFloatingBackgroundSeekExcluded,
-        isGestureHostExcluded,
-        normalizeHost
-    } = ext.shared.config;
+    const { getForumConfig, isHostExcluded, isVideoFloatingBackgroundSeekExcluded, isGestureHostExcluded, normalizeHost } =
+        ext.shared.config;
     const { setCardState, setHostControlsState } = ext.ui.popupUtils;
     const { renderFields } = ext.ui.popupFieldMap;
 
+    const resolvePlatform = (els) => (els.gPlatform?.value === 'mobile' ? 'mobile' : 'desktop');
+
+    // Đọc config thô của 1 platform (không merge desktop/mobile như getGestureSettings)
+    const getGesturePlatformView = (config, platform) => {
+        const cfg = config.gestures?.[platform];
+        if (!cfg) return null;
+        return {
+            enabled: !!cfg.enabled,
+            lpress: { enabled: !!cfg.lpress?.enabled, mode: cfg.lpress?.mode || 'bg', ms: cfg.lpress?.ms || 500 },
+            rclick: { enabled: !!cfg.rclick?.enabled, mode: cfg.rclick?.mode || 'fg' },
+            closeTab: { enabled: !!cfg.closeTab?.enabled, ms: cfg.closeTab?.ms || 150 },
+            pager: { enabled: !!cfg.pager?.enabled, hops: cfg.pager?.hops || 3 },
+            edge: {
+                enabled: !!cfg.edge?.enabled,
+                side: cfg.edge?.side || 'both',
+                width: cfg.edge?.width || 40,
+                speed: cfg.edge?.speed || 3
+            }
+        };
+    };
+
+    const renderGestureFields = (config, els) => {
+        const view = getGesturePlatformView(config, resolvePlatform(els));
+        if (!view) return;
+
+        els.featureGesturesEnabled.checked = view.enabled;
+        els.gLpEnabled.checked = view.lpress.enabled;
+        els.gLpMode.value = view.lpress.mode;
+        els.gLpMs.value = view.lpress.ms;
+        els.gRcEnabled.checked = view.rclick.enabled;
+        els.gRcMode.value = view.rclick.mode;
+        els.gCloseTabEnabled.checked = view.closeTab.enabled;
+        els.gCloseTabMs.value = view.closeTab.ms;
+        els.gPagerEnabled.checked = view.pager.enabled;
+        els.gPagerHops.value = view.pager.hops;
+        els.gEdgeEnabled.checked = view.edge.enabled;
+        els.gEdgeSide.value = view.edge.side;
+        els.gEdgeWidth.value = view.edge.width;
+        els.gEdgeSpeed.value = view.edge.speed;
+    };
+
+    const syncPlatformRows = (els) => {
+        if (!els.gPlatform) return;
+        const isMobile = els.gPlatform.value === 'mobile';
+        els.gestureDesktopOnlyRows.forEach((row) => {
+            row.hidden = isMobile;
+        });
+        els.gestureMobileOnlyRows.forEach((row) => {
+            row.hidden = !isMobile;
+        });
+    };
+
     ext.ui.popupRender = {
+        // Dùng chung cho render() và khi đổi platform selector trong popup
+        renderGestures: (config, els) => {
+            if (!config) return;
+            if (els.gPlatform && !els.gPlatform.value) {
+                els.gPlatform.value = 'desktop';
+            }
+            renderGestureFields(config, els);
+            syncPlatformRows(els);
+        },
+
         syncFeatureCards: (activeHost, els) => {
             const canUseForumControls = !!activeHost && els.featureForumEnabled.checked;
             setCardState(els.unblockCopyCard, els.featureUnblockCopyEnabled.checked);
@@ -32,21 +88,7 @@
             panelReorder.applyPanelOrder(config.runtime?.popupPanelOrder);
             renderFields(fieldMap, fieldMapElements, config);
 
-            const gestures = getGestureSettings(config);
-            els.featureGesturesEnabled.checked = !!gestures.enabled;
-            els.gLpEnabled.checked = !!gestures.longPress.enabled;
-            els.gLpMode.value = gestures.longPress.mode;
-            els.gLpMs.value = gestures.longPress.ms;
-            els.gRcEnabled.checked = !!gestures.rightClick.enabled;
-            els.gRcMode.value = gestures.rightClick.mode;
-            els.gCloseTabEnabled.checked = !!gestures.closeTab?.enabled;
-            els.gCloseTabMs.value = gestures.closeTab?.ms || 150;
-            els.gPagerEnabled.checked = !!gestures.pager.enabled;
-            els.gPagerHops.value = gestures.pager.hops;
-            els.gEdgeEnabled.checked = !!gestures.edgeSwipe.enabled;
-            els.gEdgeSide.value = gestures.edgeSwipe.side;
-            els.gEdgeWidth.value = gestures.edgeSwipe.width;
-            els.gEdgeSpeed.value = gestures.edgeSwipe.speed;
+            ext.ui.popupRender.renderGestures(config, els);
 
             els.apiTranslateApiKey.value = config.apiServices?.translate?.providers?.[els.apiTranslateProvider.value]?.apiKey || '';
             els.apiTranslateFallbackApiKey.value =

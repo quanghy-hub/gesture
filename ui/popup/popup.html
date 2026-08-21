@@ -67,6 +67,17 @@
                             <span class="toggle"><input id="gesture-block-host-toggle" type="checkbox" /></span>
                         </div>
                         <div class="item">
+                            <span class="label-main">Settings for</span>
+                            <span class="label-sub">Platform</span>
+                            <span class="param"
+                                ><select id="g-platform" aria-label="Gesture settings platform">
+                                    <option value="desktop">Desktop</option>
+                                    <option value="mobile">Mobile</option>
+                                </select></span
+                            >
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
                             <span class="label-main">Long press</span>
                             <span class="label-sub">Mode</span>
                             <span class="param"
@@ -88,7 +99,7 @@
                             <span class="toggle toggle-empty"></span>
                         </div>
 
-                        <div class="item">
+                        <div class="item g-desktop-only">
                             <span class="label-main">Right click link</span>
                             <span class="label-sub">Mode</span>
                             <span class="param"
@@ -111,7 +122,7 @@
                             <span class="toggle"><input id="g-close-tab-enabled" type="checkbox" /></span>
                         </div>
 
-                        <div class="item">
+                        <div class="item g-desktop-only">
                             <span class="label-main">Pager</span>
                             <span class="label-sub">Hops</span>
                             <span class="param"
@@ -119,8 +130,11 @@
                             /></span>
                             <span class="toggle"><input id="g-pager-enabled" type="checkbox" /></span>
                         </div>
+                        <div class="item item-sub g-desktop-only">
+                            <span class="hint-note">Pager (← / →) chỉ chạy trên site đã bật Forum layout cho host đó.</span>
+                        </div>
 
-                        <div class="item">
+                        <div class="item g-mobile-only">
                             <span class="label-main">Edge scroll</span>
                             <span class="label-sub">Side</span>
                             <span class="param"
@@ -133,7 +147,7 @@
                             >
                             <span class="toggle"><input id="g-edge-enabled" type="checkbox" /></span>
                         </div>
-                        <div class="item item-sub">
+                        <div class="item item-sub g-mobile-only">
                             <span class="label-main label-main-empty"></span>
                             <span class="label-sub">Width</span>
                             <span class="param"
@@ -141,7 +155,7 @@
                             /></span>
                             <span class="toggle toggle-empty"></span>
                         </div>
-                        <div class="item item-sub">
+                        <div class="item item-sub g-mobile-only">
                             <span class="label-main label-main-empty"></span>
                             <span class="label-sub">Speed</span>
                             <span class="param"

@@ -258,6 +258,18 @@ body {
     white-space: nowrap;
 }
 
+/* Ẩn các hàng gestures không thuộc platform đang chọn (desktop/mobile) */
+.table .item[hidden] {
+    display: none;
+}
+
+.hint-note {
+    grid-column: 1 / -1;
+    color: #9ca3af;
+    font-size: 10.5px;
+    line-height: 1.35;
+}
+
 .param {
     display: grid;
     grid-template-columns: subgrid;

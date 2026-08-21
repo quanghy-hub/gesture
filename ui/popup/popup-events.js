@@ -84,6 +84,15 @@
                 registerAutoSave(control, 'change', { syncCards: true });
             });
 
+            // Platform selector: nạp lại giá trị gestures của platform mới chọn
+            // (desktop/mobile có config độc lập), không cần lưu config.
+            if (els.gPlatform) {
+                els.gPlatform.addEventListener('change', () => {
+                    ext.ui.popupRender.renderGestures(appState.config, els);
+                    ext.ui.popupRender.syncFeatureCards(appState.activeHost, els);
+                });
+            }
+
             // Simple change auto-save
             [
                 safeGetElementById('inline-translate-hotkey-enabled'),
