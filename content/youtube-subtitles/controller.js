@@ -63,7 +63,13 @@
         const videoSync = youtubeSubtitles.createVideoSync({
             state,
             releaseCaptionTrack,
-            renderCurrentCaption: captionManager.renderCurrentCaption
+            renderCurrentCaption: captionManager.renderCurrentCaption,
+            onSeekReset() {
+                // Vô hiệu hóa mọi bản dịch đang bay của vị trí cũ + xóa state
+                // chunking để caption tại vị trí mới được render lại từ đầu.
+                invalidatePendingRender();
+                captionManager.resetCaptionState();
+            }
         });
 
         const stopTranslationMode = () => {

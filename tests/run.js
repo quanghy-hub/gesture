@@ -151,6 +151,7 @@ try {
     loadScript('content/quick-search/constants.js');
     loadScript('content/youtube-subtitles/constants.js');
     loadScript('content/youtube-subtitles/caption-source.js');
+    loadScript('content/youtube-subtitles/video-sync.js');
     console.log('\x1b[32m✔ Nạp các module thành công.\x1b[0m');
 } catch (error) {
     console.error('\x1b[31m✘ Thất bại khi nạp module:\x1b[0m', error);
@@ -461,6 +462,42 @@ async function runAllTests() {
         assert.match(captionSourceSource, /\.caption-visual-line,\s*\.ytp-caption-segment/);
     });
 
+    runTest('youtubeSubtitles videoSync: seeked/loadedmetadata phải reset state trước khi render lại', async () => {
+        const { createVideoSync } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+        const events = [];
+        const listeners = {};
+        const fakeVideo = {
+            addEventListener(type, handler) {
+                listeners[type] = handler;
+            },
+            removeEventListener() {}
+        };
+
+        const sync = createVideoSync({
+            state: { enabled: true, video: null, videoSyncHandler: null, detachTrackListener: null },
+            releaseCaptionTrack() {},
+            renderCurrentCaption: async () => {
+                events.push('render');
+            },
+            onSeekReset() {
+                events.push('reset');
+            }
+        });
+        sync.bindVideoSync(fakeVideo);
+
+        assert.equal(typeof listeners.timeupdate, 'function');
+        assert.equal(typeof listeners.seeked, 'function');
+
+        // Phát thường: chỉ render
+        await listeners.timeupdate({ type: 'timeupdate' });
+        // Tua xong: reset TRƯỚC render để dedupe không nuốt caption mới
+        await listeners.seeked({ type: 'seeked' });
+        // Metadata mới (đổi video/quality): cũng là mốc reset
+        await listeners.loadedmetadata({ type: 'loadedmetadata' });
+
+        assert.deepEqual(events, ['render', 'reset', 'render', 'reset', 'render']);
+    });
+
     runTest('videoScreenshot trigger: dùng cùng drag affordance với nút dịch phụ đề', () => {
         const constantsSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/constants.js'), 'utf8');
         const triggerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/video-screenshot/trigger.js'), 'utf8');
@@ -707,6 +744,23 @@ async function runAllTests() {
             imageUrl: 'https://example.com/test.png'
         });
         assert.equal(url, 'https://www.google.com/search?q=hello%20world&img=https%3A%2F%2Fexample.com%2Ftest.png');
+    });
+
+    runTest('quickSearch: resolveImageExtension suy diễn đuôi file từ MIME và URL', () => {
+        const { resolveImageExtension } = quickSearch;
+
+        // MIME thật (từ dataUrl/blob) ưu tiên cao nhất
+        assert.equal(resolveImageExtension({ mime: 'image/webp', url: 'https://x.com/a.jpg' }), 'webp');
+        assert.equal(resolveImageExtension({ mime: 'image/png; charset=binary', url: '' }), 'png');
+        // Đuôi trên URL khi không có MIME
+        assert.equal(resolveImageExtension({ url: 'https://x.com/anh.PNG?w=100' }), 'png');
+        assert.equal(resolveImageExtension({ url: 'https://x.com/anh.jpeg' }), 'jpg');
+        // Bỏ qua query/hash khi đọc tên file (chỉ tính đuôi trên path)
+        assert.equal(resolveImageExtension({ url: 'https://x.com/gallery/a.avif?w=100#frag' }), 'avif');
+        assert.equal(resolveImageExtension({ url: 'https://x.com/get?file=a.avif' }), 'jpg');
+        // Đuôi lạ hoặc thiếu hết → mặc định jpg
+        assert.equal(resolveImageExtension({ mime: 'text/html', url: 'https://x.com/a.xyz' }), 'jpg');
+        assert.equal(resolveImageExtension({}), 'jpg');
     });
 
     runTest('forumConfig: getForumConfig kế thừa defaults và host overrides', () => {
