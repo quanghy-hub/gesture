@@ -4,6 +4,33 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.0] - 2026-08-21
+
+### 🎬 Floating Video
+
+- **Frame ngoài sở hữu presentation**: fit/zoom/rotate của floated iframe do frame ngoài quyết định một nguồn duy nhất; bỏ forward `cycle-fit/cycle-zoom/rotate` sang iframe agent để hai bên không giành quyền ghi transform (`ui-controls.js`, `core/controller.js`).
+- **Lọc state poll từ iframe**: `fvp-iframe-state` strip các trường presentation trước khi merge vào `iframePlaybackState`, tránh bị inner agent ghi đè mỗi lần poll (`core/controller.js`).
+- **Khôi phục fallback menu**: tách `floatFirstAvailableMedia.fallbackToMenuItems` để controller override ủy quyền lại menu khi không có direct video, thay vì bỏ im (`ui/menu.js`).
+- **CSS iframe nổi**: tách rule riêng cho `#fvp-wrapper iframe`, bật lại `pointer-events` để player cross-origin nhận tương tác native (nút play, menu chất lượng).
+
+### ✨ Gestures
+
+- **Cấu hình riêng theo nền tảng**: Popup thêm bộ chọn **Settings for** (Desktop/Mobile); long-press, close-tab và các cờ bật/tắt giờ lưu độc lập cho từng platform thay vì bị merge chung (`ui/popup/popup-save.js`, `popup-render.js`).
+- **Giảm cửa sổ suppress 800ms → 300ms**: sau khi mở/đóng tab bằng gesture, chỉ chặn click tổng hợp phát sinh ngay sau pointerup/touchend, không còn nuốt click thật khi người dùng thao tác tiếp (`content/gestures/gesture-utils.js`).
+- **Ghi chú pager ↔ Forum layout**: popup hiển thị hint "Pager (← / →) chỉ chạy trên site đã bật Forum layout"; README cập nhật mô tả đúng cơ chế gom nhịp phím 180ms.
+- **Gộp state manager trùng lặp**: `desktop-long-press.js`, `mobile-long-press.js`, `mobile-tap.js` gộp thành `content/gestures/state-managers.js` dùng chung cho cả hai controller.
+- **Tách hàm thuần `buildHoppedHref`** khỏi `goPage()` để kiểm thử được thuật toán suy diễn URL phân trang (param query + segment path).
+
+### 🧪 Kiểm thử
+
+- Thêm test cho `buildHoppedHref` (multi-hop query/path), `getEdgeStrength` (left/right/both) và `clampScrollTop` — nâng tổng số test.
+
+### 📑 Tài liệu
+
+- README bỏ mô tả fast scroll desktop (`Ctrl/⌘ + ↑/↓`) đã bị xóa từ bản trước; ghi rõ điều kiện bật của pager.
+
+---
+
 ## [1.3.1] - 2026-08-21
 
 ### 🐛 Fix Floating Video cho viet69.be (iframe generic)
