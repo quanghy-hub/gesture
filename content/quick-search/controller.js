@@ -20,7 +20,7 @@
             ui,
             getConfig,
             () => sessionManager?.resetHoverTimer(),
-            (bubble) => sessionManager?.startHoverHideTimer(bubble)
+            () => sessionManager?.startHoverHideTimer()
         );
 
         const actions = quickSearch.createActions({
@@ -65,6 +65,10 @@
         };
 
         const onPointerMove = (event) => {
+            // Bỏ sớm trước mọi DOM query khi tính năng (hoặc image search) tắt.
+            if (featureConfig.enabled === false || featureConfig.imageSearchEnabled === false) {
+                return;
+            }
             const image = imageSessionApi.getImageElement(event.target);
             if (image !== sessionManager.getHoverImage()) {
                 if (!image && bubbleManager.getImageBubble()) {
@@ -73,7 +77,7 @@
                 sessionManager.setHoverImage(image);
                 sessionManager.clearHoverTimer();
             }
-            if (!image || featureConfig.imageSearchEnabled === false) {
+            if (!image) {
                 return;
             }
             sessionManager.scheduleImageEvaluation(image, event);
@@ -174,6 +178,12 @@
         return {
             onConfigChange(nextConfig) {
                 featureConfig = window.__gestureQuickSearchConfig = nextConfig?.quickSearch || featureConfig;
+                if (featureConfig.enabled === false) {
+                    // Tắt cả tính năng: dọn sạch ngay, không đánh giá selection nữa.
+                    sessionManager.clearTouchLongPress();
+                    sessionManager.hideAllBubbles();
+                    return;
+                }
                 if (featureConfig.imageSearchEnabled === false) {
                     sessionManager.hideImageBubble();
                 }

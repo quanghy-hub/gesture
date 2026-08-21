@@ -36,6 +36,109 @@
         return createFallbackIcon(item.label);
     };
 
+    const UI_STYLES = `
+        :host { all: initial; }
+        .gesture-quick-search-ui-root {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483646;
+            pointer-events: none;
+            font-family: Inter, Arial, sans-serif;
+            color: #eee;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .gesture-quick-search-ui-root,
+        .gesture-quick-search-ui-root *,
+        .gesture-quick-search-ui-root *::before,
+        .gesture-quick-search-ui-root *::after {
+            box-sizing: border-box;
+        }
+        .gesture-quick-search-bubble {
+            position: fixed;
+            z-index: 1;
+            display: none;
+            padding: 1px;
+            border-radius: 8px;
+            background: #1a1a1a;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+        .gesture-quick-search-grid {
+            display: grid;
+            gap: 1px;
+        }
+        .gesture-quick-search-item {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            margin: 0;
+            padding: 0;
+            border: none;
+            border-radius: 5px;
+            background: transparent;
+            color: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font: inherit;
+            line-height: 1;
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .gesture-quick-search-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .gesture-quick-search-item img {
+            width: 18px;
+            height: 18px;
+            display: block;
+            flex: 0 0 auto;
+            object-fit: contain;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            vertical-align: middle;
+        }
+        .gesture-quick-search-glyph {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+            color: #eee;
+            font-family: 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 1;
+            text-align: center;
+            letter-spacing: 0;
+        }
+    `;
+
+    // adoptedStyleSheets không chịu ràng buộc bởi CSP style-src của trang
+    // (khác với <style> element); fallback về <style> cho engine cũ.
+    const attachUiStyles = (shadowRoot) => {
+        if (typeof CSSStyleSheet === 'function' && typeof CSSStyleSheet.prototype.replaceSync === 'function') {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(UI_STYLES);
+            shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet];
+            return;
+        }
+        const style = document.createElement('style');
+        style.textContent = UI_STYLES;
+        shadowRoot.append(style);
+    };
+
     const ensureUiRoot = () => {
         if (uiLayer?.isConnected) {
             return uiLayer;
@@ -44,100 +147,11 @@
         uiHost = document.createElement('div');
         uiHost.id = 'gesture-quick-search-ui-host';
         uiShadow = uiHost.attachShadow({ mode: 'open' });
-
-        const style = document.createElement('style');
-        style.textContent = `
-            :host { all: initial; }
-            .gesture-quick-search-ui-root {
-                position: fixed;
-                inset: 0;
-                z-index: 2147483646;
-                pointer-events: none;
-                font-family: Inter, Arial, sans-serif;
-                color: #eee;
-                line-height: 1;
-                text-transform: none;
-                letter-spacing: normal;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }
-            .gesture-quick-search-ui-root,
-            .gesture-quick-search-ui-root *,
-            .gesture-quick-search-ui-root *::before,
-            .gesture-quick-search-ui-root *::after {
-                box-sizing: border-box;
-            }
-            .gesture-quick-search-bubble {
-                position: fixed;
-                z-index: 1;
-                display: none;
-                padding: 1px;
-                border-radius: 8px;
-                background: #1a1a1a;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-                pointer-events: auto;
-            }
-            .gesture-quick-search-grid {
-                display: grid;
-                gap: 1px;
-            }
-            .gesture-quick-search-item {
-                appearance: none;
-                -webkit-appearance: none;
-                width: 28px;
-                height: 28px;
-                min-width: 28px;
-                min-height: 28px;
-                margin: 0;
-                padding: 0;
-                border: none;
-                border-radius: 5px;
-                background: transparent;
-                color: #eee;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font: inherit;
-                line-height: 1;
-                text-align: center;
-                vertical-align: middle;
-                cursor: pointer;
-                transition: background 0.15s ease;
-            }
-            .gesture-quick-search-item:hover {
-                background: rgba(255, 255, 255, 0.15);
-            }
-            .gesture-quick-search-item img {
-                width: 18px;
-                height: 18px;
-                display: block;
-                flex: 0 0 auto;
-                object-fit: contain;
-                margin: 0;
-                padding: 0;
-                border: 0;
-                vertical-align: middle;
-            }
-            .gesture-quick-search-glyph {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 18px;
-                height: 18px;
-                flex: 0 0 auto;
-                color: #eee;
-                font-family: 'Segoe UI Symbol', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
-                font-size: 18px;
-                font-weight: 400;
-                line-height: 1;
-                text-align: center;
-                letter-spacing: 0;
-            }
-        `;
+        attachUiStyles(uiShadow);
 
         uiLayer = document.createElement('div');
         uiLayer.className = 'gesture-quick-search-ui-root';
-        uiShadow.append(style, uiLayer);
+        uiShadow.append(uiLayer);
         document.documentElement.appendChild(uiHost);
         return uiLayer;
     };

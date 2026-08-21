@@ -107,4 +107,35 @@
         String(template || '')
             .replaceAll('{{q}}', quickSearch.encodeQuery(text || ''))
             .replaceAll('{{img}}', encodeURIComponent(imageUrl || ''));
+
+    // Suy diễn phần mở rộng file ảnh cho tên file tải về: ưu tiên MIME thật
+    // (từ data URL / blob), sau đó đến đuôi file trên URL, cuối cùng mặc định jpg.
+    const EXTENSION_BY_MIME = Object.freeze({
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+        'image/avif': 'avif',
+        'image/svg+xml': 'svg'
+    });
+
+    quickSearch.resolveImageExtension = ({ mime = '', url = '' } = {}) => {
+        const normalizedMime = String(mime || '')
+            .toLowerCase()
+            .split(';')[0]
+            .trim();
+        if (EXTENSION_BY_MIME[normalizedMime]) {
+            return EXTENSION_BY_MIME[normalizedMime];
+        }
+        const match = String(url || '')
+            .split(/[?#]/)[0]
+            .match(/\.([a-z0-9]{2,5})$/i);
+        if (match) {
+            const candidate = match[1].toLowerCase();
+            if (/^(jpe?g|png|webp|gif|avif|svg)$/.test(candidate)) {
+                return candidate === 'jpeg' ? 'jpg' : candidate;
+            }
+        }
+        return 'jpg';
+    };
 })();

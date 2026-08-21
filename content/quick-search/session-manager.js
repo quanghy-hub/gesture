@@ -93,7 +93,7 @@
             window.clearTimeout(timers.hide);
         };
 
-        const startHoverHideTimer = (imageBubbleInstance) => {
+        const startHoverHideTimer = () => {
             timers.hide = window.setTimeout(() => {
                 if (!state.hoverImage?.matches(':hover')) {
                     hideImageBubble();
@@ -171,6 +171,11 @@
         };
 
         const evaluateSelection = () => {
+            // Gate theo config hiện hành: tắt tính năng là không bao giờ hiện bubble.
+            if (getFeatureConfig().enabled === false) {
+                hideAllBubbles();
+                return;
+            }
             if (selectionCore.isEditableTarget(document.activeElement)) {
                 hideTextBubble();
                 return;
@@ -185,7 +190,7 @@
             updateTextSession(snapshot);
         };
 
-        const scheduleSelectionEvaluation = (delay = getFeatureConfig().selectionDelay || 120) => {
+        const scheduleSelectionEvaluation = (delay = getFeatureConfig().selectionDelay || 300) => {
             window.clearTimeout(timers.selection);
             timers.selection = window.setTimeout(evaluateSelection, delay);
         };
@@ -195,7 +200,8 @@
         };
 
         const evaluateImageCandidate = (image, event = null) => {
-            if (getFeatureConfig().imageSearchEnabled === false) {
+            const featureCfg = getFeatureConfig();
+            if (featureCfg.enabled === false || featureCfg.imageSearchEnabled === false) {
                 hideImageBubble();
                 return;
             }
