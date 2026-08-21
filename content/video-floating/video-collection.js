@@ -73,7 +73,27 @@
                 return;
             }
             for (const frame of [...ctx.iframeVideoMap.keys()]) if (!frame?.isConnected) ctx.iframeVideoMap.delete(frame);
-            const count = getVideos().length + getTrackedIframeEntries(ctx.iframeVideoMap).length;
+            const directVideos = getVideos();
+            const tracked = getTrackedIframeEntries(ctx.iframeVideoMap).length;
+            let fallbackIframeCount = 0;
+            try {
+                const detector = videoFloating.media.detector;
+                const utils = videoFloating.core.utils;
+                const allIframes = utils?.queryAllDeep ? utils.queryAllDeep('iframe') : [...document.querySelectorAll('iframe')];
+                const seen = new Set([...ctx.iframeVideoMap.keys()]);
+                for (const iframe of allIframes) {
+                    if (seen.has(iframe)) continue;
+                    if (iframe.closest?.('#fvp-wrapper')) continue;
+                    if (!detector.isLikelyVideoIframe?.(iframe)) continue;
+                    if (detector.isRedundantIframeCandidate?.(iframe, directVideos)) continue;
+                    const rect = iframe.getBoundingClientRect?.();
+                    if (rect && (rect.width < 160 || rect.height < 90)) continue;
+                    fallbackIframeCount++;
+                }
+            } catch {
+                void 0;
+            }
+            const count = directVideos.length + tracked + fallbackIframeCount;
             if (count > 0) {
                 ctx.iconRef.show();
                 ctx.iconRef.setBadge(count);

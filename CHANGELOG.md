@@ -4,6 +4,14 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.3.1] - 2026-08-21
+
+### 🐛 Fix Floating Video cho viet69.be (iframe generic)
+
+- **Phát hiện iframe tổng quát**: `media/detector.js:224` cho phép `count >=0` (trước `>0`), `core/controller.js:108` lưu iframe ngay cả khi inner `count=0` nếu `isLikelyVideoIframe` (src chứa `embed/player/video`), fix `viet69.be` với `https://emb.cd-vs.com/embed/...` (598x336) không cần đợi inner video.
+- **Fallback không cần postMessage**: `video-collection.js:68` và `ui/menu.js:18` thêm quét trực tiếp `queryAllDeep('iframe')` + `isLikelyVideoIframe` + `isRedundant` để hiện badge/menu ngay cả khi iframe cross-origin không gửi `fvp-iframe-videos` (CSP/sandbox).
+- Đảm bảo zoom/rotate fallback `ui-controls.js:58` hoạt động cho `emb.cd-vs.com` dù Cloudflare challenge chưa load video (5s delay).
+
 ## [1.3.0] - 2026-08-20
 
 ### ✨ Cải tiến Inline Translate

@@ -224,7 +224,8 @@
     const getTrackedIframeEntries = (map) => {
         const directVideos = getDirectVideos();
         return [...map.entries()].filter(([iframe, count]) => {
-            if (!iframe?.isConnected || !(count > 0)) return false;
+            if (!iframe?.isConnected) return false;
+            if (typeof count !== 'number' || count < 0) return false;
             if (!isLikelyVideoIframe(iframe)) return false;
             if (isRedundantIframeCandidate(iframe, directVideos)) return false;
             return true;

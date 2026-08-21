@@ -23,7 +23,29 @@
                 active: video === ctx.curVid,
                 onSelect: () => floatingSession.float(video)
             }));
-            const iframeItems = videoFloating.media.detector.getTrackedIframeEntries(ctx.iframeVideoMap).map(([iframe], index) => {
+            const tracked = videoFloating.media.detector.getTrackedIframeEntries(ctx.iframeVideoMap);
+            const trackedSet = new Set(tracked.map(([iframe]) => iframe));
+            let fallback = [];
+            try {
+                const detector = videoFloating.media.detector;
+                const utils = videoFloating.core.utils;
+                const allIframes = utils?.queryAllDeep ? utils.queryAllDeep('iframe') : [...document.querySelectorAll('iframe')];
+                const directVideos = videoFloating.media.detector.getDirectVideos?.() || [];
+                fallback = allIframes
+                    .filter((iframe) => !trackedSet.has(iframe))
+                    .filter((iframe) => !iframe.closest?.('#fvp-wrapper'))
+                    .filter((iframe) => detector.isLikelyVideoIframe?.(iframe))
+                    .filter((iframe) => !detector.isRedundantIframeCandidate?.(iframe, directVideos))
+                    .filter((iframe) => {
+                        const rect = iframe.getBoundingClientRect?.();
+                        return rect && rect.width >= 160 && rect.height >= 90;
+                    })
+                    .map((iframe) => [iframe, 0]);
+            } catch {
+                void 0;
+            }
+            const allIframeEntries = [...tracked, ...fallback];
+            const iframeItems = allIframeEntries.map(([iframe], index) => {
                 const domain = (() => {
                     try {
                         return new URL(iframe.src).hostname;

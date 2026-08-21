@@ -105,7 +105,7 @@
                 const matched = Array.from(iframes).find((iframe) => iframe.contentWindow === event.source);
                 if (matched) {
                     const count = Number(event.data.count) || 0;
-                    if (count > 0 && videoFloating.media.detector.isLikelyVideoIframe?.(matched)) ctx.iframeVideoMap.set(matched, count);
+                    if (videoFloating.media.detector.isLikelyVideoIframe?.(matched)) ctx.iframeVideoMap.set(matched, count);
                     else ctx.iframeVideoMap.delete(matched);
                     floatingSession.updateVideoDetectionUI();
                 }
