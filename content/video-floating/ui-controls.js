@@ -61,25 +61,24 @@
             else ctx.curVid.pause();
         };
 
-        const applyFloatedIframeFallbackTransform = () => {
-            if (!ctx.floatedIframe) return;
+        const applyFloatedIframeLayout = () => {
+            const iframe = ctx.floatedIframe;
+            if (!iframe) return;
             const zoom = ZOOM_LEVELS[ctx.iframePlaybackState.zoomIdx] || 1;
-            const angle = ctx.iframePlaybackState.rotationAngle || 0;
+            const angle = (ctx.iframePlaybackState.rotationAngle || 0) % 360;
+            const mode = FIT_MODES[ctx.iframePlaybackState.fitIdx] || FIT_MODES[0];
+            // Outer frame owns presentation; keep it filling wrapper and letterbox via object-fit.
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.left = '0';
+            iframe.style.top = '0';
+            iframe.style.objectFit = mode;
+            iframe.style.objectPosition = 'center center';
+            iframe.style.transformOrigin = 'center center';
             const transforms = [];
             if (angle) transforms.push(`rotate(${angle}deg)`);
             if (zoom !== 1) transforms.push(`scale(${zoom})`);
-            ctx.floatedIframe.style.transform = transforms.join(' ');
-            ctx.floatedIframe.style.transformOrigin = 'center center';
-            if (angle === 90 || angle === 270) {
-                ctx.floatedIframe.style.objectFit = 'contain';
-            } else {
-                const fit = FIT_MODES[ctx.iframePlaybackState.fitIdx] || FIT_MODES[0];
-                try {
-                    ctx.floatedIframe.style.objectFit = fit;
-                } catch {
-                    void 0;
-                }
-            }
+            iframe.style.transform = transforms.join(' ');
         };
 
         const syncFloatedIframeUI = () => {
@@ -106,7 +105,7 @@
             const rotate = $('fvp-rotate');
             if (rotate) rotate.style.transform = `rotate(${ctx.iframePlaybackState.rotationAngle || 0}deg)`;
             if (ctx.floatedIframe) {
-                applyFloatedIframeFallbackTransform();
+                applyFloatedIframeLayout();
             }
         };
 
@@ -129,7 +128,7 @@
                     // Outer iframe is the single source of truth for presentation;
                     // never forward these to the inner agent or the two will fight.
                     ctx.iframePlaybackState.fitIdx = (ctx.iframePlaybackState.fitIdx + 1) % FIT_MODES.length;
-                    applyFloatedIframeFallbackTransform();
+                    applyFloatedIframeLayout();
                     syncFloatedIframeUI();
                 } else {
                     ctx.fitIdx = (ctx.fitIdx + 1) % FIT_MODES.length;
@@ -140,7 +139,7 @@
             $('fvp-zoom').onclick = () => {
                 if (ctx.floatedIframe) {
                     ctx.iframePlaybackState.zoomIdx = (ctx.iframePlaybackState.zoomIdx + 1) % ZOOM_LEVELS.length;
-                    applyFloatedIframeFallbackTransform();
+                    applyFloatedIframeLayout();
                     syncFloatedIframeUI();
                 } else if (ctx.curVid) {
                     ctx.zoomIdx = (ctx.zoomIdx + 1) % ZOOM_LEVELS.length;
@@ -151,7 +150,7 @@
             $('fvp-rotate').onclick = () => {
                 if (ctx.floatedIframe) {
                     ctx.iframePlaybackState.rotationAngle = (ctx.iframePlaybackState.rotationAngle + 90) % 360;
-                    applyFloatedIframeFallbackTransform();
+                    applyFloatedIframeLayout();
                     syncFloatedIframeUI();
                 } else if (ctx.curVid) {
                     ctx.rotationAngle = (ctx.rotationAngle + 90) % 360;

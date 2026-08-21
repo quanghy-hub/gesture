@@ -4,6 +4,13 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.2] - 2026-08-22
+
+### 🐛 Fix Floating iframe căn giữa & không phóng to
+
+- **Trước**: `iframe-mode.js` inject toàn cục `position:absolute` + `translate` làm lệch nút play gốc và phóng to video dọc (100% ép khung) → lẹm hình (`[Image 1]`).
+- **Sau**: style chỉ áp khi `html.fvp-iframe-floating`, video dùng `width:auto;height:auto;max-width/height:100%;object-fit:contain` trong flex center, giữ khung gốc. Outer `ui-controls.js` giữ `width/height:100%` lấp wrapper, zoom/rotate do outer `transform`. Thêm auto-click `jsReadyPlay` sau reload do move iframe.
+
 ## [1.4.1] - 2026-08-21
 
 ### 📝 Quick Search

@@ -32,6 +32,8 @@
                                   duration: video.duration || 0,
                                   playbackRate: video.playbackRate || 1,
                                   bufferedEnd: video.buffered?.length ? video.buffered.end(video.buffered.length - 1) : 0,
+                                  videoWidth: video.videoWidth || 0,
+                                  videoHeight: video.videoHeight || 0,
                                   fitIdx: iframeUiState.fitIdx,
                                   zoomIdx: iframeUiState.zoomIdx,
                                   rotationAngle: iframeUiState.rotationAngle
@@ -45,6 +47,8 @@
                                   duration: 0,
                                   playbackRate: 1,
                                   bufferedEnd: 0,
+                                  videoWidth: 0,
+                                  videoHeight: 0,
                                   fitIdx: 0,
                                   zoomIdx: 0,
                                   rotationAngle: 0
