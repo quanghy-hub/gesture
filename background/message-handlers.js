@@ -31,19 +31,6 @@
         return { ok: true, tabId: tab.id };
     };
 
-    const handleOpenNewTab = async (sender) => {
-        const openerTabId = sender.tab?.id;
-        const index = typeof sender.tab?.index === 'number' ? sender.tab.index + 1 : undefined;
-
-        const tab = await chrome.tabs.create({
-            active: true,
-            openerTabId,
-            index
-        });
-
-        return { ok: true, tabId: tab.id };
-    };
-
     const handleCloseCurrentTab = async (sender) => {
         if (!sender.tab?.id) {
             return { ok: false, error: 'No sender tab' };
@@ -143,7 +130,6 @@
     ext.background = ext.background || {};
     ext.background.messageHandlers = {
         handleOpenTab,
-        handleOpenNewTab,
         handleCloseCurrentTab,
         handleTranslateText,
         handleDownloadDataUrl,

@@ -21,29 +21,8 @@
         return isEditableTarget(direct) ? direct : null;
     };
 
-    const getSelectionTextFromTarget = (target) => {
-        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-            const start = typeof target.selectionStart === 'number' ? target.selectionStart : 0;
-            const end = typeof target.selectionEnd === 'number' ? target.selectionEnd : 0;
-            return target.value.slice(start, end);
-        }
-        return document.getSelection()?.toString() || '';
-    };
-
-    const getActiveSelectionText = () => {
-        const focusedTarget = getEditableTarget(document.activeElement);
-        return (
-            [getSelectionTextFromTarget(focusedTarget), document.getSelection()?.toString() || ''].find(
-                (value) => typeof value === 'string' && value.trim()
-            ) || ''
-        );
-    };
-
     ext.shared.selectionQuery = {
-        EDITABLE_SELECTOR,
         isEditableTarget,
-        getEditableTarget,
-        getSelectionTextFromTarget,
-        getActiveSelectionText
+        getEditableTarget
     };
 })();

@@ -30,7 +30,6 @@
         'host-blacklist',
         'unblock-copy',
         'gestures',
-        'clipboard',
         'floating-video',
         'video-screenshot',
         'quick-search',
@@ -44,12 +43,6 @@
     /** @type {GestureConfig} */
     const DEFAULT_CONFIG = Object.freeze({
         version: 1,
-        clipboard: {
-            enabled: true,
-            maxHistory: 5,
-            history: [],
-            pinned: []
-        },
         unblockCopy: {
             enabled: true
         },

@@ -13,19 +13,6 @@
         top: clamp(top, margin, Math.max(margin, window.innerHeight - height - margin))
     });
 
-    const getCenteredRect = ({ width = 0, height = 0, margin = 8 }) => {
-        const safeWidth = Math.min(Math.max(width, 0), Math.max(0, window.innerWidth - margin * 2));
-        const safeHeight = Math.min(Math.max(height, 0), Math.max(0, window.innerHeight - margin * 2));
-        const pos = clampFixedPosition({
-            left: Math.round((window.innerWidth - safeWidth) / 2),
-            top: Math.round((window.innerHeight - safeHeight) / 2),
-            width: safeWidth,
-            height: safeHeight,
-            margin
-        });
-        return { left: pos.left, top: pos.top, width: safeWidth, height: safeHeight };
-    };
-
     const normalizeFixedLayout = ({
         layout,
         fallbackLayout,
@@ -76,7 +63,6 @@
         clamp,
         clampFixedPosition,
         fitPanelToViewport,
-        getCenteredRect,
         normalizeFixedLayout,
         parsePx
     };

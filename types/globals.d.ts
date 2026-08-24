@@ -98,12 +98,6 @@ declare global {
         version?: number;
         /** Đánh dấu config đã qua normalize — không lưu xuống storage. */
         _isNormalized?: boolean;
-        clipboard?: {
-            enabled?: boolean;
-            maxHistory?: number;
-            history?: string[];
-            pinned?: string[];
-        };
         unblockCopy?: {
             enabled?: boolean;
         };
@@ -226,10 +220,6 @@ declare global {
             getConfig(): Promise<GestureConfig>;
             saveConfig(config: GestureConfig): Promise<GestureConfig>;
             updateConfig(updater: (draft: GestureConfig) => GestureConfig | unknown): Promise<GestureConfig>;
-            saveClipboardHistory(text: string): Promise<unknown>;
-            togglePinItem(text: string): Promise<unknown>;
-            removeClipboardItem(text: string): Promise<unknown>;
-            clearClipboardHistory(): Promise<unknown>;
             saveVideoLayout(layout: VideoFloatingLayout): Promise<unknown>;
         };
         messaging?: {

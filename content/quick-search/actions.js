@@ -126,9 +126,6 @@
         },
         async copyText(value) {
             await ext.shared.domUtils.copyText(value);
-            if (ext.shared.storage?.saveClipboardHistory) {
-                await ext.shared.storage.saveClipboardHistory(value);
-            }
         },
         async copyImage(image, url) {
             const copyBlob = async (blob) => {

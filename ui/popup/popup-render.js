@@ -72,7 +72,6 @@
             const canUseForumControls = !!activeHost && els.featureForumEnabled.checked;
             setCardState(els.unblockCopyCard, els.featureUnblockCopyEnabled.checked);
             setCardState(els.gesturesCard, els.featureGesturesEnabled.checked);
-            setCardState(els.clipboardCard, els.featureClipboardEnabled.checked);
             setCardState(els.videoFloatingCard, els.featureVideoFloatingEnabled.checked);
             setCardState(els.videoScreenshotCard, els.featureVideoScreenshotEnabled.checked);
             setCardState(els.quickSearchCard, els.featureQuickSearchEnabled.checked);

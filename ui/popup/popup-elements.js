@@ -9,7 +9,6 @@
         hostBlacklistToggle: safeGetElementById('host-blacklist-toggle'),
         featureUnblockCopyEnabled: safeGetElementById('feature-unblock-copy-enabled'),
         featureGesturesEnabled: safeGetElementById('feature-gestures-enabled'),
-        featureClipboardEnabled: safeGetElementById('feature-clipboard-enabled'),
         featureVideoFloatingEnabled: safeGetElementById('feature-video-floating-enabled'),
         featureVideoScreenshotEnabled: safeGetElementById('feature-video-screenshot-enabled'),
         featureQuickSearchEnabled: safeGetElementById('feature-quick-search-enabled'),
@@ -46,7 +45,6 @@
         gEdgeSide: safeGetElementById('g-edge-side'),
         gEdgeWidth: safeGetElementById('g-edge-width'),
         gEdgeSpeed: safeGetElementById('g-edge-speed'),
-        clipboardClear: safeGetElementById('clipboard-clear'),
         gestureBlockHostToggle: safeGetElementById('gesture-block-host-toggle'),
         gestureBlockHostLabel: safeGetElementById('gesture-block-host-label'),
         hostOnlyRows: Array.from(document.querySelectorAll('.host-only')),
@@ -68,7 +66,6 @@
 
     ext.ui.popupElements.unblockCopyCard = ext.ui.popupElements.featureUnblockCopyEnabled.closest('.card');
     ext.ui.popupElements.gesturesCard = ext.ui.popupElements.featureGesturesEnabled.closest('.card');
-    ext.ui.popupElements.clipboardCard = ext.ui.popupElements.featureClipboardEnabled.closest('.card');
     ext.ui.popupElements.videoFloatingCard = ext.ui.popupElements.featureVideoFloatingEnabled.closest('.card');
     ext.ui.popupElements.videoScreenshotCard = ext.ui.popupElements.featureVideoScreenshotEnabled.closest('.card');
     ext.ui.popupElements.quickSearchCard = ext.ui.popupElements.featureQuickSearchEnabled.closest('.card');

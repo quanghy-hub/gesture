@@ -250,19 +250,18 @@ async function runAllTests() {
     runTest('normalizeConfig: khôi phục giá trị mặc định cho cấu hình rỗng', () => {
         const config = toMainContext(normalizeConfig({}));
         assert.equal(config.version, 1);
-        assert.equal(config.clipboard.enabled, true);
-        assert.equal(config.clipboard.maxHistory, 5);
+        assert.equal(config.unblockCopy.enabled, true);
+        assert.equal(config.quickSearch.columns, 5);
     });
 
     runTest('normalizeConfig: giới hạn (clamp) các số cấu hình ngoài tầm', () => {
         const config = toMainContext(
             normalizeConfig({
-                clipboard: { maxHistory: 99 },
-                quickSearch: { columns: 1 }
+                quickSearch: { columns: 1, selectionDelay: 5000 }
             })
         );
-        assert.equal(config.clipboard.maxHistory, 20);
         assert.equal(config.quickSearch.columns, 3);
+        assert.equal(config.quickSearch.selectionDelay, 1000);
     });
 
     runTest('videoFloating: chặn riêng background seek theo host và subdomain', () => {
@@ -521,40 +520,15 @@ async function runAllTests() {
     await runTest('storage: getConfig trả về default config chuẩn hóa', async () => {
         const config = await storage.getConfig();
         assert.equal(config.version, 1);
-        assert.equal(config.clipboard.enabled, true);
+        assert.equal(config.unblockCopy.enabled, true);
     });
 
     await runTest('storage: saveConfig ghi cấu hình vào storage', async () => {
-        const updated = await storage.saveConfig({ version: 1, clipboard: { enabled: false, maxHistory: 10 } });
-        assert.equal(updated.clipboard.enabled, false);
-        assert.equal(updated.clipboard.maxHistory, 10);
+        const updated = await storage.saveConfig({ version: 1, unblockCopy: { enabled: false }, quickSearch: { columns: 6 } });
+        assert.equal(updated.unblockCopy.enabled, false);
+        assert.equal(updated.quickSearch.columns, 6);
         const read = await storage.getConfig();
-        assert.equal(read.clipboard.maxHistory, 10);
-    });
-
-    await runTest('storage: saveClipboardHistory thêm mục mới và cắt ngắn theo maxHistory', async () => {
-        await storage.saveClipboardHistory('Item 1');
-        await storage.saveClipboardHistory('Item 2');
-        await storage.saveClipboardHistory('Item 3');
-        const cfg = await storage.getConfig();
-        assert.equal(cfg.clipboard.history[0], 'Item 3');
-        assert.equal(cfg.clipboard.history[1], 'Item 2');
-    });
-
-    await runTest('storage: togglePinItem ghim và bỏ ghim mục', async () => {
-        await storage.togglePinItem('Pinned Note');
-        let cfg = await storage.getConfig();
-        assert.ok(cfg.clipboard.pinned.includes('Pinned Note'));
-
-        await storage.togglePinItem('Pinned Note');
-        cfg = await storage.getConfig();
-        assert.ok(!cfg.clipboard.pinned.includes('Pinned Note'));
-    });
-
-    await runTest('storage: clearClipboardHistory xóa lịch sử clipboard', async () => {
-        await storage.clearClipboardHistory();
-        const cfg = await storage.getConfig();
-        assert.deepEqual(toMainContext(cfg.clipboard.history), []);
+        assert.equal(read.quickSearch.columns, 6);
     });
 
     // ============================================================================
@@ -700,17 +674,9 @@ async function runAllTests() {
     // ============================================================================
     // 11. DOM Utils & Touch Core Tests
     // ============================================================================
-    runTest('domUtils: escapeHtml mã hóa chính xác các ký tự đặc biệt XSS', () => {
-        assert.equal(
-            domUtils.escapeHtml('<script>alert("XSS") & "test"</script>'),
-            '&lt;script&gt;alert(&quot;XSS&quot;) &amp; &quot;test&quot;&lt;/script&gt;'
-        );
-    });
-
-    runTest('domUtils: previewText cắt ngắn văn bản vượt quá độ dài tối đa', () => {
-        const longText = 'Đây là một đoạn văn bản rất dài vượt quá giới hạn cho phép để hiển thị trong preview.';
-        assert.equal(domUtils.previewText(longText, 20), 'Đây là một đoạn v...');
-        assert.equal(domUtils.previewText('Ngắn', 20), 'Ngắn');
+    runTest('domUtils: sanitizeFilename thay thế ký tự cấm', () => {
+        assert.equal(domUtils.sanitizeFilename('video: "test"? <hd>'), 'video_ _test_ _hd_');
+        assert.equal(domUtils.sanitizeFilename('a<b>c:d'), 'a_b_c_d');
     });
 
     runTest('touchCore: getPrimaryPoint trích xuất tọa độ chính xác', () => {

@@ -85,57 +85,6 @@
         return saveConfig(nextValue || draft);
     };
 
-    const saveClipboardHistory = async (text) => {
-        if (!text || typeof text !== 'string') return;
-        const trimmed = text.trim();
-        if (!trimmed) return;
-        return updateConfig((draft) => {
-            draft.clipboard = draft.clipboard || { history: [], pinned: [] };
-            draft.clipboard.history = draft.clipboard.history || [];
-            const cb = draft.clipboard;
-            const max = cb.maxHistory || 5;
-            cb.history = [trimmed, ...cb.history.filter((s) => s !== trimmed)].slice(0, max);
-            return draft;
-        });
-    };
-
-    const togglePinItem = async (text) => {
-        if (!text || typeof text !== 'string') return;
-        const trimmed = text.trim();
-        if (!trimmed) return;
-        return updateConfig((draft) => {
-            draft.clipboard = draft.clipboard || { history: [], pinned: [] };
-            draft.clipboard.pinned = draft.clipboard.pinned || [];
-            const cb = draft.clipboard;
-            const idx = cb.pinned.indexOf(trimmed);
-            if (idx === -1) {
-                cb.pinned = [trimmed, ...cb.pinned.filter((s) => s !== trimmed)].slice(0, 5);
-            } else {
-                cb.pinned = cb.pinned.filter((s) => s !== trimmed);
-            }
-            return draft;
-        });
-    };
-
-    const removeClipboardItem = async (text) => {
-        if (!text || typeof text !== 'string') return;
-        const trimmed = text.trim();
-        if (!trimmed) return;
-        return updateConfig((draft) => {
-            if (!draft.clipboard) return draft;
-            if (draft.clipboard.history) draft.clipboard.history = draft.clipboard.history.filter((s) => s !== trimmed);
-            if (draft.clipboard.pinned) draft.clipboard.pinned = draft.clipboard.pinned.filter((s) => s !== trimmed);
-            return draft;
-        });
-    };
-
-    const clearClipboardHistory = async () => {
-        return updateConfig((draft) => {
-            if (draft.clipboard) draft.clipboard.history = [];
-            return draft;
-        });
-    };
-
     const saveVideoLayout = async (layout) => {
         if (!layout || typeof layout !== 'object') return;
         return updateConfig((draft) => {
@@ -157,10 +106,6 @@
         getConfig,
         saveConfig,
         updateConfig,
-        saveClipboardHistory,
-        togglePinItem,
-        removeClipboardItem,
-        clearClipboardHistory,
         saveVideoLayout
     };
 })();

@@ -20,15 +20,23 @@
         let loadHandler = null;
         let resizeBound = false;
         let observerActive = false;
+        let lastSyncedCacheKey = '';
 
         const isXenForoDocument = () => {
             const generator = document.querySelector('meta[name="generator" i]')?.getAttribute('content') || '';
             if (/xenforo/i.test(generator)) {
                 return true;
             }
+            const html = document.documentElement;
+            if (html?.dataset?.template || html?.getAttribute('data-template')) {
+                return true;
+            }
+            if (document.body?.dataset?.template || document.querySelector('html[data-xf-app], html[data-xf-click]')) {
+                return true;
+            }
             return Boolean(
                 document.querySelector(
-                    '.p-pageWrapper, .p-body-inner, .structItemContainer, article.message--post, article.message, [data-template]'
+                    '.p-pageWrapper, .p-body-inner, .p-body-main, .p-body-content, .structItemContainer, .block--messages, .block-body, article.message--post, article.message, [data-template], [data-xf-click], [data-xf-init]'
                 )
             );
         };
@@ -42,6 +50,10 @@
         };
 
         const syncCache = () => {
+            // Bỏ qua ghi lặp lại khi config không đổi (resize/observer spam).
+            const cacheKey = JSON.stringify(currentConfig);
+            if (cacheKey === lastSyncedCacheKey) return;
+            lastSyncedCacheKey = cacheKey;
             ext.forumCache.write(location.host, currentConfig);
         };
 
@@ -71,7 +83,18 @@
             );
         };
 
-        const shouldActivate = () => currentConfig.enabled && innerWidth > innerHeight && innerWidth >= currentConfig.minWidth;
+        const shouldActivate = () => {
+            if (!currentConfig.enabled) return false;
+            if (innerWidth <= innerHeight) return false;
+            if (typeof window.matchMedia === 'function') {
+                try {
+                    return window.matchMedia(`(min-width: ${currentConfig.minWidth}px)`).matches;
+                } catch {
+                    return innerWidth >= currentConfig.minWidth;
+                }
+            }
+            return innerWidth >= currentConfig.minWidth;
+        };
 
         const canMutationAffectForumLayout = (node) => {
             if (!(node instanceof Element)) return false;

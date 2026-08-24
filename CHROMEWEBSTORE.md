@@ -25,7 +25,6 @@ Gesture enhances your web browsing experience across desktop and mobile Chromium
 - 📸 **Video Screenshots & Frame Capture**: Take instant high-resolution screenshots or capture video clips directly from any HTML5 video player.
 - 🔤 **Instant Inline Translation**: Highlight text anywhere on the web to translate it in-place using customizable hotkeys, gestures, or selection popups. Supports editable fields (inputs, textareas, contenteditable).
 - 🔍 **Multi-Engine Quick Search**: Select text or long-press images to quickly search across Google, Perplexity, ChatGPT, Gemini, Claude, YouTube, and more.
-- 📋 **Floating Clipboard Manager**: Keep a searchable history of copied snippets, pin important items, and paste directly into forms.
 - 💬 **Bilingual YouTube Subtitles**: Display real-time dual-language subtitles on YouTube videos with draggable positioning and custom styling.
 - 📖 **Smart Forum Layout**: Automatically optimizes post layouts and expands reading width on forum sites (vBulletin, XenForo, phpBB, Discourse).
 - 🔓 **Unblock Copy**: Restore text selection and right-click functionality on websites that disable copying.
@@ -47,7 +46,7 @@ Every permission declared in `manifest.json` is strictly required for the extens
 
 | Permission       | Justification                                                                                                                                             |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`        | Required to save user preferences, custom gesture settings, pinned clipboard items, and local host exclusion rules across browser sessions.               |
+| `storage`        | Required to save user preferences, custom gesture settings, and local host exclusion rules across browser sessions.                                       |
 | `downloads`      | Required to save captured video screenshots and recorded video clips directly to the user's Downloads folder upon request.                                |
 | `scripting`      | Required to dynamically inject content script bundles and MAIN-world video quality APIs into web pages while respecting the user's domain exclusion list. |
 | `clipboardWrite` | Required to copy translated text snippets, forum excerpts, and OCR results to the system clipboard when the user clicks copy action buttons.              |

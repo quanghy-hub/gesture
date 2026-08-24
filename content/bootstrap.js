@@ -41,7 +41,6 @@
             return;
         }
         const features = [
-            ext.features.clipboard,
             ext.features.googleSearch,
             ext.features.quickSearch,
             ext.features.inlineTranslate,

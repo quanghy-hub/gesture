@@ -70,42 +70,48 @@
                 return;
             }
 
-            await waitForNextPaint();
-            const response = await ext.shared.tabActions.captureVisibleTab();
-            if (!response?.ok || !response.url) {
-                throw new Error(response?.error || 'Capture visible tab failed');
-            }
-
-            const image = await createImageFromUrl(response.url);
-            const scaleX = image.naturalWidth / window.innerWidth;
-            const scaleY = image.naturalHeight / window.innerHeight;
-            const sx = Math.round(region.left * scaleX);
-            const sy = Math.round(region.top * scaleY);
-            const sw = Math.max(1, Math.round(region.width * scaleX));
-            const sh = Math.max(1, Math.round(region.height * scaleY));
-
-            const canvas = document.createElement('canvas');
-            canvas.width = sw;
-            canvas.height = sh;
-            const canvasContext = canvas.getContext('2d');
-            if (!canvasContext) {
-                throw new Error('Canvas 2D context unavailable');
-            }
-
-            canvasContext.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
-            const url = canvas.toDataURL('image/png');
-            const filename = buildFilename();
-
+            // Ẩn UI nổi của extension trước khi chụp để không bị in vào ảnh.
+            ctx.suspendFloatingOverlays?.();
             try {
-                const downloadResponse = await ext.shared.tabActions.downloadDataUrl(url, filename);
-                if (downloadResponse?.ok) {
-                    return;
+                await waitForNextPaint();
+                const response = await ext.shared.tabActions.captureVisibleTab();
+                if (!response?.ok || !response.url) {
+                    throw new Error(response?.error || 'Capture visible tab failed');
                 }
-            } catch {
-                // Fall through to anchor download below.
-            }
 
-            fallbackDownload(url, filename);
+                const image = await createImageFromUrl(response.url);
+                const scaleX = image.naturalWidth / window.innerWidth;
+                const scaleY = image.naturalHeight / window.innerHeight;
+                const sx = Math.round(region.left * scaleX);
+                const sy = Math.round(region.top * scaleY);
+                const sw = Math.max(1, Math.round(region.width * scaleX));
+                const sh = Math.max(1, Math.round(region.height * scaleY));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = sw;
+                canvas.height = sh;
+                const canvasContext = canvas.getContext('2d');
+                if (!canvasContext) {
+                    throw new Error('Canvas 2D context unavailable');
+                }
+
+                canvasContext.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+                const url = canvas.toDataURL('image/png');
+                const filename = buildFilename();
+
+                try {
+                    const downloadResponse = await ext.shared.tabActions.downloadDataUrl(url, filename);
+                    if (downloadResponse?.ok) {
+                        return;
+                    }
+                } catch {
+                    // Fall through to anchor download below.
+                }
+
+                fallbackDownload(url, filename);
+            } finally {
+                ctx.restoreFloatingOverlays?.();
+            }
         };
 
         const startRegionMode = ({ hintText, onComplete }) => {

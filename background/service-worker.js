@@ -59,9 +59,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             case 'gesture-ext/open-tab':
                 sendResponse(await handlers.handleOpenTab(message.payload, sender));
                 break;
-            case 'gesture-ext/open-new-tab':
-                sendResponse(await handlers.handleOpenNewTab(sender));
-                break;
             case 'gesture-ext/close-current-tab':
                 sendResponse(await handlers.handleCloseCurrentTab(sender));
                 break;

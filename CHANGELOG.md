@@ -4,6 +4,43 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.3] - 2026-08-24
+
+### 🧹 Repo cleanup — dead code sweep
+
+- **File rác**: xóa 13 file `.tmp-*` (ảnh/debug script ~1.6MB) khỏi root; untrack `test-results/.last-run.json` (đã có trong .gitignore nhưng bị commit từ trước).
+- **Dead code sau khi gỡ clipboard** (verify từng item bằng grep trước khi cắt):
+    - `dom-utils.js`: bỏ `escapeHtml`, `previewText` (chỉ còn test dùng), `isVisible`, `encodeAttribute`, `decodeAttribute`.
+    - `selection-query.js` / `selection-modifier.js`: bỏ `getActiveSelectionText`, `getSelectionTextFromTarget`, `insertTextAtCaret` + 2 helper insert (từng chỉ phục vụ clipboard).
+    - `floating-ui.js`: bỏ method `setActive`, ngừng export `createFloatingElementApi` (chỉ dùng nội bộ). CSS `.is-active` giữ lại vì google-search/youtube-subtitles toggle trực tiếp.
+    - `toast-core.js`: `ensureToastStyle` chuyển thành hàm nội bộ.
+    - `touch-core.js`: bỏ `createLongPress`; `viewport-core.js`: bỏ `getCenteredRect`; `floating-utils.js`: bỏ wrapper `clamp` chết; `runtime.js`: bỏ `isMacOS`.
+- **Message path chết**: bỏ `tabActions.openNewTab` + handler `'gesture-ext/open-new-tab'` (client không bao giờ gọi) → thu gom message surface của service worker.
+- **Iframe bridge**: bỏ 4 lệnh whitelist không bao giờ được gửi (`play-pause`, `cycle-fit`, `cycle-zoom`, `rotate`) → thu hẹp bề mặt postMessage, giảm attack surface. State snapshot (`fitIdx/zoomIdx/rotationAngle`) vẫn giữ vì UI state vẫn đọc.
+- Bundle giảm 540.9KB → 533.9KB; eslint/typecheck/test sạch hoàn toàn.
+
+### 🗑️ Remove Clipboard feature
+
+- Xóa toàn bộ module `content/clipboard/` (trigger 📋, panel history/pin/paste) cùng wiring: `bootstrap.js`, `scripts/build.js`, `manifest.json` CSS, `extension-ui-guard.js`, popup (section + field map + events + elements + render), `storage.js` (4 API clipboard), config schema/normalize, type declarations và test liên quan.
+- Dọn call site còn sót: `quick-search/actions.js#copyText` và `ocr-core.js` không còn ghi vào lịch sử clipboard của extension. Quyền `clipboardWrite` được **giữ lại** vì OCR/Quick Search vẫn dùng `navigator.clipboard`.
+- Lợi ích phụ: loại bỏ race condition read-modify-write toàn config khi copy từ nhiều tab đồng thời.
+
+### 🖼️ Forum layout — perf & ổn định
+
+- **Fix layout thrash** (`layout.js`): tách vòng đọc/ghi khi dựng masonry — trải items vào 2 cột trước, đo chiều cao hàng loạt một lần, tính phân bổ thuần số học rồi mới dời item lệch cột. Thread dài không còn N lần forced reflow.
+- **Chống vòng lặp ResizeObserver**: `fitWrapperToViewport` chỉ ghi `--fs-overflow-fix` khi giá trị đổi thật sự.
+- **Bỏ ghi localStorage lặp lại**: `syncCache` so khớp serialized key trước khi ghi (resize/observer spam không còn ghi trùng).
+
+### 📸 Video Screenshot — sạch khung hình & phản hồi người dùng
+
+- **Ảnh chụp vùng không còn dính UI của extension** (`capture-region.js`): ẩn nút trigger nổi trước `captureVisibleTab`, khôi phục trong `finally`.
+- **Video ghi hình sạch hơn** (`screen-recorder.js`): gộp badge "Đang ghi hình" vào control bar (đã tự đặt ngoài vùng ghi); viền vùng ghi dùng `outline-offset: 2px` đẩy hoàn toàn ra ngoài — pixel trong region không bị viền/badge ăn vào. Trigger nổi bị ẩn suốt phiên ghi.
+- **Toast phản hồi thay vì silent failure**: thành công/lỗi khi chụp frame (báo riêng lỗi video cross-origin bị canvas-taint), lỗi chụp vùng, lỗi bắt đầu ghi hình, bản ghi trống.
+- **Perf**: MutationObserver chỉ chạy khi tính năng bật; tắt qua popup sẽ ngắt observer ngay lập tức.
+- Phím tắt bỏ qua target `[role="textbox"]`.
+
+---
+
 ## [1.4.2] - 2026-08-22
 
 ### 🐛 Fix Floating iframe căn giữa & không phóng to

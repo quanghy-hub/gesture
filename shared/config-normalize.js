@@ -97,18 +97,6 @@
 
         config.version = 1;
 
-        // clipboard
-        config.clipboard = config.clipboard && typeof config.clipboard === 'object' ? config.clipboard : {};
-        config.clipboard.enabled = config.clipboard.enabled !== false;
-        config.clipboard.maxHistory = clampNumber(config.clipboard.maxHistory, 5, 1, 20);
-        config.clipboard.history = Array.isArray(config.clipboard.history)
-            ? config.clipboard.history.filter((s) => typeof s === 'string' && s.length > 0).slice(0, 20)
-            : [];
-        config.clipboard.pinned = Array.isArray(config.clipboard.pinned)
-            ? config.clipboard.pinned.filter((s) => typeof s === 'string' && s.length > 0)
-            : [];
-        delete config.clipboard.triggerPosition;
-
         config.unblockCopy = config.unblockCopy && typeof config.unblockCopy === 'object' ? config.unblockCopy : {};
         config.unblockCopy.enabled = config.unblockCopy.enabled !== false;
 

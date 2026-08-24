@@ -10,7 +10,6 @@
     const FIELD_MAP = [
         // Feature toggles
         { elementId: 'feature-unblock-copy-enabled', configPath: 'unblockCopy.enabled', type: 'checkbox', fallback: true },
-        { elementId: 'feature-clipboard-enabled', configPath: 'clipboard.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-video-floating-enabled', configPath: 'videoFloating.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-video-screenshot-enabled', configPath: 'videoScreenshot.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-quick-search-enabled', configPath: 'quickSearch.enabled', type: 'checkbox', fallback: true },
@@ -82,9 +81,6 @@
         // Quick search
         { elementId: 'quick-search-columns', configPath: 'quickSearch.columns', type: 'number', fallback: 5 },
         { elementId: 'quick-search-image-search-enabled', configPath: 'quickSearch.imageSearchEnabled', type: 'checkbox', fallback: true },
-
-        // Clipboard
-        { elementId: 'clipboard-max-history', configPath: 'clipboard.maxHistory', type: 'number', fallback: 5 },
 
         // Video floating
         { elementId: 'video-floating-min-distance', configPath: 'videoFloating.minSwipeDistance', type: 'number', fallback: 30 },

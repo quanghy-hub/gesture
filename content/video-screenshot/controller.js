@@ -31,7 +31,16 @@
         const trigger = videoScreenshot.createTrigger(ctx, captureVideo);
         const interactions = videoScreenshot.createInteractions(ctx, captureVideo, captureRegion, screenRecorder);
 
+        // Cho phép các module ẩn/hiện floating UI của extension trong lúc
+        // chụp vùng màn hình hoặc ghi hình để UI không bị dính vào sản phẩm.
+        ctx.suspendFloatingOverlays = () => trigger.setSuppressed(true);
+        ctx.restoreFloatingOverlays = () => trigger.setSuppressed(false);
+
         const queueSyncTrigger = () => {
+            // Không tốn chi phí findActiveVideo khi tính năng đang tắt.
+            if (!isFeatureEnabled()) {
+                return;
+            }
             if (syncTimer) {
                 return;
             }
@@ -42,6 +51,9 @@
         };
 
         const startObserver = () => {
+            if (observer || !document.body) {
+                return;
+            }
             observer = new MutationObserver(() => {
                 queueSyncTrigger();
             });
@@ -49,6 +61,20 @@
                 childList: true,
                 subtree: true
             });
+        };
+
+        const stopObserver = () => {
+            observer?.disconnect();
+            observer = null;
+        };
+
+        const syncObserverLifecycle = () => {
+            if (isFeatureEnabled()) {
+                startObserver();
+                queueSyncTrigger();
+            } else {
+                stopObserver();
+            }
         };
 
         ensureStyles();
@@ -60,7 +86,7 @@
         window.addEventListener('scroll', queueSyncTrigger, true);
 
         if (document.body) {
-            startObserver();
+            syncObserverLifecycle();
         } else {
             window.addEventListener(
                 'DOMContentLoaded',
@@ -77,11 +103,16 @@
                 if (!isFeatureEnabled()) {
                     captureRegion.removeRegionOverlay();
                     screenRecorder.stopScreenRecording();
+                    stopObserver();
+                    trigger.syncTrigger();
+                    return;
                 }
-                queueSyncTrigger();
+                captureRegion.removeRegionOverlay();
+                screenRecorder.stopScreenRecording();
+                syncObserverLifecycle();
             },
             destroy() {
-                observer?.disconnect();
+                stopObserver();
                 removeShortcutListener();
                 captureRegion.removeRegionOverlay();
                 screenRecorder.stopScreenRecording();

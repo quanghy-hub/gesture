@@ -1,7 +1,6 @@
 (() => {
     const ext = globalThis.GestureExtension;
     ext.shared = ext.shared || {};
-    const viewport = ext.shared.viewportCore;
     const runtime = ext.shared.runtime;
     const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
     const positionMemoryStore = {};
@@ -11,7 +10,6 @@
     const isHtmlDocument = () => runtime?.isHtmlDocument?.() ?? false;
     const getFloatingRoot = () => document.documentElement || document.body || null;
     const isExtensionContextInvalidated = (error) => /Extension context invalidated/i.test(String(error?.message || error || ''));
-
     const appendHtmlFragment = (element, htmlContent) => {
         if (!element || !htmlContent) {
             return;
@@ -39,7 +37,6 @@
         getFloatingRoot,
         isExtensionContextInvalidated,
         appendHtmlFragment,
-        clamp: (value, min, max) => viewport?.clamp?.(value, min, max) ?? Math.min(max, Math.max(min, value)),
         clampFixedPosition: (rect) =>
             viewport?.clampFixedPosition?.(rect) ?? {
                 left: Math.min(

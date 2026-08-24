@@ -1,7 +1,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     const videoFloating = (ext.videoFloating = ext.videoFloating || {});
-    const { FVP_IFRAME_BRIDGE, FIT_MODES, ZOOM_LEVELS } = videoFloating;
+    const { FVP_IFRAME_BRIDGE } = videoFloating;
     const { queryAllDeep, clamp } = videoFloating.core.utils;
 
     videoFloating.createIframeMessageBridge = (deps) => {
@@ -103,14 +103,10 @@
             'set-floating-active',
             'play',
             'pause',
-            'play-pause',
             'toggle-mute',
             'seek-to-ratio',
             'prev-video',
             'next-video',
-            'cycle-fit',
-            'cycle-zoom',
-            'rotate',
             'get-state',
             'get-quality',
             'set-quality',
@@ -187,9 +183,6 @@
                 case 'pause':
                     if (video) video.pause();
                     break;
-                case 'play-pause':
-                    if (video) video.paused ? playIframeVideo(video) : video.pause();
-                    break;
                 case 'toggle-mute':
                     if (video) video.muted = !video.muted;
                     break;
@@ -201,18 +194,6 @@
                     break;
                 case 'next-video':
                     videoManager.switchIframeVideo(1);
-                    break;
-                case 'cycle-fit':
-                    iframeUiState.fitIdx = (iframeUiState.fitIdx + 1) % FIT_MODES.length;
-                    videoManager.applyIframePresentation();
-                    break;
-                case 'cycle-zoom':
-                    iframeUiState.zoomIdx = (iframeUiState.zoomIdx + 1) % ZOOM_LEVELS.length;
-                    videoManager.applyIframePresentation();
-                    break;
-                case 'rotate':
-                    iframeUiState.rotationAngle = (iframeUiState.rotationAngle + 90) % 360;
-                    videoManager.applyIframePresentation();
                     break;
                 case 'get-state':
                     break;

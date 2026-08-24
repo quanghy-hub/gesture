@@ -13,18 +13,6 @@
                 panel.classList.toggle('is-collapsed', !expanded);
             };
 
-            els.clipboardClear.addEventListener('click', () => {
-                storage
-                    .clearClipboardHistory()
-                    .then((nextConfig) => {
-                        appState.config = nextConfig;
-                        appState.render();
-                    })
-                    .catch((error) => {
-                        console.error('[GestureExtension][popup] clear clipboard failed', error);
-                    });
-            });
-
             els.closeButton.addEventListener('click', () => {
                 window.close();
             });
@@ -73,7 +61,6 @@
             [
                 els.featureUnblockCopyEnabled,
                 els.featureGesturesEnabled,
-                els.featureClipboardEnabled,
                 els.featureVideoFloatingEnabled,
                 els.featureVideoScreenshotEnabled,
                 els.featureQuickSearchEnabled,
@@ -153,7 +140,6 @@
                 safeGetElementById('youtube-subtitles-font-size'),
                 safeGetElementById('youtube-subtitles-translated-font-size'),
                 safeGetElementById('quick-search-columns'),
-                safeGetElementById('clipboard-max-history'),
                 safeGetElementById('video-floating-min-distance'),
                 safeGetElementById('video-floating-swipe-short'),
                 safeGetElementById('video-floating-swipe-long'),

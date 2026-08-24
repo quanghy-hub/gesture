@@ -10,16 +10,21 @@
     const fitWrapperToViewport = (wrapper) => {
         if (!wrapper?.isConnected) return;
 
-        wrapper.style.removeProperty('--fs-overflow-fix');
-
         const rect = wrapper.getBoundingClientRect();
-        const viewportWidth = document.documentElement.clientWidth || innerWidth || 0;
+        if (!rect.width) return;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+        if (!viewportWidth) return;
         const overflowLeft = Math.max(0, -rect.left);
         const overflowRight = Math.max(0, rect.right - viewportWidth);
-        const overflow = Math.ceil(overflowLeft + overflowRight);
+        const overflow = Math.ceil(overflowLeft + overflowRight + 0.5);
 
-        if (overflow > 0) {
-            wrapper.style.setProperty('--fs-overflow-fix', `${overflow}px`);
+        // Chỉ ghi khi giá trị đổi thật sự để tránh vòng lặp ResizeObserver.
+        const nextFix = overflow > 1 ? `${overflow}px` : '';
+        if ((wrapper.style.getPropertyValue('--fs-overflow-fix') || '') === nextFix) return;
+        if (nextFix) {
+            wrapper.style.setProperty('--fs-overflow-fix', nextFix);
+        } else {
+            wrapper.style.removeProperty('--fs-overflow-fix');
         }
     };
 
@@ -36,7 +41,7 @@
 
     const createMasonry = (container, itemSelector, gap) => {
         const items = getDirectItems(container, itemSelector);
-        if (items.length < 3) return null;
+        if (items.length < 2) return null;
 
         const wrapper = document.createElement('div');
         wrapper.className = 'fs-wrapper';
@@ -49,8 +54,29 @@
         wrapper.append(left, right);
 
         container.parentNode?.insertBefore(wrapper, container);
-        items.forEach((item) => {
-            (left.offsetHeight <= right.offsetHeight ? left : right).appendChild(item);
+
+        // Vòng ghi 1: trải đều items vào 2 cột để chúng đạt đúng chiều rộng cột cuối cùng.
+        items.forEach((item, index) => {
+            (index % 2 === 0 ? left : right).appendChild(item);
+        });
+
+        // Vòng đọc: đo chiều cao hàng loạt — chỉ flush layout một lần thay vì mỗi item.
+        const heights = items.map((item) => item.offsetHeight);
+
+        // Tính toán thuần số học: phân bổ tham lam theo cột thấp hơn.
+        const columnTotals = [0, 0];
+        const targets = heights.map((height) => {
+            const target = columnTotals[0] <= columnTotals[1] ? 0 : 1;
+            columnTotals[target] += Math.max(height, 1);
+            return target;
+        });
+
+        // Vòng ghi 2: chỉ dời item đang ở sai cột.
+        items.forEach((item, index) => {
+            const column = targets[index] === 0 ? left : right;
+            if (item.parentElement !== column) {
+                column.appendChild(item);
+            }
         });
 
         const scheduleFit = () => requestAnimationFrame(() => fitWrapperToViewport(wrapper));
