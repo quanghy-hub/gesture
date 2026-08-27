@@ -28,33 +28,19 @@
         return tracks;
     };
 
-    const getPreferredTrack = (video) => {
+    // Chỉ nhận track đang 'showing'. CỐ TÌNH không đụng vào mode của track
+    // ở bất kỳ đâu trong module: YouTube chỉ bơm dữ liệu ASR đều đặn khi track
+    // 'showing' — can thiệp mode làm cue nhả chậm hẳn (độ trễ nguồn phát).
+    const getActiveCaptionTrack = (video) => {
         const tracks = getSubtitleTracks(video);
         if (!tracks.length) {
             return null;
         }
-        return tracks.find((track) => track.mode === 'showing') || tracks.find((track) => track.language) || tracks[0];
-    };
-
-    const getActiveCaptionTrack = (video, managedTrack) => {
-        const tracks = getSubtitleTracks(video);
-        if (!tracks.length) {
-            return null;
-        }
-        const showingTrack = tracks.find((track) => track.mode === 'showing');
-        if (showingTrack) {
-            return showingTrack;
-        }
-        if (managedTrack && tracks.includes(managedTrack) && managedTrack.mode === 'hidden') {
-            return managedTrack;
-        }
-        return null;
+        return tracks.find((track) => track.mode === 'showing') || null;
     };
 
     const extractCaptionTextFromDom = () => {
-        const captionContainers = queryAllDeep(
-            '.caption-window, .ytp-caption-window-container, .captions-text'
-        );
+        const captionContainers = queryAllDeep('.caption-window, .ytp-caption-window-container, .captions-text');
         for (const root of [...captionContainers].reverse()) {
             const lineNodes = root.querySelectorAll?.('.caption-visual-line, .ytp-caption-segment') || [];
             if (lineNodes.length) {
@@ -90,36 +76,52 @@
         return '';
     };
 
+    // So khớp từ bỏ hoa/thường + dấu câu: auto caption của YouTube thường bị
+    // viết lại giữa chừng ("hello world" -> "Hello world.") nên so khớp nguyên
+    // văn làm vỡ nhận diện rolling → cả câu bị đọc lại từ đầu (lặp phụ đề).
+    const normalizeCompareWord = (word) =>
+        String(word || '')
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}]/gu, '');
+
+    // Nhận diện caption rolling (auto caption): text mới nối tiếp text cũ.
+    // Tha thức tối đa 2 từ bị sửa nhưng CHỈ ở đuôi phần chung — sai số ở giữa
+    // câu nghĩa là cue/mệnh đề mới, phải reset và đọc lại từ đầu.
+    const isRollingContinuation = (previousWords, currentWords, state) => {
+        const previousLength = previousWords.length;
+        if (!previousLength) {
+            return false;
+        }
+        const shrunk = previousLength > currentWords.length;
+        // Chỉ chấp nhận caption co lại khi đang đọc dở một câu (ASR re-time rơi
+        // bớt từ đuôi). Cue mới thật sự ngắn hơn sau câu dài thì consumed đã
+        // vượt độ dài text mới → không rơi vào nhánh continuation.
+        if (shrunk && (!(state.consumedWordCount > 0) || state.consumedWordCount > currentWords.length)) {
+            return false;
+        }
+        const sharedLength = Math.min(previousLength, currentWords.length);
+        let tailMismatches = 0;
+        for (let index = 0; index < sharedLength; index += 1) {
+            if (normalizeCompareWord(previousWords[index]) === normalizeCompareWord(currentWords[index])) {
+                continue;
+            }
+            if (index < sharedLength - 2 || tailMismatches >= 2) {
+                return false;
+            }
+            tailMismatches += 1;
+        }
+        return true;
+    };
+
     youtubeSubtitles.captionSource = {
+        normalizeCueText,
         getSubtitleTracks,
-        getPreferredTrack,
         getActiveCaptionTrack,
         extractCaptionTextFromDom,
         hasDomCaptionText() {
             return !!extractCaptionTextFromDom();
         },
-        hideNativeCaptionTracks(video) {
-            getSubtitleTracks(video).forEach((track) => {
-                try {
-                    track.mode = 'hidden';
-                } catch {
-                    // Ignore sites that reject track mode changes.
-                }
-            });
-        },
-        hideNativeCaptionTrack(track) {
-            if (!track) {
-                return;
-            }
-            try {
-                if (track.mode === 'showing') {
-                    track.mode = 'hidden';
-                }
-            } catch {
-                // Ignore track mode errors.
-            }
-        },
-        extractCaptionText(video, track = getPreferredTrack(video)) {
+        extractCaptionText(video, track) {
             if (!track) {
                 return getSubtitleTracks(video).length ? '' : extractCaptionTextFromDom();
             }
@@ -162,13 +164,8 @@
                 return '';
             }
 
-            const isProgressiveAutoCaption =
-                previousWords.length > 0 &&
-                previousWords.length < currentWords.length &&
-                previousWords.every((word, index) => currentWords[index] === word);
-
             let availableWords;
-            if (isProgressiveAutoCaption) {
+            if (isRollingContinuation(previousWords, currentWords, state)) {
                 availableWords = currentWords.slice(state.consumedWordCount);
             } else {
                 state.consumedWordCount = 0;

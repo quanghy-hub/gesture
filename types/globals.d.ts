@@ -98,6 +98,9 @@ declare global {
         version?: number;
         /** Đánh dấu config đã qua normalize — không lưu xuống storage. */
         _isNormalized?: boolean;
+        offlineTranslation?: {
+            enabled?: boolean;
+        };
         unblockCopy?: {
             enabled?: boolean;
         };
@@ -155,6 +158,10 @@ declare global {
             showOriginal?: boolean;
             containerPosition?: { x?: string; y?: string };
             containerAlignment?: string;
+            ttsEnabled?: boolean;
+            ttsRate?: number;
+            ttsVoiceName?: string;
+            ttsEngine?: string;
             enabled?: boolean;
         };
         apiServices?: ApiServicesConfig;
@@ -235,6 +242,17 @@ declare global {
             DEFAULT_API_SERVICES: ApiServicesConfig;
             getDefaultProviderId(serviceType: string): string;
             getDefaultFallbackProviderId(serviceType: string): string;
+        };
+        offlineStore?: {
+            IDB_NAME: string;
+            IDB_STORE: string;
+            openDb(): Promise<IDBDatabase>;
+            idbGet(key: string): Promise<unknown>;
+            idbPut(key: string, buffer: unknown): Promise<void>;
+            idbDelete(key: string): Promise<void>;
+            sha256Hex(buffer: ArrayBuffer): Promise<string>;
+            gunzipIfNeeded(buffer: ArrayBuffer, isGz: boolean): Promise<ArrayBuffer>;
+            fetchBuffer(url: string): Promise<ArrayBuffer>;
         };
     }
 

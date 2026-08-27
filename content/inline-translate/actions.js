@@ -4,7 +4,7 @@
     const { TRANSLATION_PENDING } = inlineTranslate;
     const { createMemoryCache, translate: coreTranslate } = ext.shared.translateCore;
 
-    const cache = createMemoryCache({ maxSize: 200 });
+    const cache = createMemoryCache({ maxSize: 1000 });
     const pending = new Map();
 
     inlineTranslate.createActions = ({ getSettings }) => ({

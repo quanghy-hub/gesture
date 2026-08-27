@@ -4,6 +4,103 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.4] - 2026-08-27
+
+### ♻️ Refactor — tách offline store & fix coupling dịch/TTS
+
+- **Tách `shared/offline-store.js`**: gom `openDb/idbGet/idbPut/idbDelete/sha256Hex/gunzipIfNeeded/fetchBuffer` dùng chung cho `background/offline-translation.js`, `offscreen/engine.js`, `offscreen/tts-engine.js` — xoá duplicate 3 nơi, SW và offscreen cùng nạp qua `background/imports.js` + `offscreen/engine.html`.
+- **Giải coupling ORT wasm**: `background/offline-translation.js` tách `TRANSLATE_ENGINE_FILES` + `TTS_ORT_FILE`; `TRANSLATE_REQUIRED_KEYS` (5 keys) thay `DOWNLOAD_PLAN` (6 keys) cho `isReady()` — dịch sẵn sàng ngay cả khi TTS chưa tải; `removeModel()` chỉ xoá key dịch, giữ ORT cho TTS.
+- **State bền**: crash giữa `downloading` → reload SW reset `downloading→idle` (đồng nhất với `offline-tts.js`), hết kẹt popup "Đang tải".
+- **Fallback gzip**: `gunzipIfNeeded` kiểm tra `DecompressionStream` tồn tại trước khi pipe, báo lỗi rõ trên fork cũ.
+- **Offscreen** load `../shared/offline-store.js` trước `engine.js/tts-engine.js` để reuse helpers.
+
+## [Unreleased]
+
+### 🗣️ Tier 2 TTS offline — giọng tiếng Việt VITS (transformers.js)
+
+- **Engine**: `Xenova/mms-tts-vie` (VITS ONNX quantized ~40–60MB từ Meta MMS). transformers.js 2.17.2 được nạp dạng **classic script đã biến đổi** (`transformers.global.js`, sinh bằng `scripts/gen-transformers-global.js`: thay `export{…}` → gán `window.transformers`) — né hoàn toàn các vấn đề dynamic import trong extension page (fetch/MIME/CSP). Bare-import `onnxruntime-web` resolve qua import map → shim ESM đọc `window.ort` từ chuỗi UMD ORT 1.14 (common + web, cũng vendored). CSP giữ `'self' 'wasm-unsafe-eval'`.
+- **Weights tự tải từ HuggingFace CDN** lần đầu khi bấm "Tải giọng offline" và cache trong browser Cache API; nút Xoá dọn cache. Không commit binary vào repo.
+- **Tích hợp**: speaker ở content script nhận engine mới (`youtubeSubtitles.ttsEngine: 'os'|'offline'`) — chế độ Offline chuyển từng câu sang background → offscreen tổng hợp → phát audio, ducking volume video điều phối qua broadcast `gesture-ext/tts-audio`; tua/tắt → `tts-stop`.
+- **Popup**: select Engine (Hệ thống/Offline) + trạng thái tiến độ tải + nút Tải/Xoá giọng offline.
+- **Tốc độ đọc tới 3x + bỏ câu trễ**: `ttsRate` hỗ trợ 0.8–3x (popup), engine offline phát với `playbackRate` + `preservesPitch` (giọng không biến dạng); câu chờ quá 8s so với vị trí video bị bỏ để giữ nhịp dubbing.
+- Desktop dùng chung trang offscreen với module dịch (reasons thêm AUDIO_PLAYBACK); mobile chưa hỗ trợ Tier 2 — dùng Tier 1 Web Speech.
+- Chất lượng MMS vi: mức dùng được, giọng đơn; muốn tự nhiên hơn chờ model vi tốt hơn cho trình duyệt.
+
+### 🔊 Tier 1 TTS — đọc phụ đề tiếng Việt bằng Web Speech API
+
+- Module mới `tts.js`: hàng đợi tối đa 2 câu (tràn bỏ câu cũ), chọn giọng vi từ hệ thống (lazy + `voiceschanged`), **ducking** volume video còn 15% khi đang nói và trả đúng volume gốc khi hết phiên.
+- Reset an toàn: tua video (`seeked`), tắt dịch, chuyển trang, tab ẩn → `speechSynthesis.cancel()` + trả volume.
+- Chỉ đọc bản dịch thành công (không đọc thông báo lỗi); tự bỏ qua khi trình duyệt thiếu `speechSynthesis`.
+- Popup card YouTube Subtitles: toggle "TTS đọc" + select tốc độ 0.8x/1x/1.2x (`youtubeSubtitles.ttsEnabled` mặc định TẮT, `ttsRate`).
+- Yêu cầu giọng vi trên hệ điều hành: Windows Settings → Speech → Add Vietnamese voice; Android/Kiwi dùng Google TTS có sẵn.
+
+### 🔤 Dịch text dài — hết vướng giới hạn query
+
+- **MyMemory**: thêm bộ chia `splitTranslateTextByBytes()` cắt theo **UTF-8 byte** (≤450B/chunk, ưu tiên cắt tại khoảng trắng) — server MyMemory chặn `q` > 500 bytes nên trước đây text dài bị từ chối; giờ tự tách nhiều request nhỏ và nối kết quả.
+- **Google**: nâng `GOOGLE_TRANSLATE_CHUNK_LIMIT` 1400 → **2000** ký tự/chunk (POST body chịu được), giảm số request với văn bản dài.
+- Test mới: mọi chunk sau khi chia phải ≤ giới hạn byte và nội dung nối lại không mất.
+
+### 📴 Module dịch OFFLINE Bergamot WASM — dùng chung cho mọi tính năng
+
+- **Hotfix UI**: broadcast trạng thái giờ luôn kèm `installed` (trước đây broadcast cuối sau khi tải xong thiếu field này → popup hiển thị sai "Chưa có model"); state được nạp lại từ storage khi service worker restart; khối offline trong popup tách khỏi grid 5 cột của API Services (CSS riêng: `.offline-block/.offline-row/.offline-status-line/.offline-actions`).
+- **Nguồn model chính thức Firefox Translations** (GCS công khai, MPL-2.0): cặp `en→vi` base-memory đã Release (BLEU 43.1), engine WASM v0.4.5 từ browsermt/bergamot-translator.
+- **Không lưu binary trong repo**: glue JS (82KB) commit kèm; file nặng (wasm 5MB + model ~32MB + lex/vocab) chỉ tải về khi người dùng bật tính năng trong popup → verify SHA-256 (model) → giải nén gzip → lưu IndexedDB (`unlimitedStorage`).
+- **Kiến trúc**: `background/offline-translation.js` (catalog, downloader, offscreen lifecycle, router) + `offscreen/engine.{html,js}` chạy BlockingService/TranslationModel đúng API demo mozilla/translate; tuần tự hoá request, timeout từng bước.
+- **Tích hợp một điểm, hưởng mọi tính năng**: chèn offline-first vào `handleTranslateText` — phụ đề YouTube, inline translate, selection… target=vi đều tự ưu tiên local (~50–200ms/câu), lỗi thì lặng lẽ rơi về online với `provider: 'bergamot-offline'`.
+- **Hỗ trợ chiều dịch**: offline chỉ giữ **en→vi**. Chiều vi→en đã thử nghiệm nhưng chuyển về đường online (chất lượng tốt hơn, không tăng dung lượng); `resolvePair` trả null khi thiếu cặp → tự fallback online, cấu trúc PAIRS sẵn sàng thêm cặp mới sau này.
+- **Chạy cả trên MOBILE (Kiwi/Chromium Android)**: các bản fork không có `chrome.offscreen` sẽ tự chuyển sang host dự phòng — engine nạp lazy trong Service Worker qua `importScripts(blob)` từ IndexedDB; desktop vẫn ưu tiên offscreen document. `getStatus().host` báo đang dùng host nào.
+- **Chạy cả trên MOBILE (Kiwi/Chromium Android)**: các bản fork không có `chrome.offscreen` sẽ tự chuyển sang host dự phòng — engine nạp lazy trong Service Worker qua `importScripts(blob)` từ IndexedDB; desktop vẫn ưu tiên offscreen document. `getStatus().host` báo đang dùng host nào.
+- **Popup**: card "Dịch offline" (toggle "Dịch offline" qua FIELD_MAP, trạng thái realtime qua broadcast, nút Tải/Xoá model).
+- Manifest: thêm quyền `offscreen`, `unlimitedStorage`; CSP `'wasm-unsafe-eval'`; zip pack gồm `offscreen/`, `types/`.
+- Toggle mặc định TẮT — hành vi cũ không đổi cho tới khi người dùng bật + tải model.
+
+### 🧹 Dọn code thừa + gỡ thử nghiệm dịch offline + gom 8-10 từ/câu
+
+- **Gom từ về 8-10 từ/câu**: `EARLY_VISIBLE_CAPTION_WORDS` = 8, `MIN_VISIBLE_CAPTION_WORDS` = 9. Câu gốc vẫn hiện tức thì theo phụ đề native nên khoảng gom này chỉ điều chỉnh nhịp dòng dịch, không tạo lại cảm giác trễ.
+- **Gỡ lớp dịch offline (Chrome Built-in Translator API)**: thử nghiệm cho thấy API/model on-device chỉ có trên Google Chrome chính thức — các Chromium fork (Helium, Brave...) không có gói và hiện không có tuỳ chọn chuyển lại online trong UI. Translator trở lại thuần online qua service worker (giữ cache 2000 mục + gom request trùng đang bay); bỏ dây truyền `sourceLang` ở manager/prefetch.
+- **Dọn code thừa sau thay đổi kiến trúc "không đụng track mode"**:
+    - Bỏ `hideNativeCaptionTrack(s)`, `getPreferredTrack`, nhánh `managedTrack` trong `getActiveCaptionTrack` (chỉ còn đọc track `'showing'`), state `captionTrack`, chuỗi `releaseCaptionTrack` xuyên manager/video-sync/controller, `SELECTORS.nativeCaptionNodes`.
+    - Test cũ về ẩn native caption → thay bằng test mới khẳng định **chỉ đọc track, không đổi mode**.
+
+### ⚡ YouTube subtitles — sửa độ trễ NGUỒN: không còn đổi track mode sang 'hidden'
+
+- **Nguyên nhân gốc của "bật extension lên phụ đề tiếng Anh nhả chậm"**: manager gọi `track.mode = 'hidden'` để ẩn phụ đề native. Nhưng YouTube chỉ bơm dữ liệu ASR đều đặn khi track đang `'showing'` — về `'hidden'`, player giảm tải segment phụ đề → cue tới nhỏ giọt, độ trễ nằm ở **nguồn phát**, trước cả bước dịch (giải thích chính hiện tượng "tắt thì nhanh, bật thì chậm").
+- **Fix**: giữ nguyên track `'showing'` để luồng cue chạy y như khi tắt extension; ẩn phụ đề native thuần bằng CSS sẵn có (`.yt-translating .ytp-caption-window-container { display:none }`). Tắt dịch → class gỡ → phụ đề native hiện lại bình thường.
+
+### ⚡ Giảm độ trễ hiển thị, bám sát phụ đề gốc
+
+- **Hiện câu gốc ngay lập tức**: trước đây cả cặp gốc+dịch chỉ hiện sau khi bản dịch về → độ trễ mạng cộng thẳng vào độ lệch với phụ đề gốc. Giờ câu gốc hiển thị tức thì theo phụ đề native, dòng dịch đổ vào khi kết quả trả về (xoá sạch dòng dịch cũ để tránh ghép lệch cặp).
+- **Hạ ngưỡng gom chữ**: `EARLY_VISIBLE_CAPTION_WORDS` 5 → 4, `MIN_VISIBLE_CAPTION_WORDS` 8 → 5 — chunk kế tiếp chỉ cần thêm ~5 từ (~2 giây nói) thay vì ~8 từ (~3–4 giây), khoảng trễ tích luỹ giữa hai lần cập nhật giảm một nửa.
+- Lưu ý: phần trễ do YouTube ASR trả text chậm hơn lời nói (~1–2s) là giới hạn của nguồn phát, không thuộc phạm vi extension.
+
+### 🔥 Hotfix: phụ đề đứng yên/"đơ" sau khi bật prefetch
+
+- **Nguyên nhân chính**: prefetcher quét cả vùng cue đang phát/sắp active — với auto caption (ASR) vùng này tự viết lại text liên tục → mỗi lần quét thấy chuỗi mới đều được đẩy vào hàng dịch → 2 slot request chay mãi bằng snapshot rác, dọa rate-limit provider khiến **cả bản dịch trên đường hiển thị bị treo theo**.
+    - `prefetch.js`: chỉ dịch trước cue bắt đầu sau `PREFETCH_MIN_LEAD_SECONDS` (4s) kể từ vị trí hiện tại — tách hẳn khỏi vùng cuộn text; bỏ cửa sổ lookback.
+    - Prefetch **nhường đường live**: khi một bản dịch hiển thị đang chờ (`shouldDefer`), không khởi request prefetch mới.
+- **Chống treo hiển thị**: bản dịch live có trần chờ `LIVE_TRANSLATE_TIMEOUT_MS` (15s) — request bị treo chỉ hiện báo lỗi tạm thay vì đóng băng phụ đề vĩnh viễn.
+- **Chống lan truyền lỗi**: exception từ prefetch trong handler sự kiện video được cô lập (try/catch) — không thể giết đường `renderCurrentCaption`; bớt 'change' khỏi danh sách force-pump để tránh khuếch đại khi mode track flap.
+- Test mới: cơ chế defer nhường đường live.
+
+### ⚡ YouTube subtitles — dịch trước (prefetch) để hiện phụ đề gần như tức thì
+
+- **Module mới `prefetch.js`**: quét `TextTrack.cues` trong cửa sổ `-20s → +90s` quanh vị trí phát, dịch ngầm các cue/cửa sổ 18 từ sắp tới với tối đa 2 request song song, ưu tiên theo thứ tự phát. Được bơm từ mọi sự kiện video (`timeupdate`/`cuechange`/`seeked`... có throttle 800ms; force sau tua/khi track nạp) và thêm một nhịp quét sớm 1.2s sau khi bật dịch.
+    - Phụ đề upload thủ công: toàn bộ cues có sẵn → bản dịch thường sẵn sàng TRƯỚC khi câu được nói → hiển thị không còn chờ mạng.
+    - Auto caption (ASR): cues do player tải theo segment (thường đi trước vài chục giây) → lấy trước được phần đã tải; phần chưa về vẫn rơi vào đường dịch live như cũ.
+- **translator.js**: cache 500 → 2000 mục (chứa bản dịch của cả đoạn lookahead); gom request trùng đang bay qua map `pending` — prefetch và render live yêu cầu cùng một chuỗi chỉ gửi MỘT request.
+- **constants.js**: hạ ngưỡng hiển thị sớm `EARLY_VISIBLE_CAPTION_WORDS` 6 → 5, `MIN_VISIBLE_CAPTION_WORDS` 10 → 8 (câu đầu hiện nhanh hơn); thêm `PREFETCH_LOOKAHEAD_SECONDS/LOOKBACK_SECONDS/MAX_CONCURRENT/SCAN_INTERVAL_MS/FAIL_COOLDOWN_MS`.
+- **video-sync/controller**: hook `onVideoEvent` đưa sự kiện phát vào prefetcher; reset hàng đợi khi tắt dịch/chuyển trang.
+- Test mới: thứ tự prefetch theo startTime, cắt cửa sổ 18 từ đúng, bỏ qua key đã cache/ngoài lookahead, cooldown sau thất bại.
+
+### 🎬 YouTube subtitles — sửa phụ đề nhảy loạn & lặp lại câu đã dịch
+
+- **Fix phát hiện tua false-positive** (`caption-manager.js`): heuristic cũ so `currentTime` với thời điểm caption đổi text gần nhất (ngưỡng 0.6s) — nhưng auto caption của YouTube chỉ về text theo burst 1–3s/lần nên hầu như mỗi lần cập nhật đều bị coi là "tua", `consumedWordCount` bị xoá giữa câu → cả câu (gồm từ đã dịch) bị render + dịch lại từ đầu, mỗi lần lặp là một cache miss → gọi API dịch liên tục. Giờ theo dõi vị trí video **mỗi lần render** và chỉ tính là tua khi lệch giữa media-time và đồng hồ thực vượt `SEEK_DRIFT_TOLERANCE_SECONDS` (1s, chỉ tính khi đang phát); sự kiện `seeked`/`loadedmetadata` vẫn là cơ chế reset chính.
+- **Fix nhận diện caption rolling** (`caption-source.js`): so khớp prefix nguyên văn từng từ bị vỡ khi YouTube ASR viết lại text giữa chừng (`hello world` → `Hello world.`), sửa từ cuối hoặc cue overlap → reset toàn bộ và dịch lại câu đã đọc. Thay bằng so khớp bỏ hoa/thường + dấu câu, tha thức tối đa 2 từ bị sửa ở đuôi phần chung; sai khác ở giữa câu vẫn reset như cue mới.
+- **Fix nháy phụ đề khi chuyển cue** (`caption-manager.js`): cue trống thoáng qua trước đây xoá container + reset state ngay lập tức (nháy phụ đề, mất chunking). Giờ giữ phụ đề hiện tại trong grace window `CAPTION_EMPTY_GRACE_MS` (3s), chỉ dọn dẹp nếu nguồn caption trống kéo dài.
+- Test hồi quy mới: revision hoa/dấu câu của auto caption không làm dịch lại phần đã đọc.
+
+---
+
 ## [1.4.3] - 2026-08-24
 
 ### 🧹 Repo cleanup — dead code sweep

@@ -29,6 +29,8 @@ const sandbox = {
     clearInterval: globalThis.clearInterval.bind(globalThis),
     URL: globalThis.URL,
     AbortController: globalThis.AbortController,
+    TextEncoder: globalThis.TextEncoder,
+    TextDecoder: globalThis.TextDecoder,
     Event: class {
         constructor(type) {
             this.type = type;
@@ -151,6 +153,7 @@ try {
     loadScript('content/quick-search/constants.js');
     loadScript('content/youtube-subtitles/constants.js');
     loadScript('content/youtube-subtitles/caption-source.js');
+    loadScript('content/youtube-subtitles/prefetch.js');
     loadScript('content/youtube-subtitles/video-sync.js');
     console.log('\x1b[32m✔ Nạp các module thành công.\x1b[0m');
 } catch (error) {
@@ -397,6 +400,19 @@ async function runAllTests() {
         assert.equal(chunks.join(''), longWord);
     });
 
+    runTest('splitTranslateTextByBytes: chia theo UTF-8 byte đúng giới hạn MyMemory', () => {
+        const utils = sandbox.globalThis.GestureExtension.background.translateUtils;
+        const viText = Array.from({ length: 150 }, (_, index) => `từ${index}được`).join(' ');
+        const chunks = toMainContext(utils.splitTranslateTextByBytes(viText, utils.MYMEMORY_CHUNK_LIMIT_BYTES));
+
+        assert.ok(chunks.length > 1, 'text dài phải được chia nhiều chunk');
+        chunks.forEach((chunk) => {
+            assert.ok(new TextEncoder().encode(chunk).length <= utils.MYMEMORY_CHUNK_LIMIT_BYTES, 'mọi chunk phải ≤ giới hạn byte');
+        });
+        // Nội dung không mất: nối lại (chuẩn hoá khoảng trắng) bằng text gốc
+        assert.equal(chunks.join(' ').replace(/\s+/g, ' ').trim(), viText);
+    });
+
     // ============================================================================
     // 4. YouTube subtitles captionSource Tests
     // ============================================================================
@@ -410,12 +426,12 @@ async function runAllTests() {
         };
         const video = { currentTime: 1, textTracks: [disabledTrack] };
 
-        assert.equal(captionSource.getActiveCaptionTrack(video, null), null);
+        assert.equal(captionSource.getActiveCaptionTrack(video), null);
         assert.equal(captionSource.extractCaptionText(video, null), '');
         assert.equal(disabledTrack.mode, 'disabled');
     });
 
-    runTest('captionSource: giữ track đã bật để dịch sau khi ẩn native caption', () => {
+    runTest('captionSource: đọc cue từ track đang showing mà KHÔNG đổi mode của track', () => {
         const showingTrack = {
             kind: 'subtitles',
             mode: 'showing',
@@ -425,12 +441,10 @@ async function runAllTests() {
         };
         const video = { currentTime: 1, textTracks: [showingTrack] };
 
-        const activeTrack = captionSource.getActiveCaptionTrack(video, null);
+        // Luồng cue phải giữ nguyên nhịp YouTube: chỉ ĐỌC track, không đụng mode
+        const activeTrack = captionSource.getActiveCaptionTrack(video);
         assert.equal(activeTrack, showingTrack);
-
-        captionSource.hideNativeCaptionTrack(activeTrack);
-        assert.equal(showingTrack.mode, 'hidden');
-        assert.equal(captionSource.getActiveCaptionTrack(video, showingTrack), showingTrack);
+        assert.equal(showingTrack.mode, 'showing');
         assert.equal(captionSource.extractCaptionText(video, showingTrack), 'Hello world');
     });
 
@@ -451,12 +465,49 @@ async function runAllTests() {
         assert.equal(state.consumedWordCount, 15);
     });
 
+    runTest('captionSource: auto caption viết lại hoa/dấu câu không làm dịch lại câu đã đọc', () => {
+        const state = { consumedWordCount: 0 };
+        const first = 'so i was thinking about the way that people learn';
+        assert.equal(captionSource.getDisplayCaptionText(first, '', state), first);
+        assert.equal(state.consumedWordCount, 10);
+
+        // YouTube bổ sung hoa/thường + dấu câu vào phần đã đọc rồi nối tiếp từ
+        // mới: phải nhận diện là rolling và CHỈ trả về phần từ mới (không lặp).
+        const revised = 'So, I was thinking about the way that people learn new languages every single day without even noticing it';
+        const chunk = captionSource.getDisplayCaptionText(revised, first, state);
+        assert.equal(chunk, 'new languages every single day without even noticing it');
+        assert.equal(state.consumedWordCount, 19);
+
+        // Cue/mệnh đề hoàn toàn mới (khác nhau ở giữa câu) → reset, đọc lại từ đầu.
+        const fresh = 'Today we are going to explore how memory actually works';
+        assert.equal(captionSource.getDisplayCaptionText(fresh, revised, state), fresh);
+        assert.equal(state.consumedWordCount, 10);
+    });
+
+    runTest('youtubeSubtitles tts: hook đọc phụ đề qua Web Speech API', () => {
+        const managerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-manager.js'), 'utf8');
+        const controllerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/controller.js'), 'utf8');
+        const schemaSource = fs.readFileSync(path.resolve(__dirname, '..', 'shared/config-schema.js'), 'utf8');
+
+        // Chỉ đọc nhánh dịch thành công; cancel khi tua/tắt
+        assert.match(managerSource, /speaker\?\.enqueue\?\.\(translated\)/);
+        assert.match(controllerSource, /createSpeaker\(\{ settings/);
+        assert.match(controllerSource, /speaker\.cancel\(\)/);
+        assert.match(schemaSource, /ttsEnabled:\s*false/);
+        // Engine nạp dạng classic script đã biến đổi (không dùng dynamic import)
+        const globalLib = fs.readFileSync(path.resolve(__dirname, '..', 'offscreen/vendor/transformers.global.js'), 'utf8');
+        assert.match(globalLib, /window\.transformers=Object\.assign/);
+    });
+
     runTest('youtubeSubtitles: hỗ trợ caption fallback khi mobile YouTube không expose nút CC desktop', () => {
         const managerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-manager.js'), 'utf8');
         const captionSourceSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-source.js'), 'utf8');
 
-        assert.match(managerSource, /getActiveCaptionTrack\(video,\s*state\.captionTrack\)/);
+        // Manager chỉ đọc track showing, KHÔNG đụng vào mode của track (giữ
+        // nhịp bơm ASR của YouTube) và vẫn có fallback DOM khi thiếu TextTrack.
+        assert.match(managerSource, /getActiveCaptionTrack\(video\)/);
         assert.match(managerSource, /hasDomCaptionText\(\)/);
+        assert.doesNotMatch(managerSource, /\.mode\s*=\s*'hidden'/);
         assert.match(captionSourceSource, /extractCaptionTextFromDom/);
         assert.match(captionSourceSource, /\.caption-visual-line,\s*\.ytp-caption-segment/);
     });
@@ -495,6 +546,112 @@ async function runAllTests() {
         await listeners.loadedmetadata({ type: 'loadedmetadata' });
 
         assert.deepEqual(events, ['render', 'reset', 'render', 'reset', 'render']);
+    });
+
+    runTest('youtubeSubtitles prefetch: dịch trước đúng thứ tự phát, đủ cửa sổ 18 từ, tôn trọng cache/failure', async () => {
+        const ns = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+        const created = [];
+        const cachedKeys = new Set(['cached line']);
+        const failingKeys = new Set(['second line']);
+        const translator = {
+            hasCached: (key) => cachedKeys.has(String(key)),
+            async translateCaption(key) {
+                created.push(key);
+                if (failingKeys.has(key)) {
+                    return { text: '', error: 'boom' };
+                }
+                cachedKeys.add(key);
+                return { text: 'ok', error: '' };
+            }
+        };
+        const longText = Array.from({ length: 20 }, (_, index) => `w${index + 1}`).join(' ');
+        const expectedWindows = [longText.split(/\s+/).slice(0, 18).join(' '), longText.split(/\s+/).slice(18).join(' ')];
+        const track = {
+            kind: 'captions',
+            mode: 'showing',
+            cues: [
+                { startTime: 5000, text: 'far future line' },
+                { startTime: 100, text: 'second line' },
+                { startTime: 60, text: 'cached line' },
+                { startTime: 55, text: '' },
+                { startTime: 120, text: longText },
+                { startTime: 70, text: 'first line' }
+            ]
+        };
+        const state = { enabled: true, video: { currentTime: 50, textTracks: [track] }, captionTrack: track };
+        const prefetcher = ns.createPrefetcher({
+            state,
+            settings: () => ({ targetLang: 'vi' }),
+            translator
+        });
+
+        // Xả hết chuỗi microtask của pipeline prefetch (fake translator không
+        // dùng timer thật nên chỉ cần bơm microtask là đủ — an toàn với
+        // process.exit cuối runner).
+        // Xả chuỗi microtask của pipeline prefetch (số vòng vừa đủ cho vài chục
+        // hop promise; dùng macro-task thật sẽ bị process.exit của runner cắt).
+        const flushMicrotasks = async () => {
+            for (let i = 0; i < 12; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        console.assert(created.length > 0, 'prefetch phải gọi translator');
+
+        // Thứ tự theo startTime, bỏ cue ngoài lookahead / trong vùng lead (ASR
+        // đang cuộn text) / cue trống / đã cache
+        assert.deepEqual(created, ['first line', 'second line', ...expectedWindows]);
+
+        // Pump lại: key thành công đã có cache, key fail đang cooldown → không request thêm
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        assert.equal(created.length, 4);
+    });
+
+    runTest('youtubeSubtitles prefetch: hoãn khởi request mới khi bản dịch live đang chờ', async () => {
+        const ns = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+        const created = [];
+        const translator = {
+            hasCached: () => false,
+            async translateCaption(key) {
+                created.push(key);
+                return { text: 'ok', error: '' };
+            }
+        };
+        const track = {
+            kind: 'captions',
+            mode: 'showing',
+            cues: [
+                { startTime: 70, text: 'future cue one' },
+                { startTime: 90, text: 'future cue two' }
+            ]
+        };
+        let defer = true;
+        const state = { enabled: true, video: { currentTime: 50, textTracks: [track] }, captionTrack: track };
+        const prefetcher = ns.createPrefetcher({
+            state,
+            settings: () => ({ targetLang: 'vi' }),
+            translator,
+            shouldDefer: () => defer
+        });
+        const flushMicrotasks = async () => {
+            for (let i = 0; i < 12; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        // Đang defer: chỉ xếp hàng, không gọi translator
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        assert.equal(created.length, 0);
+
+        // Nhả defer: hàng đợi được bơm lại và chạy
+        defer = false;
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        assert.equal(created.length, 2);
     });
 
     runTest('videoScreenshot trigger: dùng cùng drag affordance với nút dịch phụ đề', () => {
@@ -779,7 +936,17 @@ async function runAllTests() {
 
     runTest('manifest: permission surface tối thiểu (không khai báo quyền tabs)', () => {
         const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'manifest.json'), 'utf8'));
-        assert.deepEqual(manifest.permissions, ['storage', 'downloads', 'scripting', 'clipboardWrite']);
+        assert.deepEqual(manifest.permissions, ['storage', 'unlimitedStorage', 'downloads', 'scripting', 'clipboardWrite', 'offscreen']);
+        // Dịch offline chạy WASM trong extension page → cần cho phép instantiate wasm
+        assert.match(manifest.content_security_policy.extension_pages, /'wasm-unsafe-eval'/);
+    });
+
+    runTest('offline translation: module đăng ký vào SW imports + router offline-first', () => {
+        const importsSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/imports.js'), 'utf8');
+        assert.match(importsSource, /\/background\/offline-translation\.js/);
+        const handlersSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/message-handlers.js'), 'utf8');
+        assert.match(handlersSource, /tryTranslate\(/);
+        assert.match(handlersSource, /bergamot-offline/);
     });
 
     runTest('build: validateSwImports + bundles chạy thành công qua npm run build', () => {

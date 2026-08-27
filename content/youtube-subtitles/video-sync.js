@@ -3,7 +3,7 @@
     const youtubeSubtitles = (ext.youtubeSubtitles = ext.youtubeSubtitles || {});
 
     youtubeSubtitles.createVideoSync = (deps) => {
-        const { state, releaseCaptionTrack, renderCurrentCaption, onSeekReset } = deps;
+        const { state, renderCurrentCaption, onSeekReset, onVideoEvent } = deps;
 
         const createCaptionObserver = (onChange) => {
             let mutationObserver = null;
@@ -53,7 +53,6 @@
             }
             state.detachTrackListener?.();
             state.detachTrackListener = null;
-            releaseCaptionTrack();
             state.video = video;
             // `seeked`/`loadedmetadata` báo hiệu vị trí phát nhảy đột ngột: cần
             // reset caption state + vô hiệu hóa bản dịch đang bay trước khi render,
@@ -65,6 +64,13 @@
                 }
                 if ((event?.type === 'seeked' || event?.type === 'loadedmetadata') && onSeekReset) {
                     onSeekReset();
+                }
+                // Mọi sự kiện phát đều là cơ hội bơm prefetch (có throttle nội bộ).
+                // Lỗi prefetch KHÔNG được phép chặn đường render phụ đề.
+                try {
+                    onVideoEvent?.(event);
+                } catch {
+                    // Bỏ qua — render bên dưới vẫn phải chạy.
                 }
                 renderCurrentCaption().catch(() => {});
             };

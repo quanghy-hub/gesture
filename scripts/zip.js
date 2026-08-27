@@ -17,7 +17,7 @@ if (fs.existsSync(ZIP_FILE)) {
     fs.unlinkSync(ZIP_FILE);
 }
 
-const includes = ['manifest.json', 'background', 'content', 'dist', 'icons', 'shared', 'ui'];
+const includes = ['manifest.json', 'background', 'content', 'dist', 'icons', 'shared', 'ui', 'offscreen', 'types'];
 const isWin = process.platform === 'win32';
 
 try {

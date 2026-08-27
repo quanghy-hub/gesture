@@ -30,6 +30,9 @@
         '/background/api-services/translate-api.js',
         '/background/api-services/ocr-api.js',
         '/background/api-service-registry.js',
+        '/shared/offline-store.js',
+        '/background/offline-translation.js',
+        '/background/offline-tts.js',
         '/background/message-handlers.js'
     ]);
 })();

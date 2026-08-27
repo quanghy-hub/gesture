@@ -77,6 +77,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             case 'gesture-ext/perform-ocr':
                 sendResponse(await handlers.handlePerformOcr(message.payload));
                 break;
+            case 'gesture-ext/offline-status':
+                sendResponse(await handlers.handleOfflineStatus());
+                break;
+            case 'gesture-ext/offline-download':
+                sendResponse(await handlers.handleOfflineDownload());
+                break;
+            case 'gesture-ext/offline-remove':
+                sendResponse(await handlers.handleOfflineRemove());
+                break;
+            case 'gesture-ext/tts-status':
+                sendResponse(await handlers.handleTtsStatus());
+                break;
+            case 'gesture-ext/tts-download':
+                sendResponse(await handlers.handleTtsDownload());
+                break;
+            case 'gesture-ext/tts-remove':
+                sendResponse(await handlers.handleTtsRemove());
+                break;
+            case 'gesture-ext/tts-speak':
+                sendResponse(await handlers.handleTtsSpeak(message.payload, sender));
+                break;
+            case 'gesture-ext/tts-stop':
+                sendResponse(await handlers.handleTtsStop());
+                break;
             default:
                 sendResponse({ ok: false, error: `Unsupported message type: ${message.type}` });
         }

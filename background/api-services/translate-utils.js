@@ -8,8 +8,52 @@
             .trim() ?? '';
     const parseMyMemoryResponse = (data) => String(data?.responseData?.translatedText || '').trim();
 
-    const GOOGLE_TRANSLATE_CHUNK_LIMIT = 1400;
+    const GOOGLE_TRANSLATE_CHUNK_LIMIT = 2000;
+    // MyMemory (API miễn phí) chặn q > 500 BYTES phía server — chia theo byte
+    // (không phải ký tự) để text tiếng Việt có dấu không bị từ chối.
+    const MYMEMORY_CHUNK_LIMIT_BYTES = 450;
     const TRANSLATE_API_TIMEOUT_MS = 30000;
+
+    const utf8ByteLength = (str) => new TextEncoder().encode(str).length;
+
+    /**
+     * Chia text thành các chunk có dung lượng UTF-8 ≤ maxBytes, ưu tiên cắt
+     * tại khoảng trắng; chỉ hard-slice khi một từ dài bất thường.
+     */
+    const splitTranslateTextByBytes = (text, maxBytes) => {
+        const normalized = normalizeTranslateText(text);
+        if (!normalized) {
+            return [];
+        }
+        if (utf8ByteLength(normalized) <= maxBytes) {
+            return [normalized];
+        }
+        const words = normalized.split(/\s+/);
+        const chunks = [];
+        let current = '';
+        for (const word of words) {
+            const candidate = current ? `${current} ${word}` : word;
+            if (utf8ByteLength(candidate) > maxBytes && current) {
+                chunks.push(current);
+                current = word;
+            } else {
+                current = candidate;
+            }
+            // Một từ đơn vượt giới hạn (hiếm): hard-slice theo code point
+            while (utf8ByteLength(current) > maxBytes) {
+                let cut = current.length - 1;
+                while (cut > 0 && utf8ByteLength(current.slice(0, cut)) > maxBytes) {
+                    cut -= 1;
+                }
+                chunks.push(current.slice(0, cut));
+                current = current.slice(cut);
+            }
+        }
+        if (current.trim()) {
+            chunks.push(current);
+        }
+        return chunks.length ? chunks : [normalized];
+    };
 
     const detectTargetLanguage = (text) =>
         /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]/i.test(text) ? 'en' : 'vi';
@@ -117,6 +161,9 @@
         detectSourceLanguage,
         normalizeTranslateText,
         splitTranslateText,
+        splitTranslateTextByBytes,
+        utf8ByteLength,
+        MYMEMORY_CHUNK_LIMIT_BYTES,
         fetchWithTimeout,
         GOOGLE_TRANSLATE_CHUNK_LIMIT,
         TRANSLATE_API_TIMEOUT_MS

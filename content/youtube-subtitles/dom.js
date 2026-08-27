@@ -29,16 +29,22 @@
             });
             buttonRef.element.style.touchAction = 'none';
 
-            togglePosStorage.load().then(({ left, top }) => {
-                const pos = floating.clampFixedPosition({
-                    left,
-                    top,
-                    width: 46,
-                    height: 46,
-                    margin: 12
+            togglePosStorage
+                .load()
+                .then(({ left, top }) => {
+                    const pos = floating.clampFixedPosition({
+                        left,
+                        top,
+                        width: 46,
+                        height: 46,
+                        margin: 12
+                    });
+                    buttonRef.setPosition(pos.left, pos.top);
+                })
+                .catch(() => {
+                    // Context bị invalidate (extension vừa reload, tab chưa F5)
+                    // hoặc storage tạm lỗi: bỏ qua, nút vẫn ở vị trí mặc định.
                 });
-                buttonRef.setPosition(pos.left, pos.top);
-            });
 
             floating.bindDragBehavior({
                 target: buttonRef.element,

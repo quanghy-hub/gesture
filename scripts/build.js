@@ -112,6 +112,8 @@ const ISOLATED_FILES = [
     'content/youtube-subtitles/dom.js',
     'content/youtube-subtitles/caption-source.js',
     'content/youtube-subtitles/translator.js',
+    'content/youtube-subtitles/prefetch.js',
+    'content/youtube-subtitles/tts.js',
     'content/youtube-subtitles/caption-manager.js',
     'content/youtube-subtitles/video-sync.js',
     'content/youtube-subtitles/page-events.js',

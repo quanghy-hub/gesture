@@ -4,7 +4,13 @@ const eslintConfigPrettier = require('eslint-config-prettier');
 
 module.exports = [
     {
-        ignores: ['dist/**', 'node_modules/**']
+        ignores: [
+            'dist/**',
+            'node_modules/**',
+            'offscreen/bergamot-translator-worker.js',
+            'offscreen/vendor/transformers.min.js',
+            'offscreen/vendor/transformers.global.js'
+        ]
     },
     js.configs.recommended,
     eslintConfigPrettier,
@@ -24,5 +30,10 @@ module.exports = [
             semi: ['error', 'always'],
             quotes: ['error', 'single', { avoidEscape: true }]
         }
+    },
+    {
+        // ort-shim.js là ES Module (re-export từ window.ort cho import map)
+        files: ['offscreen/**/ort-shim.js'],
+        languageOptions: { sourceType: 'module' }
     }
 ];

@@ -43,6 +43,9 @@
     /** @type {GestureConfig} */
     const DEFAULT_CONFIG = Object.freeze({
         version: 1,
+        offlineTranslation: {
+            enabled: false
+        },
         unblockCopy: {
             enabled: true
         },
@@ -111,6 +114,10 @@
             showOriginal: true,
             containerPosition: { x: '5%', y: '70px' },
             containerAlignment: 'left',
+            ttsEnabled: false,
+            ttsRate: 1,
+            ttsVoiceName: '',
+            ttsEngine: 'os',
             enabled: false
         },
         apiServices: DEFAULT_API_SERVICES,

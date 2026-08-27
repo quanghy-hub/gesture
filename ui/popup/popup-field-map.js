@@ -9,12 +9,17 @@
      */
     const FIELD_MAP = [
         // Feature toggles
+        { elementId: 'feature-offline-translate-enabled', configPath: 'offlineTranslation.enabled', type: 'checkbox', fallback: false },
         { elementId: 'feature-unblock-copy-enabled', configPath: 'unblockCopy.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-video-floating-enabled', configPath: 'videoFloating.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-video-screenshot-enabled', configPath: 'videoScreenshot.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-quick-search-enabled', configPath: 'quickSearch.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-inline-translate-enabled', configPath: 'inlineTranslate.enabled', type: 'checkbox', fallback: true },
         { elementId: 'feature-youtube-subtitles-enabled', configPath: 'youtubeSubtitles.enabled', type: 'checkbox', fallback: false },
+        { elementId: 'feature-youtube-subtitles-tts', configPath: 'youtubeSubtitles.ttsEnabled', type: 'checkbox', fallback: false },
+        { elementId: 'youtube-subtitles-tts-voice', configPath: 'youtubeSubtitles.ttsVoiceName', type: 'select', fallback: '' },
+        { elementId: 'youtube-subtitles-tts-rate', configPath: 'youtubeSubtitles.ttsRate', type: 'select', fallback: '1' },
+        { elementId: 'youtube-subtitles-tts-engine', configPath: 'youtubeSubtitles.ttsEngine', type: 'select', fallback: 'os' },
 
         // Inline translate settings
         { elementId: 'inline-translate-hotkey-enabled', configPath: 'inlineTranslate.hotkeyEnabled', type: 'checkbox', fallback: true },

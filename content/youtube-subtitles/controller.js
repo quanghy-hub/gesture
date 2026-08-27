@@ -13,15 +13,10 @@
             mounted: false,
             pageEventsBound: false,
             video: null,
-            captionTrack: null,
             detachTrackListener: null,
             videoSyncHandler: null,
             navigateTimer: 0,
             locationPollTimer: 0
-        };
-
-        const releaseCaptionTrack = () => {
-            state.captionTrack = null;
         };
 
         const invalidatePendingRender = () => {
@@ -52,34 +47,60 @@
             youtubeSubtitles.dom.applySettingsStyles(settings);
         };
 
+        // Guard: mọi lỗi khởi tạo TTS không được phép làm chết pipeline phụ đề
+        let speaker = null;
+        try {
+            speaker = youtubeSubtitles.createSpeaker({ settings: () => settings });
+        } catch (error) {
+            console.warn('[gesture][tts] speaker init failed:', String(error?.message || error));
+        }
+
         const captionManager = youtubeSubtitles.createCaptionManager({
             state,
             settings: () => settings,
             persistSettings,
             invalidatePendingRender,
-            releaseCaptionTrack
+            speaker
+        });
+
+        const prefetcher = youtubeSubtitles.createPrefetcher({
+            state,
+            settings: () => settings,
+            translator: youtubeSubtitles.translator,
+            // Bản dịch live đang chờ → prefetch nhường đường, không khởi request mới.
+            shouldDefer: () => !!state.liveTranslatePending
         });
 
         const videoSync = youtubeSubtitles.createVideoSync({
             state,
-            releaseCaptionTrack,
             renderCurrentCaption: captionManager.renderCurrentCaption,
+            onVideoEvent(event) {
+                const type = event?.type;
+                // Tua/đổi video/track mới nạp: quét lại ngay không throttle.
+                // 'change' chỉ throttle thường — tránh khuếch đại nếu mode track
+                // bị flap liên tục.
+                const force = type === 'seeked' || type === 'loadedmetadata' || type === 'addtrack';
+                prefetcher.pump({ force });
+            },
             onSeekReset() {
                 // Vô hiệu hóa mọi bản dịch đang bay của vị trí cũ + xóa state
                 // chunking để caption tại vị trí mới được render lại từ đầu.
                 invalidatePendingRender();
                 captionManager.resetCaptionState();
+                // Tua video → im TTS ngay, hàng đợi đọc theo vị trí mới.
+                speaker.cancel();
             }
         });
 
         const stopTranslationMode = () => {
             observer?.stop();
             state.enabled = false;
+            prefetcher.reset();
+            speaker.cancel();
             captionManager.resetCaptionState();
             invalidatePendingRender();
             state.detachTrackListener?.();
             state.detachTrackListener = null;
-            releaseCaptionTrack();
             if (state.video && state.videoSyncHandler) {
                 state.video.removeEventListener('timeupdate', state.videoSyncHandler);
                 state.video.removeEventListener('seeked', state.videoSyncHandler);
@@ -102,6 +123,13 @@
             videoSync.bindVideoSync(video);
             youtubeSubtitles.dom.setTranslateButtonState(true);
             captionManager.renderCurrentCaption().catch(() => {});
+            // Track/cues nạp bất đồng bộ sau khi bật: quét prefetch sớm thêm
+            // một nhịp nữa để dịch được trước đoạn sắp phát.
+            window.setTimeout(() => {
+                if (state.enabled) {
+                    prefetcher.pump({ force: true });
+                }
+            }, 1200);
             return true;
         };
 

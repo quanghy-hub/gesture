@@ -12,26 +12,32 @@
 
     const translateWithMyMemoryChunk = async (text, sourceLanguage, targetLanguage, providerSettings) => {
         const url = new URL(buildMyMemoryEndpoint(providerSettings.endpoint));
-        url.searchParams.set('q', text);
-        url.searchParams.set('langpair', `${sourceLanguage}|${targetLanguage}`);
-        const response = await utils.fetchWithTimeout(
-            url.toString(),
-            {
-                method: 'GET',
-                redirect: 'follow'
-            },
-            utils.TRANSLATE_API_TIMEOUT_MS,
-            'MyMemory request timed out'
-        );
-        if (!response.ok) {
-            throw new Error(`MyMemory HTTP ${response.status}`);
+        // MyMemory chặn q > 500 bytes server-side → tự chia nhỏ theo byte
+        const chunks = utils.splitTranslateTextByBytes(text, utils.MYMEMORY_CHUNK_LIMIT_BYTES);
+        const translated = [];
+        for (const chunk of chunks) {
+            url.searchParams.set('q', chunk);
+            url.searchParams.set('langpair', `${sourceLanguage}|${targetLanguage}`);
+            const response = await utils.fetchWithTimeout(
+                url.toString(),
+                {
+                    method: 'GET',
+                    redirect: 'follow'
+                },
+                utils.TRANSLATE_API_TIMEOUT_MS,
+                'MyMemory request timed out'
+            );
+            if (!response.ok) {
+                throw new Error(`MyMemory HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            const part = utils.parseMyMemoryResponse(data);
+            if (!part) {
+                throw new Error('MyMemory returned empty translation');
+            }
+            translated.push(part);
         }
-        const data = await response.json();
-        const translated = utils.parseMyMemoryResponse(data);
-        if (!translated) {
-            throw new Error('MyMemory returned empty translation');
-        }
-        return translated;
+        return translated.join(' ').trim();
     };
 
     const translateWithDeepL = async (text, sourceLanguage, targetLanguage, providerSettings) => {

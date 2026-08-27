@@ -48,21 +48,49 @@
 
         const registry = ext.background.apiServiceRegistry;
         const targetLanguage = payload?.targetLanguage ?? registry.detectTargetLanguage(text);
-        const result = await registry.executeTranslate({
-            text,
-            targetLanguage,
-            provider: payload?.provider || ''
-        });
+        const detectedSource = payload?.sourceLanguage || ext.background.translateApi?.detectSourceLanguage?.(text, targetLanguage) || '';
+
+        // Offline-first: model Bergamot en→vi / vi→en chạy local (nếu đã tải +
+        // bật) giúp hội thoại nhanh không phụ thuộc mạng; lỗi thì lặng lẽ rơi online.
+        let provider = '';
+        let translatedText = '';
+        let sourceLanguage = detectedSource || 'auto';
+        let fallbackReason = '';
+        const offlineApi = ext.background.offlineTranslation;
+        if (offlineApi && targetLanguage && offlineApi.isPairSupported(detectedSource, targetLanguage) && (await offlineApi.isEnabled())) {
+            const offlineText = await offlineApi.tryTranslate({
+                text,
+                sourceLanguage: detectedSource,
+                targetLanguage
+            });
+            if (offlineText) {
+                provider = 'bergamot-offline';
+                translatedText = offlineText;
+                sourceLanguage = detectedSource;
+            }
+        }
+
+        if (!translatedText) {
+            const result = await registry.executeTranslate({
+                text,
+                targetLanguage,
+                provider: payload?.provider || ''
+            });
+            provider = result.provider;
+            translatedText = result.translatedText;
+            sourceLanguage = result.sourceLanguage || sourceLanguage;
+            fallbackReason = result.fallbackReason || '';
+        }
 
         return {
             ok: true,
             result: {
-                provider: result.provider,
+                provider,
                 text,
-                translatedText: result.translatedText,
-                sourceLanguage: result.sourceLanguage || payload?.sourceLanguage || 'auto',
+                translatedText,
+                sourceLanguage,
                 targetLanguage,
-                fallbackReason: result.fallbackReason || ''
+                fallbackReason
             }
         };
     };
@@ -127,6 +155,70 @@
         return { ok: true, text: result.text, provider: result.provider };
     };
 
+    const offlineApi = () => ext.background.offlineTranslation;
+
+    const handleOfflineStatus = async () => {
+        if (!offlineApi()) {
+            return { ok: false, error: 'Offline module unavailable' };
+        }
+        const status = await offlineApi().getStatus();
+        return { ok: true, status };
+    };
+
+    const handleOfflineDownload = async () => {
+        if (!offlineApi()) {
+            return { ok: false, error: 'Offline module unavailable' };
+        }
+        // Chạy nền: tiến độ cập nhật qua broadcast 'gesture-ext/offline-state'
+        const outcome = offlineApi().startDownload();
+        outcome.catch(() => {});
+        return { ok: true, started: true };
+    };
+
+    const handleOfflineRemove = async () => {
+        if (!offlineApi()) {
+            return { ok: false, error: 'Offline module unavailable' };
+        }
+        return offlineApi().removeModel();
+    };
+
+    const ttsApi = () => ext.background.offlineTts;
+
+    const handleTtsStatus = async () => {
+        if (!ttsApi()) {
+            return { ok: false, error: 'TTS module unavailable' };
+        }
+        return { ok: true, status: await ttsApi().getStatus() };
+    };
+
+    const handleTtsDownload = async () => {
+        if (!ttsApi()) {
+            return { ok: false, error: 'TTS module unavailable' };
+        }
+        return ttsApi().startWarmup();
+    };
+
+    const handleTtsRemove = async () => {
+        if (!ttsApi()) {
+            return { ok: false, error: 'TTS module unavailable' };
+        }
+        return ttsApi().removeVoice();
+    };
+
+    const handleTtsSpeak = async (payload) => {
+        if (!ttsApi()) {
+            return { ok: false, error: 'TTS module unavailable' };
+        }
+        return ttsApi().speakLine(payload?.text);
+    };
+
+    const handleTtsStop = async () => {
+        if (!ttsApi()) {
+            return { ok: false, error: 'TTS module unavailable' };
+        }
+        return ttsApi().stopSpeaking();
+    };
+
     ext.background = ext.background || {};
     ext.background.messageHandlers = {
         handleOpenTab,
@@ -135,6 +227,14 @@
         handleDownloadDataUrl,
         handleFetchImageDataUrl,
         handleCaptureVisibleTab,
-        handlePerformOcr
+        handlePerformOcr,
+        handleOfflineStatus,
+        handleOfflineDownload,
+        handleOfflineRemove,
+        handleTtsStatus,
+        handleTtsDownload,
+        handleTtsRemove,
+        handleTtsSpeak,
+        handleTtsStop
     };
 })();

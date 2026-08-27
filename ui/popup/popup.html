@@ -613,6 +613,67 @@
                             <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off" /></span>
                             <span class="toggle toggle-empty"></span>
                         </div>
+
+                        <!-- Offline translation (Bergamot en→vi) — tách khỏi grid table -->
+                        <div id="card-offline-translate" class="offline-block">
+                            <div class="offline-row">
+                                <span class="label-main">Dịch offline</span>
+                                <span class="toggle"
+                                    ><input id="feature-offline-translate-enabled" type="checkbox" aria-label="Enable offline translation"
+                                /></span>
+                            </div>
+                            <div id="offline-translate-status" class="offline-status-line">—</div>
+                            <div class="offline-actions">
+                                <button id="offline-download-btn" class="secondary inline-button" type="button">Tải model (~40MB)</button>
+                                <button id="offline-remove-btn" class="secondary inline-button" type="button">Xoá</button>
+                            </div>
+                        </div>
+
+                        <!-- TTS đọc — dời từ YouTube Subtitles xuống API Services -->
+                        <div id="card-tts-read" class="offline-block">
+                            <div class="offline-row">
+                                <span class="label-main">TTS đọc</span>
+                                <span class="toggle"
+                                    ><input id="feature-youtube-subtitles-tts" type="checkbox" aria-label="Enable subtitle text to speech"
+                                /></span>
+                            </div>
+                            <div class="offline-row">
+                                <span class="label-main" style="font-size: 11px; color: #9ca3af">Giọng (hệ thống)</span>
+                                <span class="param"
+                                    ><select id="youtube-subtitles-tts-voice" aria-label="TTS voice">
+                                        <option value="">Mặc định</option>
+                                    </select></span
+                                >
+                            </div>
+                            <div class="offline-row">
+                                <span class="label-main" style="font-size: 11px; color: #9ca3af">Tốc độ đọc</span>
+                                <span class="param"
+                                    ><select id="youtube-subtitles-tts-rate" aria-label="TTS rate">
+                                        <option value="0.8">0.8x</option>
+                                        <option value="1">1x</option>
+                                        <option value="1.5">1.5x</option>
+                                        <option value="2">2x</option>
+                                        <option value="2.5">2.5x</option>
+                                        <option value="3">3x</option>
+                                    </select></span
+                                >
+                            </div>
+                            <div class="offline-row">
+                                <span class="label-main" style="font-size: 11px; color: #9ca3af">Engine</span>
+                                <span class="param"
+                                    ><select id="youtube-subtitles-tts-engine" aria-label="TTS engine">
+                                        <option value="os">Hệ thống</option>
+                                        <option value="offline">Offline (VITS vi)</option>
+                                    </select></span
+                                >
+                            </div>
+                            <div id="tts-offline-status" class="offline-status-line">—</div>
+                            <div class="offline-actions">
+                                <button id="tts-offline-download-btn" class="secondary inline-button" type="button">
+                                    Tải giọng offline</button
+                                ><button id="tts-offline-remove-btn" class="secondary inline-button" type="button">Xoá</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -722,6 +783,7 @@
         </main>
 
         <script src="../../shared/namespace.js"></script>
+        <script src="../../shared/messaging.js"></script>
         <script src="../../shared/api-services.js"></script>
         <script src="../../shared/config-utils.js"></script>
         <script src="../../shared/config-schema.js"></script>
