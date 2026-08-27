@@ -18,36 +18,9 @@
         chrome.runtime.sendMessage({ type: 'gesture-ext/tts-offline-state', payload }).catch(() => {});
     };
 
-    // ---- IndexedDB (dùng chung DB với module dịch Bergamot) ----
     const store = globalThis.GestureExtension?.shared?.offlineStore;
-    const IDB_NAME = store?.IDB_NAME || 'gesture-offline-translate-v1';
-    const IDB_STORE = store?.IDB_STORE || 'files';
-
-    function openDb() {
-        if (store?.openDb) return store.openDb();
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open(IDB_NAME, 1);
-            req.onupgradeneeded = () => {
-                if (!req.result.objectStoreNames.contains(IDB_STORE)) {
-                    req.result.createObjectStore(IDB_STORE);
-                }
-            };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    function idbGet(key) {
-        if (store?.idbGet) return store.idbGet(key);
-        return openDb().then(
-            (db) =>
-                new Promise((resolve, reject) => {
-                    const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => reject(req.error);
-                })
-        );
-    }
+    if (!store) throw new Error('offlineStore not loaded');
+    const { idbGet } = store;
 
     /**
      * Nạp thư viện dạng CLASSIC SCRIPT (đã biến đổi sẵn bởi

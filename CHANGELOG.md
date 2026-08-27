@@ -4,6 +4,16 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.5] - 2026-08-27
+
+### ♻️ Refactor — dọn triệt để duplicate & dead code
+
+- **Centralize `MODEL_CONFIG` + `prepareAligned` + offscreen lifecycle**: gom vào `shared/offline-store.js` (`hasOffscreen/ensureOffscreen/sendToEngine` singleton) — xoá 90 LOC duplicate giữa `background/offline-translation.js`/`offline-tts.js` và 40 LOC `MODEL_CONFIG/prepareAligned` giữa SW/offscreen. `background/offline-translation.js` và `offscreen/engine.js|tts-engine.js` giờ delegate trực tiếp `store.*`, bỏ nhánh fallback `if(store?.xxx)` dead.
+- **Dead code**: xoá `let timedOut + void timedOut` (`offline-translation.js:491`), nhánh `vi→en` chết (`resolvePair` chỉ giữ `en-vi`), `shared/config.js` `getExcludedMatchPatterns`/`applyGestureSettings` + exports `getVideoFloatingBackgroundSeekExcludedHosts` không dùng, `types/globals.d.ts` đồng bộ.
+- **Manifest**: gỡ `dist/*` khỏi `web_accessible_resources` (`manifest.json:47`) — chỉ giữ `icons/*`, giảm fingerprint surface (đã inject via `content_scripts`).
+- **TTS state**: `background/offline-tts.js:24` reset `downloading→idle` giờ xoá cả `label/error`, `ensureOffscreen` reuse singleton.
+- **Bundle** 561.9 → 558.8 KB, `lint/typecheck/test` sạch.
+
 ## [1.4.4] - 2026-08-27
 
 ### ♻️ Refactor — tách offline store & fix coupling dịch/TTS

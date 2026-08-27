@@ -12,10 +12,8 @@
  */
 /* global Module */
 (() => {
-    const ext = globalThis.GestureExtension;
-    const store = ext?.shared?.offlineStore;
-    const IDB_NAME = store?.IDB_NAME || 'gesture-offline-translate-v1';
-    const IDB_STORE = store?.IDB_STORE || 'files';
+    const store = globalThis.GestureExtension?.shared?.offlineStore;
+    if (!store) throw new Error('offlineStore not loaded');
 
     let translationService = null;
     const translationModels = new Map(); // pairKey -> TranslationModel
@@ -24,50 +22,11 @@
     // Tuần tự hoá mọi tác vụ nặng để các request dồn tới không đè nhau
     let taskChain = Promise.resolve();
 
-    // Cấu hình decoder copy nguyên văn từ demo Mozilla (khoảng cách có ý nghĩa)
-    const MODEL_CONFIG = `beam-size: 1
-normalize: 1.0
-word-penalty: 0
-max-length-break: 128
-mini-batch-words: 1024
-workspace: 128
-max-length-factor: 2.0
-skip-cost: true
-cpu-threads: 0
-quiet: true
-quiet-translation: true
-gemm-precision: int8shiftAll
-`;
-
-    function openDb() {
-        if (store?.openDb) return store.openDb();
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open(IDB_NAME, 1);
-            req.onupgradeneeded = () => {
-                if (!req.result.objectStoreNames.contains(IDB_STORE)) {
-                    req.result.createObjectStore(IDB_STORE);
-                }
-            };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function idbGet(key) {
-        if (store?.idbGet) return store.idbGet(key);
-        const db = await openDb();
-        return new Promise((resolve, reject) => {
-            const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
-            req.onsuccess = () => resolve(req.result || null);
-            req.onerror = () => reject(req.error);
-        });
-    }
+    const MODEL_CONFIG = store.MODEL_CONFIG;
+    const { idbGet } = store;
 
     function prepareAlignedMemory(buffer, alignment) {
-        const byteArray = new Int8Array(buffer);
-        const aligned = new Module.AlignedMemory(byteArray.byteLength, alignment);
-        aligned.getByteArrayView().set(byteArray);
-        return aligned;
+        return store.prepareAligned(buffer, Module, alignment);
     }
 
     function initRuntime() {

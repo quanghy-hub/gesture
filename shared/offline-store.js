@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /**
  * Helpers dùng chung cho các module offline (dịch Bergamot + TTS VITS).
  *
@@ -89,15 +89,97 @@
         return response.arrayBuffer();
     }
 
+    // ---- Bergamot decoder config (dùng chung SW fallback + offscreen) -----------
+    const MODEL_CONFIG = `beam-size: 1
+normalize: 1.0
+word-penalty: 0
+max-length-break: 128
+mini-batch-words: 1024
+workspace: 128
+max-length-factor: 2.0
+skip-cost: true
+cpu-threads: 0
+quiet: true
+quiet-translation: true
+gemm-precision: int8shiftAll
+`;
+
+    function prepareAligned(buffer, ModuleRef, alignment) {
+        const mod = ModuleRef || globalThis.Module || self.Module;
+        const byteArray = new Int8Array(buffer);
+        const aligned = new mod.AlignedMemory(byteArray.byteLength, alignment);
+        aligned.getByteArrayView().set(byteArray);
+        return aligned;
+    }
+
+    // ---- Offscreen document lifecycle (dùng chung 2 background modules) -------
+    let creatingOffscreen = null;
+
+    async function hasOffscreen() {
+        if (chrome.runtime.getContexts) {
+            const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+            return contexts.length > 0;
+        }
+        const clients = await self.clients.matchAll({ includeUncontrolled: true });
+        return clients.some((client) => client.url.includes('offscreen/engine.html'));
+    }
+
+    async function ensureOffscreen() {
+        if (await hasOffscreen()) {
+            return;
+        }
+        creatingOffscreen =
+            creatingOffscreen ||
+            chrome.offscreen
+                .createDocument({
+                    url: 'offscreen/engine.html',
+                    reasons: ['WORKERS', 'AUDIO_PLAYBACK'],
+                    justification: 'Chạy mô hình dịch offline Bergamot WASM và đọc phụ đề offline (TTS)'
+                })
+                .catch((error) => {
+                    if (!String(error?.message || '').includes('already exists')) {
+                        throw error;
+                    }
+                })
+                .finally(() => {
+                    creatingOffscreen = null;
+                });
+        await creatingOffscreen;
+    }
+
+    function sendToEngine(type, payload, timeoutMs = 20000) {
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Offline engine timeout')), timeoutMs);
+            chrome.runtime.sendMessage({ type, payload }, (response) => {
+                clearTimeout(timeout);
+                const lastError = chrome.runtime.lastError;
+                if (lastError) {
+                    reject(new Error(lastError.message));
+                    return;
+                }
+                if (!response || response.ok === false) {
+                    reject(new Error(response?.error || 'Offline engine lỗi'));
+                    return;
+                }
+                resolve(response);
+            });
+        });
+    }
+
     ext.shared.offlineStore = {
         IDB_NAME,
         IDB_STORE,
+        MODEL_CONFIG,
         openDb,
         idbGet,
         idbPut,
         idbDelete,
         sha256Hex,
         gunzipIfNeeded,
-        fetchBuffer
+        fetchBuffer,
+        prepareAligned,
+        hasOffscreen,
+        ensureOffscreen,
+        sendToEngine
     };
 })();

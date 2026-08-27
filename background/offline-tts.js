@@ -21,7 +21,7 @@
             if (saved && saved[STATE_KEY]) {
                 state = { ...state, ...saved[STATE_KEY] };
                 if (state.status === 'downloading') {
-                    state = { ...state, status: 'idle', progress: 0 };
+                    state = { ...state, status: 'idle', progress: 0, label: '', error: '' };
                 }
             }
         })
@@ -53,55 +53,18 @@
         await chrome.storage.local.set({ [STATE_KEY]: state }).catch(() => {});
     };
 
-    async function hasOffscreen() {
-        if (chrome.runtime.getContexts) {
-            const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-            return contexts.length > 0;
-        }
-        const clients = await self.clients.matchAll({ includeUncontrolled: true });
-        return clients.some((client) => client.url.includes('offscreen/engine.html'));
-    }
-
-    let creatingOffscreen = null;
-    async function ensureOffscreen() {
-        if (await hasOffscreen()) {
-            return;
-        }
-        creatingOffscreen =
-            creatingOffscreen ||
-            chrome.offscreen
-                .createDocument({
-                    url: 'offscreen/engine.html',
-                    reasons: ['WORKERS', 'AUDIO_PLAYBACK'],
-                    justification: 'Đọc phụ đề tiếng Việt offline (VITS TTS)'
-                })
-                .catch((error) => {
-                    if (!String(error?.message || '').includes('already exists')) {
-                        throw error;
-                    }
-                })
-                .finally(() => {
-                    creatingOffscreen = null;
-                });
-        await creatingOffscreen;
-    }
-
+    const store = ext.shared.offlineStore;
+    const { ensureOffscreen } = store;
     function sendToEngine(type, payload, timeoutMs = 30000) {
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('TTS engine timeout')), timeoutMs);
-            chrome.runtime.sendMessage({ type, payload }, (response) => {
-                clearTimeout(timeout);
-                const lastError = chrome.runtime.lastError;
-                if (lastError) {
-                    reject(new Error(lastError.message));
-                    return;
-                }
-                if (!response || response.ok === false) {
-                    reject(new Error(response?.error || 'TTS engine lỗi'));
-                    return;
-                }
-                resolve(response);
-            });
+        return store.sendToEngine(type, payload, timeoutMs).catch((error) => {
+            const msg = String(error?.message || error);
+            if (msg.includes('Offline engine timeout')) {
+                throw new Error(msg.replace('Offline engine timeout', 'TTS engine timeout'));
+            }
+            if (msg.includes('Offline engine lỗi')) {
+                throw new Error(msg.replace('Offline engine lỗi', 'TTS engine lỗi'));
+            }
+            throw error;
         });
     }
 

@@ -191,17 +191,14 @@ declare global {
             normalizeExcludedHosts(value: unknown): string[];
             isHostExcluded(configOrHosts: unknown, host: string): boolean;
             setHostExcluded(config: GestureConfig, host: string, excluded: boolean): GestureConfig;
-            getVideoFloatingBackgroundSeekExcludedHosts(config: unknown): string[];
             isVideoFloatingBackgroundSeekExcluded(config: unknown, host: string): boolean;
             setVideoFloatingBackgroundSeekExcluded(config: GestureConfig, host: string, excluded: boolean): GestureConfig;
             getGestureExcludedHosts?(config: unknown): string[];
             isGestureHostExcluded(config: unknown, host: string): boolean;
             setGestureHostExcluded(config: GestureConfig, host: string, excluded: boolean): GestureConfig;
-            getExcludedMatchPatterns(excludedHosts: unknown): string[];
             getForumConfig(config: unknown, host?: string): ForumDefaultsConfig;
             updateForumHostConfig(config: GestureConfig, host: string, patch: ForumHostConfig): GestureConfig;
             getGestureSettings(config: unknown): Record<string, unknown>;
-            applyGestureSettings(config: GestureConfig, patch: Record<string, unknown>): GestureConfig;
         };
         configUtils?: {
             deepClone<T>(value: T): T;
@@ -246,6 +243,7 @@ declare global {
         offlineStore?: {
             IDB_NAME: string;
             IDB_STORE: string;
+            MODEL_CONFIG: string;
             openDb(): Promise<IDBDatabase>;
             idbGet(key: string): Promise<unknown>;
             idbPut(key: string, buffer: unknown): Promise<void>;
@@ -253,6 +251,10 @@ declare global {
             sha256Hex(buffer: ArrayBuffer): Promise<string>;
             gunzipIfNeeded(buffer: ArrayBuffer, isGz: boolean): Promise<ArrayBuffer>;
             fetchBuffer(url: string): Promise<ArrayBuffer>;
+            prepareAligned(buffer: ArrayBuffer, ModuleRef: unknown, alignment: number): unknown;
+            hasOffscreen(): Promise<boolean>;
+            ensureOffscreen(): Promise<void>;
+            sendToEngine(type: string, payload: unknown, timeoutMs?: number): Promise<unknown>;
         };
     }
 

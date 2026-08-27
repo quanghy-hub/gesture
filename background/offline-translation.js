@@ -11,6 +11,7 @@
 (() => {
     const ext = globalThis.GestureExtension;
     ext.background = ext.background || {};
+    const store = ext.shared.offlineStore;
 
     const STATE_KEY = 'gestureOfflineTranslationState';
 
@@ -23,7 +24,6 @@
     ];
 
     // ORT wasm cho TTS được cache chung DB nhưng KHÔNG chặn isReady của dịch.
-    // Để dịch offline sẵn sàng ngay cả khi TTS chưa tải.
     const TTS_ORT_FILE = {
         key: 'tts:ortwasm',
         url: 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/ort-wasm.wasm',
@@ -31,9 +31,6 @@
         gz: false
     };
 
-    // Các cặp ngôn ngữ: đường dẫn export trong registry của Mozilla
-    // LƯU Ý: chỉ giữ en→vi. Chiều vi→en đã thử nhưng bỏ — để đường online
-    // xử lý (resolvePair sẽ trả null khi không có entry trong PAIRS).
     const PAIRS = {
         'en-vi': {
             sourceLanguage: 'en',
@@ -73,35 +70,18 @@
     }
 
     const DOWNLOAD_PLAN = buildDownloadPlan();
-    // isReady chỉ cần engine dịch + model, không đợi ORT của TTS
     const TRANSLATE_REQUIRED_KEYS = [
         ...TRANSLATE_ENGINE_FILES.map((item) => item.key),
         ...Object.keys(PAIRS).flatMap((pairKey) => [`${pairKey}:model`, `${pairKey}:lex`, `${pairKey}:vocab`])
     ];
     const TOTAL_STEPS = DOWNLOAD_PLAN.length;
 
-    // Cấu hình decoder copy nguyên văn từ demo Mozilla (khoảng cách có ý nghĩa)
-    const MODEL_CONFIG = `beam-size: 1
-normalize: 1.0
-word-penalty: 0
-max-length-break: 128
-mini-batch-words: 1024
-workspace: 128
-max-length-factor: 2.0
-skip-cost: true
-cpu-threads: 0
-quiet: true
-quiet-translation: true
-gemm-precision: int8shiftAll
-`;
+    const MODEL_CONFIG = store.MODEL_CONFIG;
 
     let state = { status: 'idle', step: 0, totalSteps: TOTAL_STEPS, label: '', error: '' };
     let readyCache = null;
     let downloadChain = null;
 
-    // SW có thể bị kill/restart bất kỳ lúc nào: nạp lại trạng thái đã lưu để
-    // popup không hiện sai (vd "idle" trong khi model đã sẵn sàng).
-    // Nếu crash giữa downloading → reset về idle để popup không kẹt.
     chrome.storage.local
         .get(STATE_KEY)
         .then((saved) => {
@@ -123,8 +103,6 @@ gemm-precision: int8shiftAll
     }
 
     async function broadcastState() {
-        // Broadcast PHẢI kèm `installed` — nếu không, bản cập nhật cuối cùng
-        // (sau khi tải xong) sẽ ghi đè UI thành "Chưa có model".
         const installed = await computeInstalled();
         const status = state.status === 'idle' && installed ? 'ready' : state.status;
         chrome.runtime.sendMessage({ type: 'gesture-ext/offline-state', payload: { ...state, status, installed } }).catch(() => {});
@@ -140,158 +118,13 @@ gemm-precision: int8shiftAll
         await persistState();
     };
 
-    // ---- IndexedDB helpers (dùng shared/offline-store.js nếu có) ---------------
-    const store = ext.shared.offlineStore;
+    const { idbGet, idbPut, idbDelete, sha256Hex, gunzipIfNeeded, fetchBuffer, prepareAligned, ensureOffscreen, sendToEngine } = store;
 
-    function openDb() {
-        if (store?.openDb) return store.openDb();
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open('gesture-offline-translate-v1', 1);
-            req.onupgradeneeded = () => {
-                if (!req.result.objectStoreNames.contains('files')) {
-                    req.result.createObjectStore('files');
-                }
-            };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    function idbPut(key, buffer) {
-        if (store?.idbPut) return store.idbPut(key, buffer);
-        return openDb().then(
-            (db) =>
-                new Promise((resolve, reject) => {
-                    const tx = db.transaction('files', 'readwrite');
-                    tx.objectStore('files').put(buffer, key);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject(tx.error);
-                })
-        );
-    }
-
-    function idbGet(key) {
-        if (store?.idbGet) return store.idbGet(key);
-        return openDb().then(
-            (db) =>
-                new Promise((resolve, reject) => {
-                    const req = db.transaction('files', 'readonly').objectStore('files').get(key);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => reject(req.error);
-                })
-        );
-    }
-
-    function idbDelete(key) {
-        if (store?.idbDelete) return store.idbDelete(key);
-        return openDb().then(
-            (db) =>
-                new Promise((resolve, reject) => {
-                    const tx = db.transaction('files', 'readwrite');
-                    tx.objectStore('files').delete(key);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject(tx.error);
-                })
-        );
-    }
-
-    // ---- Tiện ích -------------------------------------------------------------
-    async function sha256Hex(buffer) {
-        if (store?.sha256Hex) return store.sha256Hex(buffer);
-        const digest = await crypto.subtle.digest('SHA-256', buffer);
-        return Array.from(new Uint8Array(digest))
-            .map((byte) => byte.toString(16).padStart(2, '0'))
-            .join('');
-    }
-
-    async function gunzipIfNeeded(buffer, isGz) {
-        if (store?.gunzipIfNeeded) return store.gunzipIfNeeded(buffer, isGz);
-        if (!isGz) {
-            return buffer;
-        }
-        if (typeof DecompressionStream === 'undefined') {
-            throw new Error('Trình duyệt không hỗ trợ DecompressionStream (cần Chromium ≥ 80)');
-        }
-        const stream = new Response(buffer).body.pipeThrough(new DecompressionStream('gzip'));
-        return new Response(stream).arrayBuffer();
-    }
-
-    async function fetchBuffer(url) {
-        if (store?.fetchBuffer) return store.fetchBuffer(url);
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status} — ${url}`);
-        }
-        return response.arrayBuffer();
-    }
-
-    // ---- Offscreen document (desktop) -----------------------------------------
-    let creatingOffscreen = null;
-
-    async function hasOffscreen() {
-        if (chrome.runtime.getContexts) {
-            const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-            return contexts.length > 0;
-        }
-        const clients = await self.clients.matchAll({ includeUncontrolled: true });
-        return clients.some((client) => client.url.includes('offscreen/engine.html'));
-    }
-
-    async function ensureOffscreen() {
-        if (await hasOffscreen()) {
-            return;
-        }
-        creatingOffscreen =
-            creatingOffscreen ||
-            chrome.offscreen
-                .createDocument({
-                    url: 'offscreen/engine.html',
-                    reasons: ['WORKERS', 'AUDIO_PLAYBACK'],
-                    justification: 'Chạy mô hình dịch offline Bergamot WASM và đọc phụ đề offline (TTS)'
-                })
-                .catch((error) => {
-                    if (!String(error?.message || '').includes('already exists')) {
-                        throw error;
-                    }
-                })
-                .finally(() => {
-                    creatingOffscreen = null;
-                });
-        await creatingOffscreen;
-    }
-
-    function sendToEngine(type, payload, timeoutMs = 20000) {
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Offline engine timeout')), timeoutMs);
-            chrome.runtime.sendMessage({ type, payload }, (response) => {
-                clearTimeout(timeout);
-                const lastError = chrome.runtime.lastError;
-                if (lastError) {
-                    reject(new Error(lastError.message));
-                    return;
-                }
-                if (!response || response.ok === false) {
-                    reject(new Error(response?.error || 'Offline engine lỗi'));
-                    return;
-                }
-                resolve(response);
-            });
-        });
-    }
-
-    // ---- Host dự phòng cho MOBILE (Kiwi/Chromium Android): không có
-    // chrome.offscreen → chạy thẳng engine trong Service Worker thread.
+    // ---- Host dự phòng cho MOBILE (Kiwi/Chromium Android) -------------------
     /* global importScripts */
     let swLoadPromises = new Map();
     let swService = null;
     const swModels = new Map();
-
-    function swPrepareAligned(buffer, alignment) {
-        const byteArray = new Int8Array(buffer);
-        const aligned = new self.Module.AlignedMemory(byteArray.byteLength, alignment);
-        aligned.getByteArrayView().set(byteArray);
-        return aligned;
-    }
 
     async function ensureSwRuntime() {
         if (swService) {
@@ -334,10 +167,10 @@ gemm-precision: int8shiftAll
             if (!modelBytes || !lexBuf || !vocabBuf) {
                 throw new Error(`Thiếu model ${pairKey}`);
             }
-            const alignedModel = swPrepareAligned(modelBytes, 256);
-            const alignedShortlist = swPrepareAligned(lexBuf, 64);
+            const alignedModel = prepareAligned(modelBytes, self.Module, 256);
+            const alignedShortlist = prepareAligned(lexBuf, self.Module, 64);
             const alignedVocabs = new self.Module.AlignedMemoryList();
-            alignedVocabs.push_back(swPrepareAligned(vocabBuf, 64));
+            alignedVocabs.push_back(prepareAligned(vocabBuf, self.Module, 64));
             const model = new self.Module.TranslationModel(MODEL_CONFIG, alignedModel, alignedShortlist, alignedVocabs, null);
             swModels.set(pairKey, model);
             return model;
@@ -365,7 +198,7 @@ gemm-precision: int8shiftAll
         }
     }
 
-    // ---- API công khai ------------------------------------------------------------
+    // ---- API công khai --------------------------------------------------------
     function normalizeLang(lang) {
         return String(lang || '')
             .trim()
@@ -373,18 +206,10 @@ gemm-precision: int8shiftAll
             .toLowerCase();
     }
 
-    /**
-     * Chọn cặp model theo (nguồn, đích):
-     *   đích vi → en-vi; nguồn vi + đích en → vi-en; còn lại null (dùng online).
-     */
     function resolvePair(sourceLanguage, targetLanguage) {
         const trg = normalizeLang(targetLanguage);
-        const src = normalizeLang(sourceLanguage);
         if (trg === 'vi' && PAIRS['en-vi']) {
             return 'en-vi';
-        }
-        if (trg === 'en' && src === 'vi' && PAIRS['vi-en']) {
-            return 'vi-en';
         }
         return null;
     }
@@ -426,7 +251,6 @@ gemm-precision: int8shiftAll
                 await setState({ status: 'downloading', step: 0, totalSteps: TOTAL_STEPS, label: '', error: '' });
                 for (let index = 0; index < DOWNLOAD_PLAN.length; index += 1) {
                     const item = DOWNLOAD_PLAN[index];
-                    // Đã có trong IndexedDB từ lần tải trước → bỏ qua
                     if (await idbGet(item.key)) {
                         continue;
                     }
@@ -439,6 +263,8 @@ gemm-precision: int8shiftAll
                     await idbPut(item.key, item.isText ? new TextDecoder().decode(raw) : raw);
                 }
                 readyCache = null;
+                swModels.clear();
+                swLoadPromises.clear();
                 await setState({ status: 'ready', step: TOTAL_STEPS, label: 'Đã sẵn sàng', error: '' });
                 return { ok: true };
             } catch (error) {
@@ -452,18 +278,14 @@ gemm-precision: int8shiftAll
     }
 
     async function removeModel() {
-        // Chỉ xoá file dịch, giữ ORT wasm cho TTS nếu user chỉ muốn xoá dịch
         await Promise.all(TRANSLATE_REQUIRED_KEYS.map((key) => idbDelete(key)));
         readyCache = null;
         swModels.clear();
+        swLoadPromises.clear();
         await setState({ status: 'idle', step: 0, label: '', error: '' });
         return { ok: true };
     }
 
-    /**
-     * Router dịch: trả text nếu dịch offline thành công, ngược lại null để
-     * caller rơi về đường online. Không bao giờ throw ra ngoài.
-     */
     async function tryTranslate({ text, sourceLanguage, targetLanguage }) {
         try {
             const pairKey = resolvePair(sourceLanguage, targetLanguage);
@@ -471,8 +293,6 @@ gemm-precision: int8shiftAll
                 return null;
             }
             const ttsApi = ext.background.offlineTts;
-            // Đang dubbing bằng VITS (chiếm thread offscreen) → nhường ngay,
-            // dùng online để dòng dịch không bị trễ tích luỹ.
             if (ttsApi?.isRecentlyDubbing?.()) {
                 return null;
             }
@@ -486,27 +306,11 @@ gemm-precision: int8shiftAll
                     const response = await sendToEngine('offline-engine/translate', { text, pair: pairKey }, 10000);
                     return String(response?.text || '').trim() || null;
                 })();
-                // Ngân sách nhanh: quá hạn → trả null cho caller rơi về online;
-                // kết quả offline tới muộn vẫn chạy hết nhưng bị bỏ qua.
                 const budget = ext.youtubeSubtitles?.OFFLINE_TRANSLATE_FAST_BUDGET_MS ?? 1200;
                 const guarded = translatePromise.catch(() => null);
-                let timedOut = false;
-                const winner = await Promise.race([
-                    guarded.then((value) => {
-                        timedOut = false;
-                        return value;
-                    }),
-                    new Promise((resolve) =>
-                        setTimeout(() => {
-                            timedOut = true;
-                            resolve(undefined);
-                        }, budget)
-                    )
-                ]);
-                void timedOut;
+                const winner = await Promise.race([guarded, new Promise((resolve) => setTimeout(() => resolve(undefined), budget))]);
                 return winner ?? null;
             }
-            // Mobile / fork không có offscreen: chạy trong Service Worker
             const model = await ensureSwModel(pairKey);
             if (!model || !swService) {
                 return null;
