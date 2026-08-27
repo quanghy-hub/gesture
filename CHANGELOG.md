@@ -4,6 +4,12 @@ Tất cả những thay đổi quan trọng của dự án **Gesture Suite Exten
 
 ---
 
+## [1.4.6] - 2026-08-27
+
+### 🐛 Hotfix — offscreen crash `Cannot read properties of undefined (reading 'shared')`
+
+- **Root cause**: `shared/offline-store.js:12` làm `ext = globalThis.GestureExtension` mà offscreen (`offscreen/engine.html:12`) chưa nạp `shared/namespace.js` → `GestureExtension` undefined → `ext.shared` throw ngay khi mở document. Fix khởi tạo `globalThis.GestureExtension = globalThis.GestureExtension || {}` trong `offline-store.js` và thêm `../shared/namespace.js` trước `offline-store.js` trong `engine.html`.
+
 ## [1.4.5] - 2026-08-27
 
 ### ♻️ Refactor — dọn triệt để duplicate & dead code

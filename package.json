@@ -1,6 +1,6 @@
 {
     "name": "gesture-extension",
-    "version": "1.4.5",
+    "version": "1.4.6",
     "description": "Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.",
     "main": "background/service-worker.js",
     "scripts": {

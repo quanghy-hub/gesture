@@ -9,7 +9,9 @@
  *   offscreen nạp qua <script src="../shared/offline-store.js"> trong engine.html.
  */
 (() => {
-    const ext = globalThis.GestureExtension;
+    const root = globalThis;
+    root.GestureExtension = root.GestureExtension || {};
+    const ext = root.GestureExtension;
     ext.shared = ext.shared || {};
 
     const IDB_NAME = 'gesture-offline-translate-v1';
