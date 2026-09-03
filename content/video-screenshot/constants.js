@@ -15,7 +15,8 @@
         minRecordWidth: 48,
         minRecordHeight: 48,
         recordControlGap: 8,
-        recordControlSize: 34
+        recordControlSize: 34,
+        recordLabelWidth: 112
     });
 
     videoScreenshot.ICON = floating.icons.camera;

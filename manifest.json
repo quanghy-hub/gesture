@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Gesture",
-    "version": "1.1.0",
-    "description": "Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.",
+    "version": "1.4.6",
+    "description": "Forum layout plus desktop and mobile gestures for Firefox, Floorp and Chromium.",
     "browser_specific_settings": {
         "gecko": {
             "id": "gesture-extension@quanghy.hub",
@@ -15,11 +15,17 @@
         "48": "icons/icon48.png",
         "128": "icons/icon128.png"
     },
-    "permissions": ["storage", "tabs", "downloads", "scripting", "clipboardWrite"],
+    "permissions": ["storage", "unlimitedStorage", "downloads", "scripting", "clipboardWrite"],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    },
     "host_permissions": ["<all_urls>"],
     "background": {
+        "service_worker": "background/service-worker.js",
         "scripts": [
             "shared/namespace.js",
+            "background/imports.js",
+            "shared/messaging.js",
             "shared/api-services.js",
             "shared/config-utils.js",
             "shared/config-schema.js",
@@ -36,6 +42,9 @@
             "background/api-services/translate-api.js",
             "background/api-services/ocr-api.js",
             "background/api-service-registry.js",
+            "shared/offline-store.js",
+            "background/offline-translation.js",
+            "background/offline-tts.js",
             "background/message-handlers.js",
             "background/service-worker.js"
         ]
@@ -48,5 +57,29 @@
             "32": "icons/icon32.png",
             "48": "icons/icon48.png"
         }
-    }
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "all_frames": true,
+            "match_about_blank": true,
+            "css": ["content/video-floating/styles.css", "content/google-search/styles.css"],
+            "js": ["dist/content-bundle.js"],
+            "run_at": "document_start"
+        },
+        {
+            "matches": ["<all_urls>"],
+            "all_frames": true,
+            "match_about_blank": true,
+            "js": ["dist/page-api-bundle.js"],
+            "run_at": "document_start",
+            "world": "MAIN"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["icons/*", "icons/providers/*"],
+            "matches": ["<all_urls>"]
+        }
+    ]
 }

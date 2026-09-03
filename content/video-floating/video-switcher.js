@@ -29,7 +29,7 @@
 
         const switchVid = (dir, floatFunc, onEnded) => {
             if (ctx.state.isSwitchingVideo) return;
-            const sequence = videoCollection.getOrderedVideoSequence();
+            const sequence = videoCollection.getVideos();
             if (!sequence.length) return;
             const currentIndex = ctx.curVid && sequence.includes(ctx.curVid) ? sequence.indexOf(ctx.curVid) : 0;
             const nextIndex = (currentIndex + dir + sequence.length) % sequence.length;

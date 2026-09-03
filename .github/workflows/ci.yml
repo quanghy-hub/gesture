@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
     push:
-        branches: [main, master, macos]
+        branches: [main, master, chrome, chrome-win, firefox, firefox-win]
     pull_request:
-        branches: [main, master, macos]
+        branches: [main, master, chrome, chrome-win, firefox, firefox-win]
 
 jobs:
     build-and-test:
@@ -19,8 +19,24 @@ jobs:
               with:
                   node-version: '20'
 
+            - name: Install dependencies
+              run: npm ci
+
             - name: Build content bundles
               run: npm run build
 
             - name: Run automated test suite
               run: npm test
+
+            - name: Run type checking (JSDoc + @ts-check)
+              run: npm run typecheck
+
+            - name: Build mobile zip package
+              run: npm run build:zip
+
+            - name: Upload zip artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: gesture-mobile-zip
+                  path: dist-zip/gesture.zip
+                  if-no-files-found: error

@@ -12,14 +12,36 @@
     const getTextKey = (text) => normalizeBlockText(text).slice(0, 240);
     const getElementText = (element) => normalizeBlockText(element?.innerText || '');
 
-    const getMeaningfulChildBlocks = (element) =>
-        [...(element?.children || [])].filter((child) => {
+    const SKIP_TAGS =
+        /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|SVG|CANVAS|IFRAME|VIDEO|AUDIO|BUTTON|INPUT|SELECT|TEXTAREA|IMG|PICTURE|SOURCE|MAP|AREA|FORM|LABEL|TABLE|UL|OL|DL)$/;
+    const MAX_WALK_DEPTH = 14;
+
+    const isHiddenElement = (element) => {
+        // checkVisibility rẻ hơn nhiều so với getComputedStyle (không ép full recalc)
+        if (typeof element.checkVisibility === 'function') {
+            return !element.checkVisibility({ checkOpacity: false, checkVisibilityCSS: true });
+        }
+        return window.getComputedStyle(element).display === 'none';
+    };
+
+    const getMeaningfulChildBlocks = (element) => {
+        const result = [];
+        const children = element?.children || [];
+        // Container feed có thể hàng trăm con: chặn số lượng quét để tránh
+        // gọi innerText hàng loạt (mỗi lần là một layout pass tiềm ẩn).
+        const limit = Math.min(children.length, 80);
+        for (let index = 0; index < limit; index += 1) {
+            const child = children[index];
             if (!(child instanceof HTMLElement) || child.classList.contains('gesture-inline-translate-box')) {
-                return false;
+                continue;
             }
             const text = getElementText(child);
-            return hasMeaningfulText(text) && text.length >= 24;
-        });
+            if (hasMeaningfulText(text) && text.length >= 24) {
+                result.push(child);
+            }
+        }
+        return result;
+    };
 
     const isParagraphLikeCandidate = (element, text) => {
         if (!(element instanceof HTMLElement) || !VALID_TAGS.test(element.tagName)) return false;
@@ -93,6 +115,62 @@
         return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     };
 
+    const FLAIR_SELECTOR = '[slot="flair"], [data-testid*="flair" i], .flair, [id*="flair" i], faceplate-hovercard';
+
+    const isFlairElement = (element) => {
+        if (!(element instanceof Element)) return false;
+        return !!element.matches?.(FLAIR_SELECTOR) || !!element.closest?.(FLAIR_SELECTOR);
+    };
+
+    const getRedditCommentBlock = (comment, originElement, x, y) => {
+        if (!(comment instanceof Element)) return null;
+        const selectors = [
+            '[slot="comment"]',
+            'div[id$="-comment-rtjson-content"]',
+            'div[id$="-rtjson-content"]',
+            '.md',
+            '[data-click-id="text"]',
+            'p'
+        ];
+        const seen = new Set();
+        const candidates = [];
+        for (const selector of selectors) {
+            for (const el of comment.querySelectorAll(selector)) {
+                if (seen.has(el)) continue;
+                seen.add(el);
+                if (isFlairElement(el)) continue;
+                const raw = el.innerText || el.textContent || '';
+                const text = normalizeBlockText(raw);
+                if (!text || !hasMeaningfulText(text)) continue;
+                if (text.length < 24) continue;
+                if (el.closest?.('header, [slot="commentMeta"], [slot="authorName"], faceplate-tracker')) {
+                    if (text.length < 50) continue;
+                }
+                candidates.push({ el, text });
+            }
+        }
+        if (candidates.length) {
+            for (const candidate of candidates) {
+                if (pointInElement(candidate.el, x, y)) {
+                    return { text: candidate.text, node: candidate.el };
+                }
+            }
+            candidates.sort((a, b) => b.text.length - a.text.length);
+            return { text: candidates[0].text, node: candidates[0].el };
+        }
+        let current = originElement;
+        while (current && current !== comment) {
+            if (current instanceof HTMLElement && !isFlairElement(current)) {
+                const t = normalizeBlockText(current.innerText || current.textContent || '');
+                if (hasMeaningfulText(t) && t.length >= 30 && isParagraphLikeCandidate(current, t)) {
+                    return { text: t, node: current };
+                }
+            }
+            current = current.parentElement;
+        }
+        return null;
+    };
+
     const getTextBlock = (element, x = 0, y = 0) => {
         if (!element || element === document.body) {
             return null;
@@ -103,8 +181,9 @@
             if (post) {
                 for (const selector of REDDIT_TITLE_SELECTORS) {
                     for (const candidate of post.querySelectorAll(selector)) {
+                        if (isFlairElement(candidate)) continue;
                         if (!pointInElement(candidate, x, y)) continue;
-                        const titleText = candidate.innerText?.trim() || '';
+                        const titleText = normalizeBlockText(candidate.innerText || candidate.textContent || '');
                         if (hasMeaningfulText(titleText)) {
                             return { text: titleText, node: candidate };
                         }
@@ -113,9 +192,9 @@
             }
             const comment = element.closest('shreddit-comment');
             if (comment) {
-                const candidate = comment.querySelector('.md, [slot="comment"], [id$="-rtjson-content"], [id$="-post-rtjson-content"]');
-                if (candidate?.innerText.trim()) {
-                    return { text: candidate.innerText.trim(), node: candidate };
+                const redditCommentBlock = getRedditCommentBlock(comment, element, x, y);
+                if (redditCommentBlock) {
+                    return redditCommentBlock;
                 }
             }
             if (post) {
@@ -123,8 +202,10 @@
                 if (body) {
                     for (const selector of REDDIT_SELECTORS) {
                         const candidate = body.querySelector(selector);
-                        if (candidate?.innerText.trim()) {
-                            return { text: candidate.innerText.trim(), node: candidate };
+                        if (!candidate || isFlairElement(candidate)) continue;
+                        const bodyText = normalizeBlockText(candidate.innerText || candidate.textContent || '');
+                        if (hasMeaningfulText(bodyText)) {
+                            return { text: bodyText, node: candidate };
                         }
                     }
                 }
@@ -134,16 +215,36 @@
         let current = element;
         let best = null;
         let depth = 0;
-        while (current && current !== document.body) {
-            if (window.getComputedStyle(current).display === 'none') {
+        while (current && current !== document.body && depth < MAX_WALK_DEPTH) {
+            if (IS_REDDIT && isFlairElement(current)) {
                 current = current.parentElement;
+                depth += 1;
                 continue;
             }
-            const text = getElementText(current);
-            if (isParagraphLikeCandidate(current, text)) {
-                best = pickBetterBlock(best, current, text, depth);
-                if (PARAGRAPH_TAGS.test(current.tagName)) {
-                    break;
+            const tagName = current.tagName || '';
+            // Bỏ qua nhanh tag phi văn bản TRƯỚC khi tính innerText (mỗi lần
+            // innerText là một layout pass tiềm ẩn trên subtree lớn).
+            if (!SKIP_TAGS.test(tagName)) {
+                if (isHiddenElement(current)) {
+                    current = current.parentElement;
+                    depth += 1;
+                    continue;
+                }
+                // Chỉ tính text với tag có cơ hội trở thành block; các tag còn
+                // lại (FORM/TABLE/UL/…) trước đây bị loại sau khi đã tốn innerText.
+                if (
+                    PARAGRAPH_TAGS.test(tagName) ||
+                    HEADING_TAGS.test(tagName) ||
+                    CONTAINER_FALLBACK_TAGS.test(tagName) ||
+                    VALID_TAGS.test(tagName)
+                ) {
+                    const text = getElementText(current);
+                    if (isParagraphLikeCandidate(current, text)) {
+                        best = pickBetterBlock(best, current, text, depth);
+                        if (PARAGRAPH_TAGS.test(tagName)) {
+                            break;
+                        }
+                    }
                 }
             }
             depth += 1;
@@ -153,11 +254,15 @@
     };
 
     const hitTestTextBlock = (x, y) => {
-        for (const element of document.elementsFromPoint(x, y)) {
-            if (element.closest('.gesture-inline-translate-box')) {
+        const stack = document.elementsFromPoint(x, y);
+        // Block chứa điểm chạm gần như luôn nằm trong vài layer gần nhất;
+        // giới hạn tránh full-walk lặp lại trên các overlay trang trí.
+        const limit = Math.min(stack.length, 8);
+        for (let index = 0; index < limit; index += 1) {
+            if (stack[index].closest('.gesture-inline-translate-box')) {
                 continue;
             }
-            const block = getTextBlock(element, x, y);
+            const block = getTextBlock(stack[index], x, y);
             if (block) {
                 return block;
             }
@@ -165,14 +270,33 @@
         return null;
     };
 
+    const MEDIA_CACHE_TTL_MS = 1500;
+    let mediaCache = { at: 0, videos: [], frames: [] };
+
+    // querySelectorAll('video'/'iframe') mỗi sự kiện chạm là phí vô ích: danh
+    // sách media ít đổi trong ngắn hạn → cache TTL 1.5s (vị trí vẫn lấy live
+    // qua getBoundingClientRect lúc gọi).
+    const getMediaElements = () => {
+        const now = Date.now();
+        if (now - mediaCache.at > MEDIA_CACHE_TTL_MS) {
+            mediaCache = {
+                at: now,
+                videos: [...document.querySelectorAll('video')],
+                frames: [...document.querySelectorAll('iframe')]
+            };
+        }
+        return mediaCache;
+    };
+
     const isInVideoZone = (x, y) => {
         const inRect = (element) => {
             const rect = element.getBoundingClientRect();
             return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
         };
+        const { videos, frames } = getMediaElements();
         return (
-            [...document.querySelectorAll('video')].some((video) => video.offsetWidth && inRect(video)) ||
-            [...document.querySelectorAll('iframe')].some(
+            videos.some((video) => video.offsetWidth && inRect(video)) ||
+            frames.some(
                 (frame) => frame.offsetWidth && inRect(frame) && /youtube|vimeo|dailymotion|twitch|facebook.*video|tiktok/i.test(frame.src)
             ) ||
             document
@@ -193,6 +317,8 @@
         pointInElement,
         getTextBlock,
         hitTestTextBlock,
-        isInVideoZone
+        isInVideoZone,
+        isFlairElement,
+        getRedditCommentBlock
     };
 })();

@@ -102,6 +102,24 @@
             updatePlaybackOverlayUI?.();
             startProgressLoop();
             bindCurrentVideo(video, onEnded);
+
+            if (!video.src && !video.currentSrc && !video.srcObject) {
+                const detector = videoFloating.media?.detector;
+                const candidate = detector?.getVideoSourceCandidate?.(video);
+                if (candidate && typeof candidate === 'string') {
+                    const isM3u8 = candidate.includes('.m3u8') || candidate.includes('m3u8') || video.dataset?.type === 'm3u8';
+                    if (isM3u8) {
+                        try {
+                            window.dispatchEvent(new CustomEvent('fvp-attach-hls', { detail: { source: candidate } }));
+                        } catch {
+                            /* ignore */
+                        }
+                    } else {
+                        video.src = candidate;
+                    }
+                }
+            }
+
             video.play().catch(() => {
                 updatePlaybackOverlayUI?.();
             });
@@ -123,9 +141,23 @@
             ctx.state.isSeeking = false;
             ctx.state.seekDragActive = false;
 
+            try {
+                window.dispatchEvent(new CustomEvent('fvp-destroy-hls'));
+            } catch {
+                /* ignore */
+            }
+
             if (ctx.floatedIframe) {
                 restoreFloatedIframe?.({ clearRefs: true });
             } else if (!transitionRestored && ctx.curVid) {
+                if (ctx.curVid._fvp_hls) {
+                    try {
+                        ctx.curVid._fvp_hls.destroy();
+                    } catch {
+                        /* ignore */
+                    }
+                    ctx.curVid._fvp_hls = null;
+                }
                 restoreVideoNode(ctx.curVid, ctx.origPar, ctx.ph);
                 restoreVideoPresentation(ctx.curVid);
                 ctx.curVid.onplay = ctx.curVid.onpause = ctx.curVid.onended = null;

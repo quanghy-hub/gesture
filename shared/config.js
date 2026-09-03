@@ -1,3 +1,4 @@
+// @ts-check
 (() => {
     const ext = globalThis.GestureExtension;
     const { deepClone, normalizeHost, normalizeExcludedHosts } = ext.shared.configUtils;
@@ -68,10 +69,6 @@
         next.gestures.excludedHosts = [...current];
         return normalizeConfig(next);
     };
-    const getExcludedMatchPatterns = (excludedHosts) => {
-        return normalizeExcludedHosts(excludedHosts).flatMap((host) => [`*://${host}/*`, `*://*.${host}/*`]);
-    };
-
     const getForumConfig = (config, host) => {
         const normalized = normalizeConfig(config);
         return {
@@ -120,79 +117,6 @@
         };
     };
 
-    const applyGestureSettings = (config, patch) => {
-        const next = deepClone(normalizeConfig(config));
-        const current = getGestureSettings(next);
-        const merged = {
-            ...current,
-            ...(patch || {}),
-            longPress: {
-                ...current.longPress,
-                ...(patch?.longPress || {})
-            },
-            rightClick: {
-                ...current.rightClick,
-                ...(patch?.rightClick || {})
-            },
-            closeTab: {
-                ...current.closeTab,
-                ...(patch?.closeTab || {})
-            },
-            edgeSwipe: {
-                ...current.edgeSwipe,
-                ...(patch?.edgeSwipe || {})
-            },
-            pager: {
-                ...current.pager,
-                ...(patch?.pager || {})
-            }
-        };
-
-        next.gestures.desktop.enabled = !!merged.enabled;
-        next.gestures.mobile.enabled = !!merged.enabled;
-
-        next.gestures.desktop.lpress = {
-            enabled: !!merged.longPress.enabled,
-            mode: merged.longPress.mode,
-            ms: merged.longPress.ms
-        };
-        next.gestures.mobile.lpress = {
-            enabled: !!merged.longPress.enabled,
-            mode: merged.longPress.mode,
-            ms: merged.longPress.ms
-        };
-
-        next.gestures.desktop.rclick = {
-            enabled: !!merged.rightClick.enabled,
-            mode: merged.rightClick.mode
-        };
-        next.gestures.desktop.closeTab = {
-            enabled: !!merged.closeTab.enabled,
-            ms: merged.closeTab.ms
-        };
-        next.gestures.mobile.closeTab = {
-            enabled: !!merged.closeTab.enabled,
-            ms: merged.closeTab.ms
-        };
-        delete next.gestures.desktop.dblRight;
-        delete next.gestures.desktop.fastScroll;
-        delete next.gestures.mobile.dblTap;
-        delete next.gestures.mobile.fastScroll;
-        next.gestures.mobile.edge = {
-            enabled: !!merged.edgeSwipe.enabled,
-            side: merged.edgeSwipe.side,
-            width: merged.edgeSwipe.width,
-            speed: merged.edgeSwipe.speed
-        };
-        next.gestures.desktop.pager = {
-            enabled: !!merged.pager.enabled,
-            hops: merged.pager.hops
-        };
-
-        next._isNormalized = true;
-        return next;
-    };
-
     ext.shared.config = {
         STORAGE_KEY,
         DEFAULT_CONFIG,
@@ -205,13 +129,10 @@
         normalizeExcludedHosts,
         isHostExcluded,
         setHostExcluded,
-        getVideoFloatingBackgroundSeekExcludedHosts,
         isVideoFloatingBackgroundSeekExcluded,
         setVideoFloatingBackgroundSeekExcluded,
         isGestureHostExcluded,
         setGestureHostExcluded,
-        getExcludedMatchPatterns,
-        getGestureSettings,
-        applyGestureSettings
+        getGestureSettings
     };
 })();

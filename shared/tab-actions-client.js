@@ -7,9 +7,6 @@
         openTab(url, mode = 'bg') {
             return send('gesture-ext/open-tab', { url, mode });
         },
-        openNewTab() {
-            return send('gesture-ext/open-new-tab');
-        },
         closeCurrentTab() {
             return send('gesture-ext/close-current-tab');
         },

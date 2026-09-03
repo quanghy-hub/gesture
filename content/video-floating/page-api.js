@@ -230,6 +230,43 @@
         setTimeout(handleGetQuality, 120);
     };
 
+    const handleAttachHls = (source) => {
+        if (!source || typeof source !== 'string') return;
+        const video = getFloatingVideo();
+        if (!video) return;
+        if (window.Hls && window.Hls.isSupported()) {
+            try {
+                if (video._fvp_hls) {
+                    video._fvp_hls.destroy();
+                    video._fvp_hls = null;
+                }
+                const hls = new window.Hls();
+                hls.loadSource(source);
+                hls.attachMedia(video);
+                video._fvp_hls = hls;
+                hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(() => {});
+                });
+            } catch {
+                video.src = source;
+            }
+        } else {
+            video.src = source;
+        }
+    };
+
+    const handleDestroyHls = () => {
+        const video = getFloatingVideo();
+        if (video?._fvp_hls) {
+            try {
+                video._fvp_hls.destroy();
+            } catch {
+                /* ignore */
+            }
+            video._fvp_hls = null;
+        }
+    };
+
     // Listen for quality level requests from content script
     window.addEventListener('fvp-get-quality', handleGetQuality);
 
@@ -238,6 +275,12 @@
         handleSetQuality(e.detail);
     });
 
+    window.addEventListener('fvp-attach-hls', (e) => {
+        handleAttachHls(e.detail?.source);
+    });
+
+    window.addEventListener('fvp-destroy-hls', handleDestroyHls);
+
     window.addEventListener('message', (e) => {
         if (!e || !e.data || typeof e.data !== 'object') return;
         if (e.source !== window || e.data.source !== FVP_IFRAME_BRIDGE) return;
@@ -245,6 +288,10 @@
             handleGetQuality();
         } else if (e.data.type === 'fvp-page-set-quality' && e.data.item && typeof e.data.item === 'object') {
             handleSetQuality(e.data.item);
+        } else if (e.data.type === 'fvp-page-attach-hls' && e.data.source) {
+            handleAttachHls(e.data.source);
+        } else if (e.data.type === 'fvp-page-destroy-hls') {
+            handleDestroyHls();
         }
     });
 })();

@@ -16,6 +16,54 @@
         return null;
     };
 
+    // Hàm thuần (string in / string out): suy diễn quy luật số của URL phân trang
+    // rồi nhảy `hops` bước một lần. Ưu tiên param query số, sau đó đến segment
+    // path kết thúc bằng số. Trả về null nếu không tìm thấy pattern.
+    const buildHoppedHref = (currentUrlString, nextUrlString, dir, hops) => {
+        const current = new URL(currentUrlString);
+        const next = new URL(nextUrlString, currentUrlString);
+
+        for (const [key, value] of next.searchParams) {
+            if (!/^\d+$/.test(value)) continue;
+            const currentValue = current.searchParams.get(key);
+            if (currentValue === value) continue;
+
+            const currentNumber = currentValue !== null && /^\d+$/.test(currentValue) ? +currentValue : +value - dir;
+            const step = +value - currentNumber;
+            if (!step) continue;
+
+            next.searchParams.set(key, String(Math.max(step > 0 ? 1 : 0, currentNumber + step * hops)));
+            return next.href;
+        }
+
+        const currentParts = current.pathname.split('/');
+        const nextParts = next.pathname.split('/');
+        const numberAtEnd = (segment) => {
+            const match = segment.match(/(\d+)$/);
+            return match ? +match[1] : null;
+        };
+
+        for (let i = 0; i < Math.max(currentParts.length, nextParts.length); i += 1) {
+            const currentPart = currentParts[i] || '';
+            const nextPart = nextParts[i] || '';
+            if (currentPart === nextPart) continue;
+
+            const nextNumber = numberAtEnd(nextPart);
+            if (nextNumber === null) continue;
+
+            const currentNumber = numberAtEnd(currentPart);
+            const startValue = currentNumber !== null ? currentNumber : nextNumber - dir;
+            const step = nextNumber - startValue;
+            if (!step) continue;
+
+            nextParts[i] = nextPart.replace(/\d+$/, String(Math.max(step > 0 ? 1 : 0, startValue + step * hops)));
+            next.pathname = nextParts.join('/');
+            return next.href;
+        }
+
+        return null;
+    };
+
     const goPage = (dir, hops = 1, isMax = false) => {
         if (isMax) {
             const href = findLink(dir > 0 ? ['last', 'cuối', '末'] : ['first', 'đầu', '首'], dir > 0 ? 'last' : 'first');
@@ -34,48 +82,7 @@
         }
 
         try {
-            const current = new URL(location.href);
-            const next = new URL(href, location.href);
-
-            for (const [key, value] of next.searchParams) {
-                if (!/^\d+$/.test(value)) continue;
-                const currentValue = current.searchParams.get(key);
-                if (currentValue === value) continue;
-
-                const currentNumber = currentValue !== null && /^\d+$/.test(currentValue) ? +currentValue : +value - dir;
-                const step = +value - currentNumber;
-                if (!step) continue;
-
-                next.searchParams.set(key, Math.max(step > 0 ? 1 : 0, currentNumber + step * hops));
-                location.href = next.href;
-                return;
-            }
-
-            const currentParts = current.pathname.split('/');
-            const nextParts = next.pathname.split('/');
-            const numberAtEnd = (segment) => {
-                const match = segment.match(/(\d+)$/);
-                return match ? +match[1] : null;
-            };
-
-            for (let i = 0; i < Math.max(currentParts.length, nextParts.length); i += 1) {
-                const currentPart = currentParts[i] || '';
-                const nextPart = nextParts[i] || '';
-                if (currentPart === nextPart) continue;
-
-                const nextNumber = numberAtEnd(nextPart);
-                if (nextNumber === null) continue;
-
-                const currentNumber = numberAtEnd(currentPart);
-                const startValue = currentNumber !== null ? currentNumber : nextNumber - dir;
-                const step = nextNumber - startValue;
-                if (!step) continue;
-
-                nextParts[i] = nextPart.replace(/\d+$/, Math.max(step > 0 ? 1 : 0, startValue + step * hops));
-                next.pathname = nextParts.join('/');
-                location.href = next.href;
-                return;
-            }
+            location.href = buildHoppedHref(location.href, href, dir, hops) || href;
         } catch {
             location.href = href;
         }
@@ -92,6 +99,7 @@
 
     ext.gestures.desktopPager = {
         findLink,
+        buildHoppedHref,
         goPage,
         ensurePagerStyles
     };

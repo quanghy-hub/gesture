@@ -1,119 +1,44 @@
-/* global GestureExtension */
+/* global GestureExtension, importScripts */
+// Chỉ nạp trực tiếp 2 file tối thiểu; danh sách còn lại nằm tập trung trong
+// background/imports.js (single source of truth, được build.js kiểm tra).
+if (typeof importScripts === 'function') {
+    importScripts('/shared/namespace.js', '/background/imports.js');
+    importScripts(...GestureExtension.background.SW_IMPORT_PATHS);
+}
 
-const { STORAGE_KEY, getExcludedMatchPatterns } = GestureExtension.shared.config;
-
-const CONTENT_SCRIPT_DEFINITIONS = [
-    {
-        id: 'gesture-content-isolated',
-        matches: ['<all_urls>'],
-        allFrames: true,
-        css: ['content/video-floating/styles.css', 'content/google-search/styles.css', 'content/clipboard/styles.css'],
-        js: ['dist/content-bundle.js'],
-        runAt: 'document_start'
-    },
-    {
-        id: 'gesture-content-main',
-        matches: ['<all_urls>'],
-        allFrames: true,
-        js: ['dist/page-api-bundle.js'],
-        runAt: 'document_start',
-        world: 'MAIN'
-    }
-];
-const CONTENT_SCRIPT_IDS = CONTENT_SCRIPT_DEFINITIONS.map((definition) => definition.id);
-const isTransientSyncError = (error) => {
-    const message = String(error?.message || error || '').trim();
-    if (!message) {
-        return false;
-    }
-    return /^(No SW)$/i.test(message) || /Extension context invalidated/i.test(message) || /Service worker context closed/i.test(message);
-};
-const normalizeSetArray = (value) => [...new Set(Array.isArray(value) ? value : [])].sort();
-const normalizeOrderedArray = (value) => (Array.isArray(value) ? [...value] : []);
-const areSameRegistrations = (left, right) => {
-    return (
-        JSON.stringify(
-            left
-                .map((definition) => ({
-                    id: definition.id,
-                    matches: normalizeSetArray(definition.matches),
-                    excludeMatches: normalizeSetArray(definition.excludeMatches),
-                    js: normalizeOrderedArray(definition.js),
-                    css: normalizeOrderedArray(definition.css),
-                    allFrames: !!definition.allFrames,
-                    runAt: definition.runAt || '',
-                    world: definition.world || ''
-                }))
-                .sort((a, b) => a.id.localeCompare(b.id))
-        ) ===
-        JSON.stringify(
-            right
-                .map((definition) => ({
-                    id: definition.id,
-                    matches: normalizeSetArray(definition.matches),
-                    excludeMatches: normalizeSetArray(definition.excludeMatches),
-                    js: normalizeOrderedArray(definition.js),
-                    css: normalizeOrderedArray(definition.css),
-                    allFrames: !!definition.allFrames,
-                    runAt: definition.runAt || '',
-                    world: definition.world || ''
-                }))
-                .sort((a, b) => a.id.localeCompare(b.id))
-        )
-    );
-};
+const { STORAGE_KEY } = GestureExtension.shared.config;
+const CONTENT_SCRIPT_IDS = ['gesture-content-isolated', 'gesture-content-main'];
 
 const getStoredConfig = () => GestureExtension.shared.storage.getConfig();
 
-const syncRegisteredContentScripts = async () => {
-    if (!browser.scripting?.registerContentScripts) {
+const cleanupLegacyDynamicScripts = async () => {
+    if (!chrome.scripting?.getRegisteredContentScripts || !chrome.scripting?.unregisterContentScripts) {
         return;
     }
-    const config = await getStoredConfig();
-    const excludeMatches = getExcludedMatchPatterns(config.runtime?.excludedHosts);
-    const nextScripts = CONTENT_SCRIPT_DEFINITIONS.map((definition) => ({
-        ...definition,
-        excludeMatches
-    }));
-    const existing = await browser.scripting.getRegisteredContentScripts({ ids: CONTENT_SCRIPT_IDS });
-    if (areSameRegistrations(existing, nextScripts)) {
-        return;
+    try {
+        const existing = await chrome.scripting.getRegisteredContentScripts({ ids: CONTENT_SCRIPT_IDS });
+        if (existing && existing.length > 0) {
+            await chrome.scripting.unregisterContentScripts({ ids: CONTENT_SCRIPT_IDS });
+        }
+    } catch {
+        // Ignore errors in environments where dynamic registration API is not supported.
     }
-    if (existing.length) {
-        await browser.scripting.unregisterContentScripts({ ids: CONTENT_SCRIPT_IDS });
-    }
-    await browser.scripting.registerContentScripts(nextScripts);
 };
 
-let syncQueue = Promise.resolve();
-const queueContentScriptSync = () => {
-    syncQueue = syncQueue
-        .catch(() => {
-            // Keep the queue alive after a previous sync failure.
-        })
-        .then(() => syncRegisteredContentScripts())
-        .catch((error) => {
-            if (isTransientSyncError(error)) {
-                return;
-            }
-            console.error('[GestureExtension] Failed to sync content scripts', error);
-        });
-    return syncQueue;
-};
-
-browser.runtime.onInstalled.addListener(() => {
-    queueContentScriptSync();
+chrome.runtime.onInstalled.addListener(() => {
+    cleanupLegacyDynamicScripts();
 });
 
-browser.runtime.onStartup.addListener(() => {
-    queueContentScriptSync();
+chrome.runtime.onStartup.addListener(() => {
+    cleanupLegacyDynamicScripts();
 });
 
-browser.storage.onChanged.addListener((changes, areaName) => {
+cleanupLegacyDynamicScripts();
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local' || !changes[STORAGE_KEY]) {
         return;
     }
-    queueContentScriptSync();
     GestureExtension.shared.cloudflareSync
         .consumeSkipNextConfigChange()
         .then((shouldSkip) => {
@@ -125,9 +50,7 @@ browser.storage.onChanged.addListener((changes, areaName) => {
         });
 });
 
-queueContentScriptSync();
-
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string') {
         return false;
     }
@@ -137,9 +60,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         switch (message.type) {
             case 'gesture-ext/open-tab':
                 sendResponse(await handlers.handleOpenTab(message.payload, sender));
-                break;
-            case 'gesture-ext/open-new-tab':
-                sendResponse(await handlers.handleOpenNewTab(sender));
                 break;
             case 'gesture-ext/close-current-tab':
                 sendResponse(await handlers.handleCloseCurrentTab(sender));
@@ -158,6 +78,30 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 break;
             case 'gesture-ext/perform-ocr':
                 sendResponse(await handlers.handlePerformOcr(message.payload));
+                break;
+            case 'gesture-ext/offline-status':
+                sendResponse(await handlers.handleOfflineStatus());
+                break;
+            case 'gesture-ext/offline-download':
+                sendResponse(await handlers.handleOfflineDownload());
+                break;
+            case 'gesture-ext/offline-remove':
+                sendResponse(await handlers.handleOfflineRemove());
+                break;
+            case 'gesture-ext/tts-status':
+                sendResponse(await handlers.handleTtsStatus());
+                break;
+            case 'gesture-ext/tts-download':
+                sendResponse(await handlers.handleTtsDownload());
+                break;
+            case 'gesture-ext/tts-remove':
+                sendResponse(await handlers.handleTtsRemove());
+                break;
+            case 'gesture-ext/tts-speak':
+                sendResponse(await handlers.handleTtsSpeak(message.payload, sender));
+                break;
+            case 'gesture-ext/tts-stop':
+                sendResponse(await handlers.handleTtsStop());
                 break;
             default:
                 sendResponse({ ok: false, error: `Unsupported message type: ${message.type}` });

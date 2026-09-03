@@ -153,9 +153,6 @@
                 badge.style.display = text ? 'flex' : 'none';
             }
         },
-        setActive(value) {
-            element?.classList?.toggle?.('is-active', !!value);
-        },
         destroy() {
             element?.remove?.();
         }
@@ -232,7 +229,6 @@
     ext.shared.floatingUI = {
         icons: SHARED_ICONS,
         ensureSharedActionButtonStyles,
-        createFloatingElementApi,
         createTriggerElement,
         createActionButton,
         createPanelRoot

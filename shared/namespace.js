@@ -1,3 +1,4 @@
+// @ts-check
 (() => {
     const ext = globalThis.GestureExtension || (globalThis.GestureExtension = {});
     ext.shared = ext.shared || {};

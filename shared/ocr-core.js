@@ -20,10 +20,6 @@
                     const text = response.text.trim();
                     if (text) {
                         await ext.shared.domUtils.copyText(text);
-                        // Lưu vào lịch sử clipboard của extension
-                        if (ext.shared.storage?.saveClipboardHistory) {
-                            await ext.shared.storage.saveClipboardHistory(text);
-                        }
                         toast.createToast('Đã chép văn bản vào clipboard', x, y, 2000);
                     } else {
                         toast.createToast('Không nhận diện được chữ', x, y, 1800);

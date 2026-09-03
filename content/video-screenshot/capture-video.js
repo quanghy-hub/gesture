@@ -6,6 +6,13 @@
     videoScreenshot.createCaptureVideo = (ctx) => {
         const { CONFIG, buildFilename, fallbackDownload } = videoScreenshot;
 
+        const showCaptureToast = (message, video) => {
+            const rect = video?.getBoundingClientRect?.();
+            const x = rect && rect.width ? Math.round(rect.left + rect.width / 2) : Math.round(window.innerWidth / 2);
+            const y = rect && rect.height ? Math.round(rect.top + rect.height / 2) : Math.round(window.innerHeight / 2);
+            ext.shared.toastCore?.createToast?.(message, x, y, 2200);
+        };
+
         const isEligibleVideo = (video) =>
             Boolean(
                 video &&
@@ -61,11 +68,22 @@
             }
             const activeVideo = findActiveVideo();
             if (!activeVideo) {
+                showCaptureToast('Không tìm thấy video phù hợp để chụp', null);
                 return;
             }
-            captureVideoFrame(activeVideo).catch((error) => {
-                console.error('[GestureExtension] Capture failed', error);
-            });
+            captureVideoFrame(activeVideo)
+                .then(() => {
+                    showCaptureToast('Đã lưu ảnh chụp video', activeVideo);
+                })
+                .catch((error) => {
+                    // Canvas bị "taint" khi video cross-origin thiếu CORS header.
+                    if (error?.name === 'SecurityError') {
+                        showCaptureToast('Video bị bảo vệ (cross-origin), không thể chụp', activeVideo);
+                    } else {
+                        showCaptureToast('Chụp ảnh video thất bại', activeVideo);
+                    }
+                    console.error('[GestureExtension] Capture failed', error);
+                });
         };
 
         return {

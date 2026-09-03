@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Gesture — Offline translation engine</title>
+        <!-- KHÔNG thêm import map / script ORT UMD: bundle transformers đã tự
+             chứa ORT nội bộ, không có bare-import ra ngoài. Inline script
+             (kể cả importmap) sẽ bị CSP chặn. -->
+    </head>
+    <body>
+        <!-- Shared IDB helpers (dùng chung SW + offscreen) -->
+        <script src="../shared/namespace.js"></script>
+        <script src="../shared/offline-store.js"></script>
+        <!-- Trang offscreen chạy model Bergamot WASM; không hiển thị UI -->
+        <script src="engine.js"></script>
+        <!-- Tier 2 TTS offline (transformers.js + VITS vi) dùng chung trang này -->
+        <script src="tts-engine.js"></script>
+    </body>
+</html>

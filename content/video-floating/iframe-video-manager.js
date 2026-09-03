@@ -54,11 +54,28 @@
                     if (!isMainPlayer) continue;
                 }
 
+                const isAudio = video.tagName === 'AUDIO';
+                const isYtMusic = location.hostname.includes('music.youtube.com');
                 const rect = getRect(video);
-                const hasMediaSource = Boolean(video.currentSrc || video.src || video.querySelector('source[src]'));
-                const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
-                const largeEnough = rect.width >= 160 && rect.height >= 90;
-                if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
+                const hasMediaSource = Boolean(
+                    (video.currentSrc && video.currentSrc !== location.href && video.currentSrc !== 'about:blank') ||
+                    video.srcObject ||
+                    (video.getAttribute('src') && video.getAttribute('src') !== 'about:blank') ||
+                    video.querySelector('source[src]')
+                );
+                const hasPlaybackState =
+                    (Number.isFinite(video.duration) && video.duration > 0) ||
+                    video.readyState > 0 ||
+                    video.currentTime > 0 ||
+                    !video.paused ||
+                    (video.videoWidth > 0 && video.videoHeight > 0);
+                const w = Math.max(video.offsetWidth || 0, rect.width || 0);
+                const h = Math.max(video.offsetHeight || 0, rect.height || 0);
+                if (w > 0 && h > 0 && (w < 20 || h < 20)) continue;
+
+                if (!isAudio && !isYtMusic) {
+                    if (!hasMediaSource && !hasPlaybackState) continue;
+                }
 
                 unique.add(video);
             }

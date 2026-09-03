@@ -9,7 +9,7 @@
     const isGoogleCooldownActive = async () => {
         if (Date.now() < googleCooldownUntil) return true;
         try {
-            const storageApi = globalThis.browser?.storage?.session || globalThis.browser?.storage?.local;
+            const storageApi = globalThis.chrome?.storage?.session || globalThis.chrome?.storage?.local;
             if (storageApi?.get) {
                 const res = await new Promise((resolve) => storageApi.get([SESSION_COOLDOWN_KEY], resolve));
                 if (res?.[SESSION_COOLDOWN_KEY] && Date.now() < res[SESSION_COOLDOWN_KEY]) {
@@ -26,7 +26,7 @@
     const setGoogleCooldown = () => {
         googleCooldownUntil = Date.now() + GOOGLE_RETRY_COOLDOWN_MS;
         try {
-            const storageApi = globalThis.browser?.storage?.session || globalThis.browser?.storage?.local;
+            const storageApi = globalThis.chrome?.storage?.session || globalThis.chrome?.storage?.local;
             if (storageApi?.set) {
                 storageApi.set({ [SESSION_COOLDOWN_KEY]: googleCooldownUntil }).catch(() => {});
             }

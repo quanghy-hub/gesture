@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const assert = require('assert').strict;
+const { execFileSync } = require('child_process');
 
 console.log('\x1b[36m==================================================\x1b[0m');
 console.log('\x1b[36m    CHẠY BỘ KIỂM THỬ TỰ ĐỘNG - GESTURE SUITE      \x1b[0m');
@@ -28,6 +29,8 @@ const sandbox = {
     clearInterval: globalThis.clearInterval.bind(globalThis),
     URL: globalThis.URL,
     AbortController: globalThis.AbortController,
+    TextEncoder: globalThis.TextEncoder,
+    TextDecoder: globalThis.TextDecoder,
     Event: class {
         constructor(type) {
             this.type = type;
@@ -37,8 +40,8 @@ const sandbox = {
     Element: MockElement,
     HTMLInputElement: MockHTMLInputElement,
     HTMLTextAreaElement: MockHTMLTextAreaElement,
-    // Mock browser API cần thiết
-    browser: {
+    // Mock chrome API cần thiết
+    chrome: {
         runtime: {
             getURL: (p) => p,
             lastError: null
@@ -120,6 +123,7 @@ const loadScript = (filePath) => {
 // Nạp các script cần thiết
 try {
     loadScript('shared/namespace.js');
+    loadScript('background/imports.js');
     loadScript('shared/messaging.js');
     loadScript('shared/config-utils.js');
     loadScript('shared/config-schema.js');
@@ -143,10 +147,19 @@ try {
     loadScript('background/message-handlers.js');
     loadScript('shared/extension-ui-guard.js');
     loadScript('shared/dom-utils.js');
+    loadScript('shared/viewport-core.js');
     loadScript('shared/touch-core.js');
+    loadScript('content/gestures/desktop-pager.js');
+    loadScript('content/gestures/mobile-scroll.js');
     loadScript('content/quick-search/constants.js');
     loadScript('content/youtube-subtitles/constants.js');
     loadScript('content/youtube-subtitles/caption-source.js');
+    loadScript('content/youtube-subtitles/prefetch.js');
+    loadScript('content/youtube-subtitles/video-sync.js');
+    loadScript('content/video-floating/constants.js');
+    loadScript('content/video-floating/core/utils.js');
+    loadScript('content/video-floating/media/detector.js');
+    loadScript('content/video-floating/video-collection.js');
     console.log('\x1b[32m✔ Nạp các module thành công.\x1b[0m');
 } catch (error) {
     console.error('\x1b[31m✘ Thất bại khi nạp module:\x1b[0m', error);
@@ -169,6 +182,7 @@ const { messageHandlers } = sandbox.globalThis.GestureExtension.background;
 const { splitTranslateText } = sandbox.globalThis.GestureExtension.background.apiServiceRegistry;
 const { captionSource } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
 const { quickSearch } = sandbox.globalThis.GestureExtension;
+const { desktopPager, mobileScroll } = sandbox.globalThis.GestureExtension.gestures;
 
 // Chuyển đổi dữ liệu từ ngữ cảnh VM sang ngữ cảnh Main để tránh lỗi lệch prototype Array
 const toMainContext = (val) => {
@@ -244,19 +258,18 @@ async function runAllTests() {
     runTest('normalizeConfig: khôi phục giá trị mặc định cho cấu hình rỗng', () => {
         const config = toMainContext(normalizeConfig({}));
         assert.equal(config.version, 1);
-        assert.equal(config.clipboard.enabled, true);
-        assert.equal(config.clipboard.maxHistory, 5);
+        assert.equal(config.unblockCopy.enabled, true);
+        assert.equal(config.quickSearch.columns, 5);
     });
 
     runTest('normalizeConfig: giới hạn (clamp) các số cấu hình ngoài tầm', () => {
         const config = toMainContext(
             normalizeConfig({
-                clipboard: { maxHistory: 99 },
-                quickSearch: { columns: 1 }
+                quickSearch: { columns: 1, selectionDelay: 5000 }
             })
         );
-        assert.equal(config.clipboard.maxHistory, 20);
         assert.equal(config.quickSearch.columns, 3);
+        assert.equal(config.quickSearch.selectionDelay, 1000);
     });
 
     runTest('videoFloating: chặn riêng background seek theo host và subdomain', () => {
@@ -272,6 +285,180 @@ async function runAllTests() {
         assert.equal(isVideoFloatingBackgroundSeekExcluded(next, 'www.example.com'), true);
     });
 
+    runTest('videoFloating detector: lọc bỏ các thẻ video rỗng/đen (readyState 0, không có source)', () => {
+        const { isDetectableVideo } = sandbox.globalThis.GestureExtension.videoFloating.media.detector;
+
+        // Video đen / rỗng không có source và readyState = 0
+        const dummyVideo = {
+            isConnected: true,
+            tagName: 'VIDEO',
+            currentSrc: '',
+            srcObject: null,
+            getAttribute: (attr) => (attr === 'src' ? '' : null),
+            querySelector: () => null,
+            readyState: 0,
+            videoWidth: 0,
+            videoHeight: 0,
+            duration: NaN,
+            currentTime: 0,
+            paused: true,
+            getBoundingClientRect: () => ({ width: 300, height: 600, left: 0, right: 300, top: 0, bottom: 600 })
+        };
+        assert.equal(isDetectableVideo(dummyVideo), false);
+
+        // Video thật có blob source hoặc readyState > 0
+        const realVideo = {
+            isConnected: true,
+            tagName: 'VIDEO',
+            currentSrc: 'blob:https://www.tiktok.com/12345',
+            srcObject: null,
+            getAttribute: (attr) => (attr === 'src' ? 'blob:https://www.tiktok.com/12345' : null),
+            querySelector: () => null,
+            readyState: 4,
+            videoWidth: 576,
+            videoHeight: 1024,
+            duration: 15.5,
+            currentTime: 2,
+            paused: false,
+            getBoundingClientRect: () => ({ width: 300, height: 600, left: 0, right: 300, top: 0, bottom: 600 })
+        };
+        assert.equal(isDetectableVideo(realVideo), true);
+    });
+
+    runTest('videoFloating detector: getDirectVideos khử trùng lặp và loại bỏ video rỗng', () => {
+        const { getDirectVideos } = sandbox.globalThis.GestureExtension.videoFloating.media.detector;
+        const utils = sandbox.globalThis.GestureExtension.videoFloating.core.utils;
+
+        const dummyVideo = {
+            isConnected: true,
+            tagName: 'VIDEO',
+            currentSrc: '',
+            srcObject: null,
+            getAttribute: (attr) => (attr === 'src' ? '' : null),
+            querySelector: () => null,
+            closest: () => null,
+            readyState: 0,
+            videoWidth: 0,
+            videoHeight: 0,
+            duration: NaN,
+            currentTime: 0,
+            paused: true,
+            getBoundingClientRect: () => ({ width: 300, height: 600, left: 10, right: 310, top: 10, bottom: 610 })
+        };
+
+        const activeVideo = {
+            isConnected: true,
+            tagName: 'VIDEO',
+            currentSrc: 'blob:https://www.tiktok.com/active-video',
+            srcObject: null,
+            getAttribute: (attr) => (attr === 'src' ? 'blob:https://www.tiktok.com/active-video' : null),
+            querySelector: () => null,
+            closest: () => null,
+            readyState: 4,
+            videoWidth: 576,
+            videoHeight: 1024,
+            duration: 20,
+            currentTime: 5,
+            paused: false,
+            getBoundingClientRect: () => ({ width: 300, height: 600, left: 10, right: 310, top: 10, bottom: 610 })
+        };
+
+        const origQueryAllDeep = utils.queryAllDeep;
+        try {
+            utils.queryAllDeep = () => [dummyVideo, activeVideo];
+            const detected = getDirectVideos();
+            // Chỉ nhận diện 1 video thật, loại bỏ hoàn toàn dummy video
+            assert.equal(detected.length, 1);
+            assert.equal(detected[0], activeVideo);
+        } finally {
+            utils.queryAllDeep = origQueryAllDeep;
+        }
+    });
+
+    runTest('videoFloating detector: nhận diện đầy đủ hàng chục video trên trang danh sách', () => {
+        const { getDirectVideos } = sandbox.globalThis.GestureExtension.videoFloating.media.detector;
+        const utils = sandbox.globalThis.GestureExtension.videoFloating.core.utils;
+
+        // Giả lập 25 video trên trang danh sách
+        const videos = Array.from({ length: 25 }, (_, i) => ({
+            isConnected: true,
+            tagName: 'VIDEO',
+            currentSrc: `https://example.com/video-${i}.mp4`,
+            srcObject: null,
+            getAttribute: (attr) => (attr === 'src' ? `https://example.com/video-${i}.mp4` : null),
+            querySelector: () => null,
+            closest: () => null,
+            readyState: 1,
+            videoWidth: 320,
+            videoHeight: 180,
+            duration: 60,
+            currentTime: 0,
+            paused: true,
+            getBoundingClientRect: () => ({
+                width: 140,
+                height: 80,
+                left: (i % 5) * 150,
+                right: (i % 5) * 150 + 140,
+                top: Math.floor(i / 5) * 90,
+                bottom: Math.floor(i / 5) * 90 + 80
+            })
+        }));
+
+        const origQueryAllDeep = utils.queryAllDeep;
+        try {
+            utils.queryAllDeep = () => videos;
+            const detected = getDirectVideos();
+            // Bắt trọn vẹn 25 video
+            assert.equal(detected.length, 25);
+        } finally {
+            utils.queryAllDeep = origQueryAllDeep;
+        }
+    });
+
+    runTest('videoFloating: getVideos duy trì đúng thứ tự DOM khi floating video bất kỳ', () => {
+        const ext = sandbox.globalThis.GestureExtension;
+        const v1 = { id: 'v1', tagName: 'VIDEO', isConnected: true, closest: () => null };
+        const v2 = { id: 'v2', tagName: 'VIDEO', isConnected: true, closest: () => null };
+        const v3 = { id: 'v3', tagName: 'VIDEO', isConnected: true, closest: () => null };
+        const v4 = { id: 'v4', tagName: 'VIDEO', isConnected: true, closest: () => null };
+        const ph2 = { id: 'ph2', className: 'fvp-ph', isConnected: true };
+
+        const ctx = {
+            curVid: v2,
+            ph: ph2,
+            state: {},
+            iframeVideoMap: new Map()
+        };
+
+        const utils = ext.videoFloating.core.utils;
+        const origQueryAllDeep = utils.queryAllDeep;
+        try {
+            utils.queryAllDeep = () => [v1, ph2, v3, v4];
+            const collection = ext.videoFloating.createVideoCollection(ctx, {
+                $: () => null,
+                getDirectVideos: () => [v1, v3, v4],
+                getDirectVideoSequence: () => [v1, v3, v4],
+                getTrackedIframeEntries: () => [],
+                isFeatureEnabled: () => true,
+                updateLeftPanelLayout: () => {}
+            });
+
+            const sequence = collection.getVideos();
+            assert.deepEqual(toMainContext(sequence.map((v) => v.id)), ['v1', 'v2', 'v3', 'v4']);
+
+            // Chuyển tiếp (+1) từ v2 phải ra v3 chứ không bật về v1
+            const curIdx = sequence.indexOf(ctx.curVid);
+            const nextIdx = (curIdx + 1) % sequence.length;
+            assert.equal(sequence[nextIdx].id, 'v3');
+
+            // Chuyển tiếp tiếp (+1) từ v3 phải ra v4
+            const nextIdx2 = (nextIdx + 1) % sequence.length;
+            assert.equal(sequence[nextIdx2].id, 'v4');
+        } finally {
+            utils.queryAllDeep = origQueryAllDeep;
+        }
+    });
+
     runTest('gestures: chặn riêng cử chỉ theo host và subdomain', () => {
         const config = normalizeConfig({
             gestures: {
@@ -283,6 +470,58 @@ async function runAllTests() {
 
         const next = setGestureHostExcluded(config, 'https://example.com/watch', true);
         assert.equal(isGestureHostExcluded(next, 'www.example.com'), true);
+    });
+
+    runTest('gestures pager: buildHoppedHref suy diễn param query số', () => {
+        const { buildHoppedHref } = desktopPager;
+
+        // ?page=2 → next ?page=3 (step 1), nhảy 3 trang
+        assert.equal(buildHoppedHref('https://x.com/t?page=2', 'https://x.com/t?page=3', 1, 3), 'https://x.com/t?page=5');
+        // Lùi nhiều trang
+        assert.equal(buildHoppedHref('https://x.com/t?page=10', 'https://x.com/t?page=9', -1, 2), 'https://x.com/t?page=8');
+        // Không bị chặn trần khi nhảy xa về phía trước
+        assert.equal(buildHoppedHref('https://x.com/t?page=1', 'https://x.com/t?page=2', 1, 99), 'https://x.com/t?page=100');
+        // Param chưa có trên URL hiện tại: suy diễn ngược vị trí từ link next
+        assert.equal(buildHoppedHref('https://x.com/t', 'https://x.com/t?page=4', 1, 2), 'https://x.com/t?page=5');
+        // Giữ nguyên param không liên quan
+        assert.equal(
+            buildHoppedHref('https://x.com/t?sort=asc&page=2', 'https://x.com/t?sort=asc&page=3', 1, 2),
+            'https://x.com/t?sort=asc&page=4'
+        );
+    });
+
+    runTest('gestures pager: buildHoppedHref suy diễn segment path kết thúc bằng số', () => {
+        const { buildHoppedHref } = desktopPager;
+
+        assert.equal(buildHoppedHref('https://x.com/thread/10', 'https://x.com/thread/11', 1, 3), 'https://x.com/thread/13');
+        assert.equal(
+            buildHoppedHref('https://x.com/thread/20/page/5', 'https://x.com/thread/20/page/4', -1, 2),
+            'https://x.com/thread/20/page/3'
+        );
+        // Path không có số → trả về null để caller fallback sang href gốc
+        assert.equal(buildHoppedHref('https://x.com/thread/abc', 'https://x.com/thread/def', 1, 2), null);
+    });
+
+    runTest('gestures mobile scroll: getEdgeStrength theo cạnh và khoảng cách', () => {
+        const { getEdgeStrength, clampScrollTop } = mobileScroll;
+        sandbox.innerWidth = 400;
+
+        // side='left': mạnh nhất ở mép trái, tuyến tính giảm dần
+        assert.equal(getEdgeStrength(0, 40, 'left'), 1);
+        assert.ok(Math.abs(getEdgeStrength(20, 40, 'left') - 0.5) < 1e-9);
+        assert.equal(getEdgeStrength(40, 40, 'left'), 0);
+        // side='right': mạnh nhất ở mép phải
+        assert.equal(getEdgeStrength(400, 40, 'right'), 1);
+        assert.equal(getEdgeStrength(0, 40, 'right'), 0);
+        // side='both' (mặc định): hai mép đều mạnh, giữa màn hình = 0
+        assert.equal(getEdgeStrength(0, 40, 'both'), 1);
+        assert.equal(getEdgeStrength(200, 40, 'both'), 0);
+        assert.ok(Math.abs(getEdgeStrength(380, 40, 'both') - 0.5) < 1e-9);
+
+        const element = { scrollHeight: 1000, clientHeight: 100 };
+        assert.equal(clampScrollTop(-50, element), 0);
+        assert.equal(clampScrollTop(2000, element), 900);
+        assert.equal(clampScrollTop(500, element), 500);
     });
 
     runTest('normalizeConfig: tối ưu hóa cờ _isNormalized hoạt động đúng', () => {
@@ -340,6 +579,19 @@ async function runAllTests() {
         assert.equal(chunks.join(''), longWord);
     });
 
+    runTest('splitTranslateTextByBytes: chia theo UTF-8 byte đúng giới hạn MyMemory', () => {
+        const utils = sandbox.globalThis.GestureExtension.background.translateUtils;
+        const viText = Array.from({ length: 150 }, (_, index) => `từ${index}được`).join(' ');
+        const chunks = toMainContext(utils.splitTranslateTextByBytes(viText, utils.MYMEMORY_CHUNK_LIMIT_BYTES));
+
+        assert.ok(chunks.length > 1, 'text dài phải được chia nhiều chunk');
+        chunks.forEach((chunk) => {
+            assert.ok(new TextEncoder().encode(chunk).length <= utils.MYMEMORY_CHUNK_LIMIT_BYTES, 'mọi chunk phải ≤ giới hạn byte');
+        });
+        // Nội dung không mất: nối lại (chuẩn hoá khoảng trắng) bằng text gốc
+        assert.equal(chunks.join(' ').replace(/\s+/g, ' ').trim(), viText);
+    });
+
     // ============================================================================
     // 4. YouTube subtitles captionSource Tests
     // ============================================================================
@@ -353,12 +605,12 @@ async function runAllTests() {
         };
         const video = { currentTime: 1, textTracks: [disabledTrack] };
 
-        assert.equal(captionSource.getActiveCaptionTrack(video, null), null);
+        assert.equal(captionSource.getActiveCaptionTrack(video), null);
         assert.equal(captionSource.extractCaptionText(video, null), '');
         assert.equal(disabledTrack.mode, 'disabled');
     });
 
-    runTest('captionSource: giữ track đã bật để dịch sau khi ẩn native caption', () => {
+    runTest('captionSource: đọc cue từ track đang showing mà KHÔNG đổi mode của track', () => {
         const showingTrack = {
             kind: 'subtitles',
             mode: 'showing',
@@ -368,23 +620,217 @@ async function runAllTests() {
         };
         const video = { currentTime: 1, textTracks: [showingTrack] };
 
-        const activeTrack = captionSource.getActiveCaptionTrack(video, null);
+        // Luồng cue phải giữ nguyên nhịp YouTube: chỉ ĐỌC track, không đụng mode
+        const activeTrack = captionSource.getActiveCaptionTrack(video);
         assert.equal(activeTrack, showingTrack);
-
-        captionSource.hideNativeCaptionTrack(activeTrack);
-        assert.equal(showingTrack.mode, 'hidden');
-        assert.equal(captionSource.getActiveCaptionTrack(video, showingTrack), showingTrack);
+        assert.equal(showingTrack.mode, 'showing');
         assert.equal(captionSource.extractCaptionText(video, showingTrack), 'Hello world');
+    });
+
+    runTest('captionSource: gom cụm từ dịch phụ đề dài hơn và xử lý dấu câu', () => {
+        const state = { consumedWordCount: 0 };
+        // Single word or short fragments (< 5 words) without punctuation should return empty
+        assert.equal(captionSource.getDisplayCaptionText('Hello', '', state), '');
+        assert.equal(captionSource.getDisplayCaptionText('Today we are going', 'Today we are', state), '');
+
+        // Short sentence WITH punctuation should return immediately
+        assert.equal(captionSource.getDisplayCaptionText('Yes.', '', state), 'Yes.');
+
+        // Reaching full word threshold should return full chunk
+        state.consumedWordCount = 0;
+        const fullSource = 'Today we are going to explore how to build modern Chrome extensions step by step';
+        const t2 = captionSource.getDisplayCaptionText(fullSource, 'Today we are going', state);
+        assert.equal(t2, fullSource);
+        assert.equal(state.consumedWordCount, 15);
+    });
+
+    runTest('captionSource: auto caption viết lại hoa/dấu câu không làm dịch lại câu đã đọc', () => {
+        const state = { consumedWordCount: 0 };
+        const first = 'so i was thinking about the way that people learn';
+        assert.equal(captionSource.getDisplayCaptionText(first, '', state), first);
+        assert.equal(state.consumedWordCount, 10);
+
+        // YouTube bổ sung hoa/thường + dấu câu vào phần đã đọc rồi nối tiếp từ
+        // mới: phải nhận diện là rolling và CHỈ trả về phần từ mới (không lặp).
+        const revised = 'So, I was thinking about the way that people learn new languages every single day without even noticing it';
+        const chunk = captionSource.getDisplayCaptionText(revised, first, state);
+        assert.equal(chunk, 'new languages every single day without even noticing it');
+        assert.equal(state.consumedWordCount, 19);
+
+        // Cue/mệnh đề hoàn toàn mới (khác nhau ở giữa câu) → reset, đọc lại từ đầu.
+        const fresh = 'Today we are going to explore how memory actually works';
+        assert.equal(captionSource.getDisplayCaptionText(fresh, revised, state), fresh);
+        assert.equal(state.consumedWordCount, 10);
+    });
+
+    runTest('youtubeSubtitles tts: hook đọc phụ đề qua Web Speech API', () => {
+        const managerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-manager.js'), 'utf8');
+        const controllerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/controller.js'), 'utf8');
+        const schemaSource = fs.readFileSync(path.resolve(__dirname, '..', 'shared/config-schema.js'), 'utf8');
+
+        // Chỉ đọc nhánh dịch thành công; cancel khi tua/tắt
+        assert.match(managerSource, /speaker\?\.enqueue\?\.\(translated\)/);
+        assert.match(controllerSource, /createSpeaker\(\{ settings/);
+        assert.match(controllerSource, /speaker\.cancel\(\)/);
+        assert.match(schemaSource, /ttsEnabled:\s*false/);
+        // Engine nạp dạng classic script đã biến đổi (không dùng dynamic import)
+        const globalLib = fs.readFileSync(path.resolve(__dirname, '..', 'offscreen/vendor/transformers.global.js'), 'utf8');
+        assert.match(globalLib, /window\.transformers=Object\.assign/);
     });
 
     runTest('youtubeSubtitles: hỗ trợ caption fallback khi mobile YouTube không expose nút CC desktop', () => {
         const managerSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-manager.js'), 'utf8');
         const captionSourceSource = fs.readFileSync(path.resolve(__dirname, '..', 'content/youtube-subtitles/caption-source.js'), 'utf8');
 
-        assert.match(managerSource, /getActiveCaptionTrack\(video,\s*state\.captionTrack\)/);
+        // Manager chỉ đọc track showing, KHÔNG đụng vào mode của track (giữ
+        // nhịp bơm ASR của YouTube) và vẫn có fallback DOM khi thiếu TextTrack.
+        assert.match(managerSource, /getActiveCaptionTrack\(video\)/);
         assert.match(managerSource, /hasDomCaptionText\(\)/);
+        assert.doesNotMatch(managerSource, /\.mode\s*=\s*'hidden'/);
         assert.match(captionSourceSource, /extractCaptionTextFromDom/);
         assert.match(captionSourceSource, /\.caption-visual-line,\s*\.ytp-caption-segment/);
+    });
+
+    runTest('youtubeSubtitles videoSync: seeked/loadedmetadata phải reset state trước khi render lại', async () => {
+        const { createVideoSync } = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+        const events = [];
+        const listeners = {};
+        const fakeVideo = {
+            addEventListener(type, handler) {
+                listeners[type] = handler;
+            },
+            removeEventListener() {}
+        };
+
+        const sync = createVideoSync({
+            state: { enabled: true, video: null, videoSyncHandler: null, detachTrackListener: null },
+            releaseCaptionTrack() {},
+            renderCurrentCaption: async () => {
+                events.push('render');
+            },
+            onSeekReset() {
+                events.push('reset');
+            }
+        });
+        sync.bindVideoSync(fakeVideo);
+
+        assert.equal(typeof listeners.timeupdate, 'function');
+        assert.equal(typeof listeners.seeked, 'function');
+
+        // Phát thường: chỉ render
+        await listeners.timeupdate({ type: 'timeupdate' });
+        // Tua xong: reset TRƯỚC render để dedupe không nuốt caption mới
+        await listeners.seeked({ type: 'seeked' });
+        // Metadata mới (đổi video/quality): cũng là mốc reset
+        await listeners.loadedmetadata({ type: 'loadedmetadata' });
+
+        assert.deepEqual(events, ['render', 'reset', 'render', 'reset', 'render']);
+    });
+
+    runTest('youtubeSubtitles prefetch: dịch trước đúng thứ tự phát, đủ cửa sổ 18 từ, tôn trọng cache/failure', async () => {
+        const ns = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+        const created = [];
+        const cachedKeys = new Set(['cached line']);
+        const failingKeys = new Set(['second line']);
+        const translator = {
+            hasCached: (key) => cachedKeys.has(String(key)),
+            async translateCaption(key) {
+                created.push(key);
+                if (failingKeys.has(key)) {
+                    return { text: '', error: 'boom' };
+                }
+                cachedKeys.add(key);
+                return { text: 'ok', error: '' };
+            }
+        };
+        const longText = Array.from({ length: 20 }, (_, index) => `w${index + 1}`).join(' ');
+        const expectedWindows = [longText.split(/\s+/).slice(0, 18).join(' '), longText.split(/\s+/).slice(18).join(' ')];
+        const track = {
+            kind: 'captions',
+            mode: 'showing',
+            cues: [
+                { startTime: 5000, text: 'far future line' },
+                { startTime: 100, text: 'second line' },
+                { startTime: 60, text: 'cached line' },
+                { startTime: 55, text: '' },
+                { startTime: 120, text: longText },
+                { startTime: 70, text: 'first line' }
+            ]
+        };
+        const state = { enabled: true, video: { currentTime: 50, textTracks: [track] }, captionTrack: track };
+        const prefetcher = ns.createPrefetcher({
+            state,
+            settings: () => ({ targetLang: 'vi' }),
+            translator
+        });
+
+        // Xả hết chuỗi microtask của pipeline prefetch (fake translator không
+        // dùng timer thật nên chỉ cần bơm microtask là đủ — an toàn với
+        // process.exit cuối runner).
+        // Xả chuỗi microtask của pipeline prefetch (số vòng vừa đủ cho vài chục
+        // hop promise; dùng macro-task thật sẽ bị process.exit của runner cắt).
+        const flushMicrotasks = async () => {
+            for (let i = 0; i < 12; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        console.assert(created.length > 0, 'prefetch phải gọi translator');
+
+        // Thứ tự theo startTime, bỏ cue ngoài lookahead / trong vùng lead (ASR
+        // đang cuộn text) / cue trống / đã cache
+        assert.deepEqual(created, ['first line', 'second line', ...expectedWindows]);
+
+        // Pump lại: key thành công đã có cache, key fail đang cooldown → không request thêm
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        assert.equal(created.length, 4);
+    });
+
+    runTest('youtubeSubtitles prefetch: hoãn khởi request mới khi bản dịch live đang chờ', async () => {
+        const ns = sandbox.globalThis.GestureExtension.youtubeSubtitles;
+        const created = [];
+        const translator = {
+            hasCached: () => false,
+            async translateCaption(key) {
+                created.push(key);
+                return { text: 'ok', error: '' };
+            }
+        };
+        const track = {
+            kind: 'captions',
+            mode: 'showing',
+            cues: [
+                { startTime: 70, text: 'future cue one' },
+                { startTime: 90, text: 'future cue two' }
+            ]
+        };
+        let defer = true;
+        const state = { enabled: true, video: { currentTime: 50, textTracks: [track] }, captionTrack: track };
+        const prefetcher = ns.createPrefetcher({
+            state,
+            settings: () => ({ targetLang: 'vi' }),
+            translator,
+            shouldDefer: () => defer
+        });
+        const flushMicrotasks = async () => {
+            for (let i = 0; i < 12; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        // Đang defer: chỉ xếp hàng, không gọi translator
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        assert.equal(created.length, 0);
+
+        // Nhả defer: hàng đợi được bơm lại và chạy
+        defer = false;
+        prefetcher.pump({ force: true });
+        await flushMicrotasks();
+        assert.equal(created.length, 2);
     });
 
     runTest('videoScreenshot trigger: dùng cùng drag affordance với nút dịch phụ đề', () => {
@@ -410,40 +856,15 @@ async function runAllTests() {
     await runTest('storage: getConfig trả về default config chuẩn hóa', async () => {
         const config = await storage.getConfig();
         assert.equal(config.version, 1);
-        assert.equal(config.clipboard.enabled, true);
+        assert.equal(config.unblockCopy.enabled, true);
     });
 
     await runTest('storage: saveConfig ghi cấu hình vào storage', async () => {
-        const updated = await storage.saveConfig({ version: 1, clipboard: { enabled: false, maxHistory: 10 } });
-        assert.equal(updated.clipboard.enabled, false);
-        assert.equal(updated.clipboard.maxHistory, 10);
+        const updated = await storage.saveConfig({ version: 1, unblockCopy: { enabled: false }, quickSearch: { columns: 6 } });
+        assert.equal(updated.unblockCopy.enabled, false);
+        assert.equal(updated.quickSearch.columns, 6);
         const read = await storage.getConfig();
-        assert.equal(read.clipboard.maxHistory, 10);
-    });
-
-    await runTest('storage: saveClipboardHistory thêm mục mới và cắt ngắn theo maxHistory', async () => {
-        await storage.saveClipboardHistory('Item 1');
-        await storage.saveClipboardHistory('Item 2');
-        await storage.saveClipboardHistory('Item 3');
-        const cfg = await storage.getConfig();
-        assert.equal(cfg.clipboard.history[0], 'Item 3');
-        assert.equal(cfg.clipboard.history[1], 'Item 2');
-    });
-
-    await runTest('storage: togglePinItem ghim và bỏ ghim mục', async () => {
-        await storage.togglePinItem('Pinned Note');
-        let cfg = await storage.getConfig();
-        assert.ok(cfg.clipboard.pinned.includes('Pinned Note'));
-
-        await storage.togglePinItem('Pinned Note');
-        cfg = await storage.getConfig();
-        assert.ok(!cfg.clipboard.pinned.includes('Pinned Note'));
-    });
-
-    await runTest('storage: clearClipboardHistory xóa lịch sử clipboard', async () => {
-        await storage.clearClipboardHistory();
-        const cfg = await storage.getConfig();
-        assert.deepEqual(toMainContext(cfg.clipboard.history), []);
+        assert.equal(read.quickSearch.columns, 6);
     });
 
     // ============================================================================
@@ -589,17 +1010,9 @@ async function runAllTests() {
     // ============================================================================
     // 11. DOM Utils & Touch Core Tests
     // ============================================================================
-    runTest('domUtils: escapeHtml mã hóa chính xác các ký tự đặc biệt XSS', () => {
-        assert.equal(
-            domUtils.escapeHtml('<script>alert("XSS") & "test"</script>'),
-            '&lt;script&gt;alert(&quot;XSS&quot;) &amp; &quot;test&quot;&lt;/script&gt;'
-        );
-    });
-
-    runTest('domUtils: previewText cắt ngắn văn bản vượt quá độ dài tối đa', () => {
-        const longText = 'Đây là một đoạn văn bản rất dài vượt quá giới hạn cho phép để hiển thị trong preview.';
-        assert.equal(domUtils.previewText(longText, 20), 'Đây là một đoạn v...');
-        assert.equal(domUtils.previewText('Ngắn', 20), 'Ngắn');
+    runTest('domUtils: sanitizeFilename thay thế ký tự cấm', () => {
+        assert.equal(domUtils.sanitizeFilename('video: "test"? <hd>'), 'video_ _test_ _hd_');
+        assert.equal(domUtils.sanitizeFilename('a<b>c:d'), 'a_b_c_d');
     });
 
     runTest('touchCore: getPrimaryPoint trích xuất tọa độ chính xác', () => {
@@ -624,7 +1037,7 @@ async function runAllTests() {
     // 12. Quick Search & Forum Config Tests
     // ============================================================================
     runTest('quickSearch: encodeQuery chuẩn hóa khoảng trắng và encode URI', () => {
-        assert.equal(quickSearch.encodeQuery('  cử   chỉ   browser  '), 'c%E1%BB%AD%20ch%E1%BB%89%20browser');
+        assert.equal(quickSearch.encodeQuery('  cử   chỉ   chrome  '), 'c%E1%BB%AD%20ch%E1%BB%89%20chrome');
     });
 
     runTest('quickSearch: buildProviderUrl thay thế {{q}} và {{img}} chính xác', () => {
@@ -633,6 +1046,23 @@ async function runAllTests() {
             imageUrl: 'https://example.com/test.png'
         });
         assert.equal(url, 'https://www.google.com/search?q=hello%20world&img=https%3A%2F%2Fexample.com%2Ftest.png');
+    });
+
+    runTest('quickSearch: resolveImageExtension suy diễn đuôi file từ MIME và URL', () => {
+        const { resolveImageExtension } = quickSearch;
+
+        // MIME thật (từ dataUrl/blob) ưu tiên cao nhất
+        assert.equal(resolveImageExtension({ mime: 'image/webp', url: 'https://x.com/a.jpg' }), 'webp');
+        assert.equal(resolveImageExtension({ mime: 'image/png; charset=binary', url: '' }), 'png');
+        // Đuôi trên URL khi không có MIME
+        assert.equal(resolveImageExtension({ url: 'https://x.com/anh.PNG?w=100' }), 'png');
+        assert.equal(resolveImageExtension({ url: 'https://x.com/anh.jpeg' }), 'jpg');
+        // Bỏ qua query/hash khi đọc tên file (chỉ tính đuôi trên path)
+        assert.equal(resolveImageExtension({ url: 'https://x.com/gallery/a.avif?w=100#frag' }), 'avif');
+        assert.equal(resolveImageExtension({ url: 'https://x.com/get?file=a.avif' }), 'jpg');
+        // Đuôi lạ hoặc thiếu hết → mặc định jpg
+        assert.equal(resolveImageExtension({ mime: 'text/html', url: 'https://x.com/a.xyz' }), 'jpg');
+        assert.equal(resolveImageExtension({}), 'jpg');
     });
 
     runTest('forumConfig: getForumConfig kế thừa defaults và host overrides', () => {
@@ -646,6 +1076,64 @@ async function runAllTests() {
         const vozConfig = getForumConfig(updated, 'voz.vn');
         assert.equal(vozConfig.enabled, true);
         assert.equal(vozConfig.minWidth, 1200);
+    });
+
+    // ============================================================================
+    // 13. SW Imports, Config Hygiene & Manifest Tests
+    // ============================================================================
+    runTest('swImports: mọi path trong SW_IMPORT_PATHS tồn tại trên disk và không trùng', () => {
+        const paths = toMainContext(sandbox.globalThis.GestureExtension.background.SW_IMPORT_PATHS);
+        assert.ok(Array.isArray(paths) && paths.length > 0, 'SW_IMPORT_PATHS must be a non-empty array');
+        const seen = new Set();
+        for (const rel of paths) {
+            const clean = rel.replace(/^\//, '');
+            assert.equal(seen.has(clean), false, `Duplicate SW import path: ${rel}`);
+            seen.add(clean);
+            assert.equal(fs.existsSync(path.resolve(__dirname, '..', clean)), true, `SW import file missing on disk: ${rel}`);
+        }
+    });
+
+    runTest('swImports: service-worker.js chỉ import từ background/imports.js (single source of truth)', () => {
+        const swSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/service-worker.js'), 'utf8');
+        assert.match(swSource, /importScripts\('\/shared\/namespace\.js', '\/background\/imports\.js'\)/);
+        assert.match(swSource, /\.\.\.GestureExtension\.background\.SW_IMPORT_PATHS/);
+        // Không được phép có importScripts cứng với danh sách dài thủ công nữa
+        const hardcodedList = swSource.match(/importScripts\([^)]*'\/shared\/(?!namespace)[^)]*\)/);
+        assert.equal(hardcodedList, null, 'service-worker.js must not hardcode a manual importScripts list');
+    });
+
+    runTest('config: default OCR apiKey không được hardcode (privacy)', () => {
+        const schema = sandbox.globalThis.GestureExtension.shared.configSchema;
+        const apiKey = schema.DEFAULT_CONFIG.apiServices.ocr.providers.ocrspace.apiKey;
+        assert.equal(apiKey, '');
+        assert.notEqual(apiKey, 'helloworld');
+        const apiKeyInRuntime = sandbox.globalThis.GestureExtension.background.ocrApi;
+        assert.ok(apiKeyInRuntime, 'ocrApi must be loaded');
+        const ocrApiSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/api-services/ocr-api.js'), 'utf8');
+        assert.equal(ocrApiSource.includes('helloworld'), false, 'ocr-api.js must not hardcode a demo API key');
+    });
+
+    runTest('manifest: permission surface tối thiểu (không khai báo quyền tabs)', () => {
+        const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'manifest.json'), 'utf8'));
+        assert.deepEqual(manifest.permissions, ['storage', 'unlimitedStorage', 'downloads', 'scripting', 'clipboardWrite']);
+        // Dịch offline chạy WASM trong extension page → cần cho phép instantiate wasm
+        assert.match(manifest.content_security_policy.extension_pages, /'wasm-unsafe-eval'/);
+    });
+
+    runTest('offline translation: module đăng ký vào SW imports + router offline-first', () => {
+        const importsSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/imports.js'), 'utf8');
+        assert.match(importsSource, /\/background\/offline-translation\.js/);
+        const handlersSource = fs.readFileSync(path.resolve(__dirname, '..', 'background/message-handlers.js'), 'utf8');
+        assert.match(handlersSource, /tryTranslate\(/);
+        assert.match(handlersSource, /bergamot-offline/);
+    });
+
+    runTest('build: validateSwImports + bundles chạy thành công qua npm run build', () => {
+        const output = execFileSync(process.execPath, [path.resolve(__dirname, '..', 'scripts/build.js')], {
+            encoding: 'utf8'
+        });
+        assert.match(output, /Service worker imports validated/);
+        assert.match(output, /All bundles built successfully/);
     });
 
     // ============================================================================

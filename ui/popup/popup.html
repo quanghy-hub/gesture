@@ -19,6 +19,35 @@
                 </div>
             </header>
 
+            <section
+                id="permission-warning-card"
+                class="card permission-warning-card"
+                style="
+                    display: none;
+                    background: rgba(234, 179, 8, 0.12);
+                    border: 1px solid rgba(234, 179, 8, 0.35);
+                    padding: 12px;
+                    margin-bottom: 12px;
+                    border-radius: 8px;
+                "
+            >
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                    <div style="font-size: 13px; color: #facc15; font-weight: 600">⚠️ Chưa bật tự động chạy trên mọi trang web</div>
+                    <div style="font-size: 11px; color: #d1d5db; line-height: 1.4">
+                        Firefox yêu cầu cấp quyền để tiện ích tự động kích hoạt cử chỉ, phụ đề... mà không cần phải nhấp vào icon mỗi lần
+                        vào web.
+                    </div>
+                    <button
+                        id="grant-all-urls-btn"
+                        class="primary"
+                        type="button"
+                        style="padding: 6px 12px; font-size: 12px; cursor: pointer; align-self: flex-start"
+                    >
+                        Bật tự động chạy ngay
+                    </button>
+                </div>
+            </section>
+
             <section class="card" data-panel-id="host-blacklist">
                 <div class="host-blacklist-row">
                     <h2 class="card-title">Host Blacklist</h2>
@@ -67,6 +96,17 @@
                             <span class="toggle"><input id="gesture-block-host-toggle" type="checkbox" /></span>
                         </div>
                         <div class="item">
+                            <span class="label-main">Settings for</span>
+                            <span class="label-sub">Platform</span>
+                            <span class="param"
+                                ><select id="g-platform" aria-label="Gesture settings platform">
+                                    <option value="desktop">Desktop</option>
+                                    <option value="mobile">Mobile</option>
+                                </select></span
+                            >
+                            <span class="toggle toggle-empty"></span>
+                        </div>
+                        <div class="item">
                             <span class="label-main">Long press</span>
                             <span class="label-sub">Mode</span>
                             <span class="param"
@@ -88,7 +128,7 @@
                             <span class="toggle toggle-empty"></span>
                         </div>
 
-                        <div class="item">
+                        <div class="item g-desktop-only">
                             <span class="label-main">Right click link</span>
                             <span class="label-sub">Mode</span>
                             <span class="param"
@@ -111,7 +151,7 @@
                             <span class="toggle"><input id="g-close-tab-enabled" type="checkbox" /></span>
                         </div>
 
-                        <div class="item">
+                        <div class="item g-desktop-only">
                             <span class="label-main">Pager</span>
                             <span class="label-sub">Hops</span>
                             <span class="param"
@@ -119,8 +159,11 @@
                             /></span>
                             <span class="toggle"><input id="g-pager-enabled" type="checkbox" /></span>
                         </div>
+                        <div class="item item-sub g-desktop-only">
+                            <span class="hint-note">Pager (← / →) chỉ chạy trên site đã bật Forum layout cho host đó.</span>
+                        </div>
 
-                        <div class="item">
+                        <div class="item g-mobile-only">
                             <span class="label-main">Edge scroll</span>
                             <span class="label-sub">Side</span>
                             <span class="param"
@@ -133,7 +176,7 @@
                             >
                             <span class="toggle"><input id="g-edge-enabled" type="checkbox" /></span>
                         </div>
-                        <div class="item item-sub">
+                        <div class="item item-sub g-mobile-only">
                             <span class="label-main label-main-empty"></span>
                             <span class="label-sub">Width</span>
                             <span class="param"
@@ -141,53 +184,12 @@
                             /></span>
                             <span class="toggle toggle-empty"></span>
                         </div>
-                        <div class="item item-sub">
+                        <div class="item item-sub g-mobile-only">
                             <span class="label-main label-main-empty"></span>
                             <span class="label-sub">Speed</span>
                             <span class="param"
                                 ><span class="param-name">Rate</span><input id="g-edge-speed" class="num xs" type="number" min="1" max="10"
                             /></span>
-                            <span class="toggle toggle-empty"></span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Clipboard -->
-            <section class="card" data-panel-id="clipboard">
-                <h2
-                    class="card-title card-title-with-toggle"
-                    data-panel-header
-                    aria-controls="panel-clipboard"
-                    aria-expanded="false"
-                    aria-label="Open Clipboard settings"
-                    role="button"
-                    tabindex="0"
-                >
-                    <span>Clipboard</span
-                    ><span class="card-title-actions"
-                        ><button class="drag-handle" type="button" data-drag-handle aria-label="Drag to reorder Clipboard"></button
-                        ><input id="feature-clipboard-enabled" type="checkbox" aria-label="Enable Clipboard"
-                    /></span>
-                </h2>
-                <div id="panel-clipboard" class="panel-body is-collapsed">
-                    <div class="table">
-                        <div class="item">
-                            <span class="label-main">History</span>
-                            <span class="label-sub">Panels</span>
-                            <span class="param"
-                                ><span class="param-name">Count</span
-                                ><input id="clipboard-max-history" class="num xs" type="number" min="1" max="20" step="1"
-                            /></span>
-                            <span class="toggle toggle-empty"></span>
-                        </div>
-                        <div class="item">
-                            <span class="label-main">History</span>
-                            <span class="label-sub">Clear</span>
-                            <span class="param"
-                                ><span class="param-name">Clear</span
-                                ><button id="clipboard-clear" class="secondary inline-button" type="button">Clear</button></span
-                            >
                             <span class="toggle toggle-empty"></span>
                         </div>
                     </div>
@@ -640,6 +642,67 @@
                             <span class="param"><input id="api-ocr-fallback-api-key" type="text" autocomplete="off" /></span>
                             <span class="toggle toggle-empty"></span>
                         </div>
+
+                        <!-- Offline translation (Bergamot en→vi) — tách khỏi grid table -->
+                        <div id="card-offline-translate" class="offline-block">
+                            <div class="offline-row">
+                                <span class="label-main">Dịch offline</span>
+                                <span class="toggle"
+                                    ><input id="feature-offline-translate-enabled" type="checkbox" aria-label="Enable offline translation"
+                                /></span>
+                            </div>
+                            <div id="offline-translate-status" class="offline-status-line">—</div>
+                            <div class="offline-actions">
+                                <button id="offline-download-btn" class="secondary inline-button" type="button">Tải model (~40MB)</button>
+                                <button id="offline-remove-btn" class="secondary inline-button" type="button">Xoá</button>
+                            </div>
+                        </div>
+
+                        <!-- TTS đọc — dời từ YouTube Subtitles xuống API Services -->
+                        <div id="card-tts-read" class="offline-block">
+                            <div class="offline-row">
+                                <span class="label-main">TTS đọc</span>
+                                <span class="toggle"
+                                    ><input id="feature-youtube-subtitles-tts" type="checkbox" aria-label="Enable subtitle text to speech"
+                                /></span>
+                            </div>
+                            <div class="offline-row">
+                                <span class="label-main" style="font-size: 11px; color: #9ca3af">Giọng (hệ thống)</span>
+                                <span class="param"
+                                    ><select id="youtube-subtitles-tts-voice" aria-label="TTS voice">
+                                        <option value="">Mặc định</option>
+                                    </select></span
+                                >
+                            </div>
+                            <div class="offline-row">
+                                <span class="label-main" style="font-size: 11px; color: #9ca3af">Tốc độ đọc</span>
+                                <span class="param"
+                                    ><select id="youtube-subtitles-tts-rate" aria-label="TTS rate">
+                                        <option value="0.8">0.8x</option>
+                                        <option value="1">1x</option>
+                                        <option value="1.5">1.5x</option>
+                                        <option value="2">2x</option>
+                                        <option value="2.5">2.5x</option>
+                                        <option value="3">3x</option>
+                                    </select></span
+                                >
+                            </div>
+                            <div class="offline-row">
+                                <span class="label-main" style="font-size: 11px; color: #9ca3af">Engine</span>
+                                <span class="param"
+                                    ><select id="youtube-subtitles-tts-engine" aria-label="TTS engine">
+                                        <option value="os">Hệ thống</option>
+                                        <option value="offline">Offline (VITS vi)</option>
+                                    </select></span
+                                >
+                            </div>
+                            <div id="tts-offline-status" class="offline-status-line">—</div>
+                            <div class="offline-actions">
+                                <button id="tts-offline-download-btn" class="secondary inline-button" type="button">
+                                    Tải giọng offline</button
+                                ><button id="tts-offline-remove-btn" class="secondary inline-button" type="button">Xoá</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -749,6 +812,7 @@
         </main>
 
         <script src="../../shared/namespace.js"></script>
+        <script src="../../shared/messaging.js"></script>
         <script src="../../shared/api-services.js"></script>
         <script src="../../shared/config-utils.js"></script>
         <script src="../../shared/config-schema.js"></script>

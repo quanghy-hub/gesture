@@ -20,10 +20,13 @@
             });
         };
 
+        let floatingActiveResendTimer = 0;
         const restoreFloatedIframe = ({ clearRefs = false } = {}) => {
             if (!ctx.floatedIframe) return;
             clearInterval(ctx.iframeStatePollTimer);
             ctx.iframeStatePollTimer = 0;
+            clearTimeout(floatingActiveResendTimer);
+            floatingActiveResendTimer = 0;
             postToFloatedIframe({ command: 'set-floating-active', active: false });
             ctx.floatedIframe.setAttribute('style', ctx.iframeOrigStyle);
             ctx.iframeOrigPar?.replaceChild(ctx.floatedIframe, ctx.iframePh);
@@ -53,8 +56,10 @@
             ctx.iframeOrigPar?.replaceChild(ctx.iframePh, iframe);
             const wrapper = $('fvp-wrapper');
             videoLifecycle.clearWrapper(wrapper);
-            iframe.style.cssText = 'width:100%!important;height:100%!important;border:none!important;position:absolute;top:0;left:0;';
+            iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;top:0;left:0;transform-origin:center center;';
             wrapper.appendChild(iframe);
+            iframe.style.transform = '';
+            iframe.style.objectFit = '';
             videoLifecycle.showFloatingShell({
                 applySavedLayout: shouldApplyLayout,
                 isCurrent: () => ctx.floatedIframe === iframe
@@ -63,8 +68,17 @@
             videoCollection.updateVideoOrderUI(null);
             updatePlaybackOverlayUI?.();
             postToFloatedIframe({ command: 'set-floating-active', active: true });
+            // Re-assert after the inevitable reload caused by moving the element
+            let resendCount = 0;
+            const resendActive = () => {
+                if (!ctx.floatedIframe || resendCount >= 5) return;
+                resendCount++;
+                postToFloatedIframe({ command: 'set-floating-active', active: true });
+                floatingActiveResendTimer = setTimeout(resendActive, 600);
+            };
+            floatingActiveResendTimer = setTimeout(resendActive, 400);
             postToFloatedIframe({ command: 'get-state' });
-            ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 350);
+            ctx.iframeStatePollTimer = setInterval(() => postToFloatedIframe({ command: 'get-state' }), 180);
         };
 
         return {

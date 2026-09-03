@@ -2,13 +2,16 @@
     const ext = globalThis.GestureExtension;
     const videoScreenshot = (ext.videoScreenshot = ext.videoScreenshot || {});
 
+    const showRecorderToast = (message) => {
+        ext.shared.toastCore?.createToast?.(message, window.innerWidth / 2, window.innerHeight / 2, 2600);
+    };
+
     videoScreenshot.createScreenRecorder = (ctx, regionCapture) => {
         const { CONFIG, buildRecordingFilename, fallbackDownload } = videoScreenshot;
 
         let recorder = null;
         let recorderStream = null;
         let recorderChunks = [];
-        let recorderBadge = null;
         let recorderCanvas = null;
         let recorderContext = null;
         let recorderVideo = null;
@@ -16,6 +19,7 @@
         let recorderControl = null;
         let recorderPauseButton = null;
         let recorderStopButton = null;
+        let recorderStatusLabel = null;
         let recorderBorder = null;
 
         const canUseScreenRecorder = () =>
@@ -26,26 +30,13 @@
             return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || '';
         };
 
-        const showRecorderBadge = () => {
-            if (recorderBadge) {
-                return;
-            }
-            recorderBadge = document.createElement('div');
-            recorderBadge.className = 'gesture-screen-record-badge';
-            recorderBadge.textContent = 'Đang ghi hình - F8 để dừng';
-            document.documentElement.appendChild(recorderBadge);
-        };
-
-        const hideRecorderBadge = () => {
-            recorderBadge?.remove();
-            recorderBadge = null;
-        };
-
+        // Badge/control được đặt NGOÀI vùng ghi để không bị bake vào video thành phẩm.
         const hideRecorderControl = () => {
             recorderControl?.remove();
             recorderControl = null;
             recorderPauseButton = null;
             recorderStopButton = null;
+            recorderStatusLabel = null;
         };
 
         const hideRecorderBorder = () => {
@@ -65,7 +56,7 @@
         };
 
         const getRecorderControlPosition = (region) => {
-            const width = CONFIG.recordControlSize * 2 + 14;
+            const width = CONFIG.recordControlSize * 2 + 14 + CONFIG.recordLabelWidth;
             const height = CONFIG.recordControlSize + 8;
             const gap = CONFIG.recordControlGap;
             const centeredLeft = region.left + (region.width - width) / 2;
@@ -107,8 +98,8 @@
             recorderPauseButton.classList.toggle('is-paused', paused);
             recorderPauseButton.title = paused ? 'Tiếp tục ghi hình' : 'Tạm dừng ghi hình';
             recorderPauseButton.setAttribute('aria-label', paused ? 'Tiếp tục ghi hình' : 'Tạm dừng ghi hình');
-            if (recorderBadge) {
-                recorderBadge.textContent = paused ? 'Đang tạm dừng - F8 để dừng' : 'Đang ghi hình - F8 để dừng';
+            if (recorderStatusLabel) {
+                recorderStatusLabel.textContent = paused ? 'Tạm dừng · F8 dừng' : 'Đang ghi · F8 dừng';
             }
         };
 
@@ -128,6 +119,9 @@
             recorderStopButton.className = 'gesture-screen-record-button gesture-screen-record-stop';
             recorderStopButton.title = 'Dừng ghi hình (F8)';
             recorderStopButton.setAttribute('aria-label', 'Dừng ghi hình');
+
+            recorderStatusLabel = document.createElement('span');
+            recorderStatusLabel.className = 'gesture-screen-record-label';
 
             recorderControl.addEventListener(
                 'pointerdown',
@@ -155,13 +149,14 @@
                 },
                 true
             );
-            recorderControl.append(recorderPauseButton, recorderStopButton);
+            recorderControl.append(recorderStatusLabel, recorderPauseButton, recorderStopButton);
             document.documentElement.appendChild(recorderControl);
             syncRecorderPauseButton();
         };
 
         const downloadRecording = (blob) => {
             if (!blob?.size) {
+                showRecorderToast('Bản ghi trống, không có nội dung để lưu');
                 return;
             }
             const url = URL.createObjectURL(blob);
@@ -187,9 +182,10 @@
             recorderContext = null;
             recorderVideo = null;
             recorderFrameId = 0;
-            hideRecorderBadge();
             hideRecorderControl();
             hideRecorderBorder();
+            // Khôi phục floating UI đã ẩn trong lúc ghi hình.
+            ctx.restoreFloatingOverlays?.();
         };
 
         const stopScreenRecording = () => {
@@ -296,8 +292,9 @@
                 track.addEventListener('ended', stopScreenRecording, { once: true });
             });
 
+            // Ẩn nút trigger nổi trong suốt phiên ghi để không xuất hiện trong video.
+            ctx.suspendFloatingOverlays?.();
             recorder.start(1000);
-            showRecorderBadge();
             showRecorderBorder(region);
             showRecorderControl(region);
         };
@@ -311,6 +308,10 @@
                 onComplete: (region) => {
                     startScreenRecording(region).catch((error) => {
                         cleanupRecorder();
+                        // Người dùng hủy chọn nguồn thì không báo lỗi.
+                        if (error?.name !== 'NotAllowedError' && error?.name !== 'AbortError') {
+                            showRecorderToast('Không thể bắt đầu ghi hình màn hình');
+                        }
                         console.error('[GestureExtension] Screen recording failed', error);
                     });
                 }

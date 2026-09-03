@@ -1,3 +1,7 @@
-dist
+﻿dist
 node_modules
 test-results
+.husky
+offscreen/bergamot-translator-worker.js
+offscreen/vendor/transformers.min.js
+offscreen/vendor/transformers.global.js

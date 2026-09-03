@@ -8,6 +8,7 @@
 
         let triggerRef = null;
         let removeDragBinding = () => {};
+        let suppressed = false;
 
         const posStorage = floating.createPositionStorage('gesture_video_screenshot_trigger_pos_v1', getDefaultTriggerPosition());
 
@@ -82,11 +83,21 @@
         const syncTrigger = () => {
             const hasVideo = !!captureVideo.findActiveVideo();
             const trigger = ensureTrigger();
-            if (ctx.isFeatureEnabled() && hasVideo) {
+            // Khi bị suppress (đang chụp vùng/ghi hình) phải ẩn để không dính vào ảnh/video.
+            if (!suppressed && ctx.isFeatureEnabled() && hasVideo) {
                 trigger.show('inline-flex');
             } else {
                 trigger.hide();
             }
+        };
+
+        const setSuppressed = (value) => {
+            const next = !!value;
+            if (suppressed === next) {
+                return;
+            }
+            suppressed = next;
+            syncTrigger();
         };
 
         const destroy = () => {
@@ -98,6 +109,7 @@
         return {
             ensureTrigger,
             syncTrigger,
+            setSuppressed,
             destroy
         };
     };

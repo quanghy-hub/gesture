@@ -1,32 +1,62 @@
 (() => {
     const ext = globalThis.GestureExtension;
+
     const {
         updateForumHostConfig,
-        applyGestureSettings,
         setHostExcluded,
         setVideoFloatingBackgroundSeekExcluded,
         setGestureHostExcluded,
-        deepClone
+        deepClone,
+        normalizeConfig
     } = ext.shared.config;
     const { collectFields, applyPatches } = ext.ui.popupFieldMap;
+
+    // Ghi thẳng vào gestures.desktop hoặc gestures.mobile tùy platform đang chọn
+    // trong popup, thay vì merge chung như applyGestureSettings trước đây.
+    const applyPlatformGestureSettings = (next, platform, els) => {
+        const gestureConfig = next.gestures[platform];
+        gestureConfig.enabled = els.featureGesturesEnabled.checked;
+        gestureConfig.lpress = {
+            enabled: els.gLpEnabled.checked,
+            mode: els.gLpMode.value,
+            ms: Number(els.gLpMs.value)
+        };
+        gestureConfig.closeTab = {
+            enabled: els.gCloseTabEnabled.checked,
+            ms: Number(els.gCloseTabMs.value)
+        };
+
+        if (platform === 'desktop') {
+            gestureConfig.rclick = {
+                enabled: els.gRcEnabled.checked,
+                mode: els.gRcMode.value
+            };
+            gestureConfig.pager = {
+                enabled: els.gPagerEnabled.checked,
+                hops: Number(els.gPagerHops.value)
+            };
+        } else {
+            gestureConfig.edge = {
+                enabled: els.gEdgeEnabled.checked,
+                side: els.gEdgeSide.value,
+                width: Number(els.gEdgeWidth.value),
+                speed: Number(els.gEdgeSpeed.value)
+            };
+        }
+
+        delete next.gestures.desktop.dblRight;
+        delete next.gestures.desktop.fastScroll;
+        delete next.gestures.mobile.dblTap;
+        delete next.gestures.mobile.fastScroll;
+    };
 
     ext.ui.popupSave = {
         save: async (config, activeHost, els, storage, fieldMap, fieldMapElements) => {
             if (!config) return config;
 
-            const next = applyGestureSettings(deepClone(config), {
-                enabled: els.featureGesturesEnabled.checked,
-                longPress: { enabled: els.gLpEnabled.checked, mode: els.gLpMode.value, ms: Number(els.gLpMs.value) },
-                rightClick: { enabled: els.gRcEnabled.checked, mode: els.gRcMode.value },
-                closeTab: { enabled: els.gCloseTabEnabled.checked, ms: Number(els.gCloseTabMs.value) },
-                pager: { enabled: els.gPagerEnabled.checked, hops: Number(els.gPagerHops.value) },
-                edgeSwipe: {
-                    enabled: els.gEdgeEnabled.checked,
-                    side: els.gEdgeSide.value,
-                    width: Number(els.gEdgeWidth.value),
-                    speed: Number(els.gEdgeSpeed.value)
-                }
-            });
+            const platform = els.gPlatform?.value === 'mobile' ? 'mobile' : 'desktop';
+            const next = deepClone(normalizeConfig(config));
+            applyPlatformGestureSettings(next, platform, els);
             let nextScoped = activeHost ? setHostExcluded(next, activeHost, els.hostBlacklistToggle.checked) : next;
             nextScoped = activeHost ? setGestureHostExcluded(nextScoped, activeHost, els.gestureBlockHostToggle.checked) : nextScoped;
             nextScoped = activeHost

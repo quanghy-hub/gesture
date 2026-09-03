@@ -228,6 +228,24 @@
     pointer-events: none;
 }
 
+/* Cross-origin players need native interaction (play button, quality menu).
+   Wrapper gestures never receive events from inside an OOPIF anyway, while our
+   per-frame agent (iframe-gestures.js) handles wheel/touch inside the frame.
+   Geometry (size + centering) is computed in ui-controls.js from the inner
+   video's reported dimensions — CSS only provides static defaults. */
+#fvp-wrapper iframe {
+    position: absolute;
+    border: none !important;
+    transform-origin: center center;
+    transition:
+        width 0.25s ease,
+        height 0.25s ease,
+        left 0.25s ease,
+        top 0.25s ease,
+        transform 0.3s ease;
+    pointer-events: auto;
+}
+
 .fvp-transition-layer {
     position: absolute;
     inset: 0;

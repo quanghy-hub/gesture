@@ -13,6 +13,15 @@
 
         const postToFloatedIframe = (cmd) => ctx.floatedIframe?.contentWindow?.postMessage({ type: 'fvp-iframe-command', ...cmd }, '*');
 
+        videoFloating.interactions.floatedIframeSeek = {
+            getDuration: () => ctx.iframePlaybackState.duration || 0,
+            getCurrentTime: () => ctx.iframePlaybackState.currentTime || 0,
+            seekToRatio: (ratio) => postToFloatedIframe({ command: 'seek-to-ratio', ratio: videoFloating.core.utils.clamp(ratio, 0, 1) })
+        };
+        ctx.cleanup.push(() => {
+            videoFloating.interactions.floatedIframeSeek = null;
+        });
+
         const floatingSession = videoFloating.createFloatingSession(ctx, {
             el: videoFloating.core.utils.el,
             $: videoFloating.core.utils.$,
@@ -36,6 +45,7 @@
         menu.setFloatingSession?.(floatingSession);
         autoSync.setFloatingSession?.(floatingSession);
 
+        const menuFloatFallback = menu.floatFirstAvailableMedia?.fallbackToMenuItems;
         menu.floatFirstAvailableMedia = () => {
             if (!videoFloating.core.config.isFeatureEnabled()) return;
             const preferredVideo = videoFloating.media.detector.getDirectVideos()[0];
@@ -44,7 +54,8 @@
                 floatingSession.float(preferredVideo);
                 return;
             }
-            // fallback logic handled in menu.js itself
+            // No direct video — delegate to menu.js which falls back to tracked/generic iframes.
+            menuFloatFallback?.();
         };
 
         const seekController = videoFloating.createSeekController(ctx, {
@@ -68,7 +79,14 @@
             applyTransform: () => floatingSession.applyTransform()
         });
 
-        const gesturesHandler = videoFloating.interactions.createGesturesHandler(ctx, floatingSession, seekController, uiControls, shell);
+        const gesturesHandler = videoFloating.interactions.createGesturesHandler(
+            ctx,
+            floatingSession,
+            seekController,
+            uiControls,
+            shell,
+            postToFloatedIframe
+        );
         const dragResizeHandler = videoFloating.interactions.createDragResizeHandler(ctx, layoutManager, shell);
         const iconHandler = videoFloating.interactions.createIconHandler(ctx, menu, shell);
 
@@ -83,26 +101,44 @@
 
         const onWindowMessage = (event) => {
             if (!event.data) return;
-            if (event.data.type === 'fvp-iframe-video-count') {
+            if (event.data.type === 'fvp-iframe-videos') {
                 if (event.source === window) return;
                 const iframes = document.querySelectorAll('iframe');
                 const matched = Array.from(iframes).find((iframe) => iframe.contentWindow === event.source);
                 if (matched) {
                     const count = Number(event.data.count) || 0;
-                    if (count > 0 && videoFloating.media.detector.isLikelyVideoIframe?.(matched)) ctx.iframeVideoMap.set(matched, count);
+                    if (videoFloating.media.detector.isLikelyVideoIframe?.(matched)) ctx.iframeVideoMap.set(matched, count);
                     else ctx.iframeVideoMap.delete(matched);
                     floatingSession.updateVideoDetectionUI();
                 }
             }
             if (event.data.type === 'fvp-iframe-state' && ctx.floatedIframe?.contentWindow === event.source) {
                 if (event.data.state && typeof event.data.state === 'object') {
-                    Object.assign(ctx.iframePlaybackState, event.data.state);
+                    // Presentation (fit/zoom/rotate) is owned by the top frame — strip those
+                    // fields so the inner agent can't overwrite them on every poll.
+                    const playback = { ...event.data.state };
+                    delete playback.fitIdx;
+                    delete playback.zoomIdx;
+                    delete playback.rotationAngle;
+                    Object.assign(ctx.iframePlaybackState, playback);
                     uiControls.syncFloatedIframeUI?.();
                 }
             }
         };
         window.addEventListener('message', onWindowMessage);
         ctx.cleanup.push(() => window.removeEventListener('message', onWindowMessage));
+
+        const onTouchSwitchVideo = (event) => {
+            const dir = Number(event.detail?.dir) || 0;
+            if (!dir) return;
+            if (ctx.floatedIframe) {
+                postToFloatedIframe({ command: dir > 0 ? 'next-video' : 'prev-video' });
+                return;
+            }
+            floatingSession.switchVid(dir);
+        };
+        window.addEventListener(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo);
+        ctx.cleanup.push(() => window.removeEventListener(videoFloating.core.config.TOUCH_SWITCH_VIDEO_EVENT, onTouchSwitchVideo));
 
         autoSync.bindEvents(floatingSession);
         gesturesHandler.setupWrapperGestures();

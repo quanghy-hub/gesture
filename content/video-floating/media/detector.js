@@ -3,9 +3,17 @@
     const videoFloating = (ext.videoFloating = ext.videoFloating || {});
     videoFloating.media = videoFloating.media || {};
 
-    const { getRect, getViewportIntersection, getViewportCenterDistance, getTopVideoAtPoint, queryAllDeep, getFullscreenEl } =
-        videoFloating.core.utils || {};
-    const { hasVisibleSize } = ext?.shared?.domUtils || {};
+    const getUtils = () => videoFloating.core.utils || {};
+    const getRect = (node) =>
+        getUtils().getRect
+            ? getUtils().getRect(node)
+            : node?.getBoundingClientRect?.() || { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
+    const getViewportIntersection = (rect) =>
+        getUtils().getViewportIntersection ? getUtils().getViewportIntersection(rect) : { area: 0, ratio: 0 };
+    const getViewportCenterDistance = (rect) => (getUtils().getViewportCenterDistance ? getUtils().getViewportCenterDistance(rect) : 0);
+    const getTopVideoAtPoint = (x, y) => (getUtils().getTopVideoAtPoint ? getUtils().getTopVideoAtPoint(x, y) : null);
+    const queryAllDeep = (sel) => (getUtils().queryAllDeep ? getUtils().queryAllDeep(sel) : [...document.querySelectorAll(sel)]);
+    const getFullscreenEl = () => (getUtils().getFullscreenEl ? getUtils().getFullscreenEl() : document.fullscreenElement || null);
 
     const isTopVideoCandidate = (video, rect = getRect(video)) => {
         if (!rect?.width || !rect?.height) return false;
@@ -46,11 +54,13 @@
     const isDetectableVideo = (video) => {
         if (!video || !video.isConnected) return false;
         if (video.tagName === 'AUDIO') return true;
-        if (location.hostname.includes('music.youtube.com')) return true;
+        if (typeof location !== 'undefined' && location.hostname && location.hostname.includes('music.youtube.com')) return true;
+
         if (video.currentTime > 0 || (Number.isFinite(video.duration) && video.duration > 0 && !video.paused)) return true;
-        if (hasVisibleSize) return hasVisibleSize(video);
-        const rect = getRect(video);
-        return rect.width > 0 && rect.height > 0;
+        if (video.readyState > 0 || (video.videoWidth > 0 && video.videoHeight > 0)) return true;
+        if (getVideoSourceCandidate(video)) return true;
+
+        return false;
     };
 
     const AUTO_SYNC_MIN_VISIBLE_AREA = 42000;
@@ -85,34 +95,70 @@
         return true;
     };
 
+    const isValidMediaUrl = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        const clean = url.trim();
+        if (!clean || clean === 'about:blank' || clean === 'true' || clean === 'false' || clean === 'null' || clean === 'undefined')
+            return false;
+        if (typeof location !== 'undefined' && clean === location.href) return false;
+        if (/^(https?:|\/\/|blob:|data:video\/|\/|\.\/|\.\.\/)/i.test(clean)) return true;
+        if (/\.(mp4|m3u8|webm|mov|m4v|ogg|mp3)(\?|#|$)/i.test(clean)) return true;
+        return false;
+    };
+
     const getVideoSourceCandidate = (video) => {
-        const source = video?.querySelector?.('source[src], source[data-source], source[data-src], source[data-video-src]');
-        return (
+        const source = video?.querySelector?.(
+            'source[src], source[data-source], source[data-src], source[data-video-src], source[data-url], source[data-file], source[data-hls], source[data-mp4]'
+        );
+        const raw =
             video?.currentSrc ||
-            video?.src ||
+            video?.srcObject ||
+            (video?.src && (typeof location === 'undefined' || (video.src !== location.href && video.src !== 'about:blank'))
+                ? video.src
+                : '') ||
             video?.getAttribute?.('src') ||
             video?.dataset?.source ||
             video?.dataset?.src ||
             video?.dataset?.videoSrc ||
+            video?.dataset?.url ||
+            video?.dataset?.file ||
+            video?.dataset?.hls ||
+            video?.dataset?.mp4 ||
+            video?.dataset?.original ||
             video?.getAttribute?.('data-source') ||
             video?.getAttribute?.('data-src') ||
             video?.getAttribute?.('data-video-src') ||
+            video?.getAttribute?.('data-url') ||
+            video?.getAttribute?.('data-file') ||
+            video?.getAttribute?.('data-hls') ||
+            video?.getAttribute?.('data-mp4') ||
+            video?.getAttribute?.('data-original') ||
             source?.src ||
+            source?.getAttribute?.('src') ||
             source?.dataset?.source ||
             source?.dataset?.src ||
             source?.dataset?.videoSrc ||
+            source?.dataset?.url ||
+            source?.dataset?.file ||
+            source?.dataset?.hls ||
+            source?.dataset?.mp4 ||
             source?.getAttribute?.('data-source') ||
             source?.getAttribute?.('data-src') ||
             source?.getAttribute?.('data-video-src') ||
-            ''
-        );
+            source?.getAttribute?.('data-url') ||
+            source?.getAttribute?.('data-file') ||
+            source?.getAttribute?.('data-hls') ||
+            source?.getAttribute?.('data-mp4') ||
+            '';
+        if (typeof raw === 'string') {
+            const clean = raw.trim();
+            return isValidMediaUrl(clean) ? clean : '';
+        }
+        return raw ? String(raw) : '';
     };
 
-    const getDirectVideoKey = (video, rect = getRect(video), sourceCandidate = getVideoSourceCandidate(video)) =>
-        [sourceCandidate, Math.round(rect.left), Math.round(rect.top), Math.round(rect.width), Math.round(rect.height)].join('|');
-
     const collectDirectVideos = () => {
-        const unique = new Map();
+        const unique = new Set();
         for (const video of queryAllDeep('video, audio')) {
             if (!video?.isConnected || video.closest('#fvp-wrapper')) continue;
 
@@ -120,31 +166,56 @@
 
             try {
                 const style = window.getComputedStyle(video);
-                if (style.display === 'none' || style.visibility === 'hidden') continue;
+                if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
             } catch {
                 /* ignore */
             }
 
-            const isYouTube = location.hostname.includes('youtube.com') || location.hostname.includes('youtube-nocookie.com');
-            if (isYouTube) {
-                const isMainPlayer = video.classList.contains('html5-main-video') || video.closest('#movie_player');
-                if (!isMainPlayer) continue;
+            const isTikTok = typeof location !== 'undefined' && location.hostname?.includes('tiktok.com');
+            if (isTikTok) {
+                const hasValidTikTokSource =
+                    (video.src && video.src.startsWith('blob:')) ||
+                    (video.currentSrc && video.currentSrc.startsWith('blob:')) ||
+                    video.readyState > 0 ||
+                    video.currentTime > 0 ||
+                    !video.paused;
+                if (!hasValidTikTokSource) continue;
             }
 
+            const isYouTube =
+                typeof location !== 'undefined' &&
+                (location.hostname?.includes('youtube.com') || location.hostname?.includes('youtube-nocookie.com'));
+            if (isYouTube) {
+                const isMainPlayer = video.classList?.contains?.('html5-main-video') || video.closest?.('#movie_player');
+                if (!isMainPlayer) continue;
+                const wrapper = videoFloating.core.utils.$('fvp-wrapper');
+                if (wrapper?.querySelector('video')) continue;
+            }
+
+            const isAudio = video.tagName === 'AUDIO';
+            const isYtMusic = typeof location !== 'undefined' && location.hostname?.includes('music.youtube.com');
             const rect = getRect(video);
             const sourceCandidate = getVideoSourceCandidate(video);
             const hasMediaSource = Boolean(sourceCandidate);
-            const hasPlaybackState = Number.isFinite(video.duration) || video.readyState > 0 || video.currentTime > 0;
-            const largeEnough = rect.width >= 160 && rect.height >= 90;
-            if (!(hasMediaSource || hasPlaybackState || largeEnough)) continue;
+            const hasPlaybackState =
+                (Number.isFinite(video.duration) && video.duration > 0) ||
+                video.readyState > 0 ||
+                video.currentTime > 0 ||
+                !video.paused ||
+                (video.videoWidth > 0 && video.videoHeight > 0);
 
-            const key = getDirectVideoKey(video, rect, sourceCandidate);
-            if (!unique.has(key)) {
-                unique.set(key, video);
+            const w = Math.max(video.offsetWidth || 0, rect.width || 0);
+            const h = Math.max(video.offsetHeight || 0, rect.height || 0);
+            if (w > 0 && h > 0 && (w < 20 || h < 20)) continue;
+
+            if (!isAudio && !isYtMusic) {
+                if (!hasMediaSource && !hasPlaybackState) continue;
             }
+
+            unique.add(video);
         }
 
-        return [...unique.values()];
+        return [...unique];
     };
 
     const getDirectVideoSequence = () => collectDirectVideos();
@@ -164,8 +235,20 @@
 
     const isVisibleIframe = (iframe) => {
         if (!iframe?.isConnected || iframe.closest('#fvp-wrapper')) return false;
+        try {
+            const style = window.getComputedStyle(iframe);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+        } catch {
+            /* ignore */
+        }
         const rect = getRect(iframe);
-        return rect.width >= 160 && rect.height >= 90;
+        const w = Math.max(iframe.offsetWidth || 0, rect.width || 0);
+        const h = Math.max(iframe.offsetHeight || 0, rect.height || 0);
+        if (w > 0 && h > 0 && (w < 32 || h < 32)) return false;
+        const attrW = parseInt(iframe.getAttribute('width') || '0', 10);
+        const attrH = parseInt(iframe.getAttribute('height') || '0', 10);
+        if (attrW > 0 && attrH > 0 && (attrW < 32 || attrH < 32)) return false;
+        return true;
     };
 
     const getIframeSrc = (iframe) => {
@@ -221,7 +304,8 @@
     const getTrackedIframeEntries = (map) => {
         const directVideos = getDirectVideos();
         return [...map.entries()].filter(([iframe, count]) => {
-            if (!iframe?.isConnected || !(count > 0)) return false;
+            if (!iframe?.isConnected) return false;
+            if (typeof count !== 'number' || count < 0) return false;
             if (!isLikelyVideoIframe(iframe)) return false;
             if (isRedundantIframeCandidate(iframe, directVideos)) return false;
             return true;

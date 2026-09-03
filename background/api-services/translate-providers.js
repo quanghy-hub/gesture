@@ -12,30 +12,53 @@
 
     const translateWithMyMemoryChunk = async (text, sourceLanguage, targetLanguage, providerSettings) => {
         const url = new URL(buildMyMemoryEndpoint(providerSettings.endpoint));
-        url.searchParams.set('q', text);
-        url.searchParams.set('langpair', `${sourceLanguage}|${targetLanguage}`);
-        const response = await utils.fetchWithTimeout(
-            url.toString(),
-            {
-                method: 'GET',
-                redirect: 'follow'
-            },
-            utils.TRANSLATE_API_TIMEOUT_MS,
-            'MyMemory request timed out'
-        );
-        if (!response.ok) {
-            throw new Error(`MyMemory HTTP ${response.status}`);
+        // MyMemory chặn q > 500 bytes server-side → tự chia nhỏ theo byte
+        const chunks = utils.splitTranslateTextByBytes(text, utils.MYMEMORY_CHUNK_LIMIT_BYTES);
+        const translated = [];
+        for (const chunk of chunks) {
+            url.searchParams.set('q', chunk);
+            url.searchParams.set('langpair', `${sourceLanguage}|${targetLanguage}`);
+            const response = await utils.fetchWithTimeout(
+                url.toString(),
+                {
+                    method: 'GET',
+                    redirect: 'follow'
+                },
+                utils.TRANSLATE_API_TIMEOUT_MS,
+                'MyMemory request timed out'
+            );
+            if (!response.ok) {
+                throw new Error(`MyMemory HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            const part = utils.parseMyMemoryResponse(data);
+            if (!part) {
+                throw new Error('MyMemory returned empty translation');
+            }
+            translated.push(part);
         }
-        const data = await response.json();
-        const translated = utils.parseMyMemoryResponse(data);
-        if (!translated) {
-            throw new Error('MyMemory returned empty translation');
+        return translated.join(' ').trim();
+    };
+
+    const sanitizeHeaderValue = (value) => {
+        if (!value) return '';
+        let cleaned = String(value)
+            .replace(/[\u200B-\u200D\uFEFF\u2060\u200E\u200F]/g, '')
+            .trim();
+        // eslint-disable-next-line no-control-regex
+        if (/[^\x00-\xFF]/.test(cleaned)) {
+            try {
+                cleaned = encodeURIComponent(cleaned);
+            } catch {
+                // eslint-disable-next-line no-control-regex
+                cleaned = cleaned.replace(/[^\x00-\xFF]/g, '');
+            }
         }
-        return translated;
+        return cleaned;
     };
 
     const translateWithDeepL = async (text, sourceLanguage, targetLanguage, providerSettings) => {
-        const apiKey = String(providerSettings.apiKey || '').trim();
+        const apiKey = sanitizeHeaderValue(providerSettings.apiKey);
         if (!apiKey) {
             throw new Error('DeepL requires API key');
         }

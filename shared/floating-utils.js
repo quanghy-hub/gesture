@@ -1,9 +1,8 @@
 (() => {
     const ext = globalThis.GestureExtension;
     ext.shared = ext.shared || {};
-    const viewport = ext.shared.viewportCore;
     const runtime = ext.shared.runtime;
-    const hasStorageApi = () => !!globalThis.browser?.storage?.local;
+    const hasStorageApi = () => !!globalThis.chrome?.storage?.local;
     const positionMemoryStore = {};
 
     const isNodeLike = (value) => value instanceof Node;
@@ -11,7 +10,6 @@
     const isHtmlDocument = () => runtime?.isHtmlDocument?.() ?? false;
     const getFloatingRoot = () => document.documentElement || document.body || null;
     const isExtensionContextInvalidated = (error) => /Extension context invalidated/i.test(String(error?.message || error || ''));
-
     const appendHtmlFragment = (element, htmlContent) => {
         if (!element || !htmlContent) {
             return;
@@ -39,7 +37,6 @@
         getFloatingRoot,
         isExtensionContextInvalidated,
         appendHtmlFragment,
-        clamp: (value, min, max) => viewport?.clamp?.(value, min, max) ?? Math.min(max, Math.max(min, value)),
         clampFixedPosition: (rect) =>
             viewport?.clampFixedPosition?.(rect) ?? {
                 left: Math.min(
@@ -59,37 +56,54 @@
             }
         },
         createPositionStorage: (storageKey, defaultPos = { left: 20, top: 20 }) => ({
-            load: async () => {
-                if (!hasStorageApi()) {
-                    const v = positionMemoryStore[storageKey];
-                    return v && typeof v === 'object' ? v : defaultPos;
-                }
-                try {
-                    const result = await browser.storage.local.get([storageKey]);
-                    const v = result?.[storageKey];
-                    return v && typeof v === 'object' ? v : defaultPos;
-                } catch (error) {
-                    if (isExtensionContextInvalidated(error)) {
+            load: () =>
+                new Promise((resolve) => {
+                    if (!hasStorageApi()) {
                         const v = positionMemoryStore[storageKey];
-                        return v && typeof v === 'object' ? v : defaultPos;
+                        resolve(v && typeof v === 'object' ? v : defaultPos);
+                        return;
                     }
-                    return defaultPos;
-                }
-            },
-            save: async (left, top) => {
+                    try {
+                        chrome.storage.local.get([storageKey], (result) => {
+                            if (chrome.runtime?.lastError && isExtensionContextInvalidated(chrome.runtime.lastError)) {
+                                const v = positionMemoryStore[storageKey];
+                                resolve(v && typeof v === 'object' ? v : defaultPos);
+                                return;
+                            }
+                            const v = result?.[storageKey];
+                            resolve(v && typeof v === 'object' ? v : defaultPos);
+                        });
+                    } catch (error) {
+                        if (isExtensionContextInvalidated(error)) {
+                            const v = positionMemoryStore[storageKey];
+                            resolve(v && typeof v === 'object' ? v : defaultPos);
+                            return;
+                        }
+                        resolve(defaultPos);
+                    }
+                }),
+            save: (left, top) => {
                 positionMemoryStore[storageKey] = { left, top };
                 if (!hasStorageApi()) {
-                    return true;
+                    return Promise.resolve();
                 }
-                try {
-                    await browser.storage.local.set({ [storageKey]: { left, top } });
-                    return true;
-                } catch (error) {
-                    if (isExtensionContextInvalidated(error)) {
-                        return false;
+                return new Promise((resolve) => {
+                    try {
+                        chrome.storage.local.set({ [storageKey]: { left, top } }, () => {
+                            if (chrome.runtime?.lastError && isExtensionContextInvalidated(chrome.runtime.lastError)) {
+                                resolve(false);
+                                return;
+                            }
+                            resolve(true);
+                        });
+                    } catch (error) {
+                        if (isExtensionContextInvalidated(error)) {
+                            resolve(false);
+                            return;
+                        }
+                        resolve(false);
                     }
-                    return false;
-                }
+                });
             }
         })
     };

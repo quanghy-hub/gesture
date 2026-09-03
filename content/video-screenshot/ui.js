@@ -54,27 +54,24 @@
                 white-space: nowrap;
                 pointer-events: none;
             }
-            .gesture-screen-record-badge {
-                position: fixed;
-                left: 50%;
-                top: 18px;
-                z-index: 2147483646;
-                transform: translateX(-50%);
-                padding: 7px 10px;
-                border-radius: 6px;
-                background: rgba(185, 28, 28, .94);
+            .gesture-screen-record-label {
+                display: inline-flex;
+                align-items: center;
+                padding: 0 4px;
                 color: #fff;
-                font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-                pointer-events: none;
+                font: 12px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                white-space: nowrap;
                 user-select: none;
+                pointer-events: none;
             }
             .gesture-screen-record-border {
                 position: fixed;
                 z-index: 2147483646;
                 pointer-events: none;
+                /* outline-offset dương đẩy viền hoàn toàn ra NGOÀI vùng ghi
+                   để pixel trong region không bị viền ăn vào. */
                 outline: 2px solid #ef4444;
-                outline-offset: 0;
-                box-shadow: 0 0 0 1px rgba(255, 255, 255, .9), 0 0 0 9999px rgba(0, 0, 0, .08);
+                outline-offset: 2px;
             }
             .gesture-screen-record-control {
                 position: fixed;

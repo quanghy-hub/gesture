@@ -8,6 +8,10 @@
         const { getSettings, dom, hideEditableSelectionPanelRef, getEditableSelectionState } = deps;
 
         const isVietnameseSelection = (text) => VIETNAMESE_CHAR_PATTERN.test(String(text || ''));
+        const editableCache = ext.shared.translateCore.createMemoryCache
+            ? ext.shared.translateCore.createMemoryCache({ maxSize: 120 })
+            : { get() {}, set() {}, clear() {} };
+        const editablePending = new Map();
 
         const areSameEditableSnapshots = (left, right) => {
             return !!left && !!right && left.target === right.target && left.key === right.key && left.text === right.text;
@@ -81,7 +85,7 @@
 
             const snapshot = selectionCore.getEditableSelectionSnapshot();
             const trimmedText = String(snapshot?.text || '').trim();
-            if (!snapshot || !trimmedText || !isVietnameseSelection(trimmedText)) {
+            if (!snapshot || !trimmedText || trimmedText.length < 4 || trimmedText.length > 1800 || !isVietnameseSelection(trimmedText)) {
                 hideEditableSelectionPanel();
                 return;
             }
@@ -92,17 +96,79 @@
                 return;
             }
 
+            const cached = editableCache.get(trimmedText);
+            if (cached?.result && Date.now() - cached.ts < (settings.dedupeSeconds || 0.7) * 1000) {
+                hideEditableSelectionPanel();
+                state.snapshot = snapshot;
+                state.translatedText = cached.result;
+                state.error = '';
+                const currentSnapshot = selectionCore.getEditableSelectionSnapshot(snapshot.target);
+                if (
+                    currentSnapshot &&
+                    areSameEditableSnapshots(snapshot, currentSnapshot) &&
+                    selectionCore.isSelectionSnapshotCurrent(snapshot)
+                ) {
+                    state.snapshot = currentSnapshot;
+                    dom.showEditableSelectionResult({
+                        anchor: currentSnapshot.anchor,
+                        text: cached.result,
+                        onApply: applyEditableSelectionTranslation
+                    });
+                }
+                return;
+            }
+
+            if (editablePending.has(trimmedText)) {
+                hideEditableSelectionPanel();
+                state.snapshot = snapshot;
+                dom.showEditableSelectionLoading(snapshot.anchor);
+                try {
+                    const pendingResult = await editablePending.get(trimmedText);
+                    if (state.snapshot !== snapshot) return;
+                    const text = String(pendingResult?.translatedText || pendingResult || '').trim();
+                    if (!text || text === trimmedText || !selectionCore.isSelectionSnapshotCurrent(snapshot)) {
+                        hideEditableSelectionPanel();
+                        return;
+                    }
+                    const currentSnapshot = selectionCore.getEditableSelectionSnapshot(snapshot.target);
+                    if (!currentSnapshot || !areSameEditableSnapshots(snapshot, currentSnapshot)) {
+                        hideEditableSelectionPanel();
+                        return;
+                    }
+                    state.snapshot = currentSnapshot;
+                    state.translatedText = text;
+                    state.error = '';
+                    dom.showEditableSelectionResult({
+                        anchor: currentSnapshot.anchor,
+                        text,
+                        onApply: applyEditableSelectionTranslation
+                    });
+                } catch {
+                    hideEditableSelectionPanel();
+                }
+                return;
+            }
+
             hideEditableSelectionPanel();
             state.snapshot = snapshot;
             dom.showEditableSelectionLoading(snapshot.anchor);
 
             const requestId = ++state.editableSelectionRequestId;
-            try {
+            const translatePromise = (async () => {
                 const result = await ext.shared.translateCore.translateDetailed(trimmedText, {
                     provider: settings.provider,
                     targetLanguage: 'en',
                     cleanResult: true
                 });
+                const translatedText = String(result?.translatedText || '').trim();
+                if (translatedText && translatedText !== trimmedText) {
+                    editableCache.set(trimmedText, { result: translatedText, ts: Date.now() });
+                }
+                return result;
+            })();
+            editablePending.set(trimmedText, translatePromise);
+            try {
+                const result = await translatePromise;
 
                 if (requestId !== state.editableSelectionRequestId) {
                     return;
@@ -154,10 +220,12 @@
                     anchor: currentSnapshot.anchor,
                     message: state.error
                 });
+            } finally {
+                editablePending.delete(trimmedText);
             }
         };
 
-        const scheduleEditableSelectionEvaluation = (delay = 80) => {
+        const scheduleEditableSelectionEvaluation = (delay = 220) => {
             const state = getEditableSelectionState();
             window.clearTimeout(state.editableSelectionTimer);
             state.editableSelectionTimer = window.setTimeout(() => {

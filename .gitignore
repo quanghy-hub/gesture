@@ -1,7 +1,9 @@
 .DS_Store
 node_modules/
 test-results/
-*.zip
-dist/
+.tmp-*
 
+# Build artifacts — regenerate with `npm run build` / `npm run build:zip`
+dist/
+dist-zip/
 web-ext-artifacts/

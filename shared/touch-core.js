@@ -20,36 +20,7 @@
     const isExtensionUiTarget = (eventOrTarget, extraSelectors = []) =>
         uiGuard?.isExtensionUiTarget?.(eventOrTarget, extraSelectors) || false;
 
-    const createLongPress = () => {
-        let timer = 0;
-        let active = false;
-
-        return {
-            start(delay, callback) {
-                this.cancel();
-                active = true;
-                timer = window.setTimeout(() => {
-                    if (!active) return;
-                    active = false;
-                    timer = 0;
-                    callback?.();
-                }, delay);
-            },
-            cancel() {
-                if (timer) {
-                    window.clearTimeout(timer);
-                    timer = 0;
-                }
-                active = false;
-            },
-            isActive() {
-                return active;
-            }
-        };
-    };
-
     ext.shared.touchCore = {
-        createLongPress,
         getDistance,
         getPrimaryPoint,
         isExtensionUiTarget,

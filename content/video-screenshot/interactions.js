@@ -26,6 +26,7 @@
                     target.tagName === 'INPUT' ||
                     target.tagName === 'TEXTAREA' ||
                     target.isContentEditable ||
+                    target.closest?.('[role="textbox"]') ||
                     event.ctrlKey ||
                     event.altKey ||
                     event.metaKey
@@ -42,6 +43,12 @@
                         hintText: 'Giữ chuột trái và kéo để chụp vùng',
                         onComplete: (region) => {
                             captureRegion.downloadRegion(region).catch((error) => {
+                                ext.shared.toastCore?.createToast?.(
+                                    'Chụp vùng màn hình thất bại',
+                                    window.innerWidth / 2,
+                                    window.innerHeight / 2,
+                                    2400
+                                );
                                 console.error('[GestureExtension] Region capture failed', error);
                             });
                         }

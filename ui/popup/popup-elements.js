@@ -8,13 +8,23 @@
         hostBlacklistLabel: safeGetElementById('host-blacklist-label'),
         hostBlacklistToggle: safeGetElementById('host-blacklist-toggle'),
         featureUnblockCopyEnabled: safeGetElementById('feature-unblock-copy-enabled'),
+        featureOfflineTranslateEnabled: safeGetElementById('feature-offline-translate-enabled'),
+        offlineTranslateStatus: safeGetElementById('offline-translate-status'),
+        offlineDownloadBtn: safeGetElementById('offline-download-btn'),
+        offlineRemoveBtn: safeGetElementById('offline-remove-btn'),
         featureGesturesEnabled: safeGetElementById('feature-gestures-enabled'),
-        featureClipboardEnabled: safeGetElementById('feature-clipboard-enabled'),
         featureVideoFloatingEnabled: safeGetElementById('feature-video-floating-enabled'),
         featureVideoScreenshotEnabled: safeGetElementById('feature-video-screenshot-enabled'),
         featureQuickSearchEnabled: safeGetElementById('feature-quick-search-enabled'),
         featureInlineTranslateEnabled: safeGetElementById('feature-inline-translate-enabled'),
         featureYoutubeSubtitlesEnabled: safeGetElementById('feature-youtube-subtitles-enabled'),
+        featureYoutubeSubtitlesTts: safeGetElementById('feature-youtube-subtitles-tts'),
+        youtubeSubtitlesTtsVoice: safeGetElementById('youtube-subtitles-tts-voice'),
+        youtubeSubtitlesTtsRate: safeGetElementById('youtube-subtitles-tts-rate'),
+        youtubeSubtitlesTtsEngine: safeGetElementById('youtube-subtitles-tts-engine'),
+        ttsOfflineStatus: safeGetElementById('tts-offline-status'),
+        ttsOfflineDownloadBtn: safeGetElementById('tts-offline-download-btn'),
+        ttsOfflineRemoveBtn: safeGetElementById('tts-offline-remove-btn'),
         featureForumEnabled: safeGetElementById('feature-forum-enabled'),
         forumScopeLabel: safeGetElementById('forum-scope'),
         apiTranslateProvider: safeGetElementById('api-translate-provider'),
@@ -35,6 +45,7 @@
         gLpEnabled: safeGetElementById('g-lp-enabled'),
         gLpMode: safeGetElementById('g-lp-mode'),
         gLpMs: safeGetElementById('g-lp-ms'),
+        gPlatform: safeGetElementById('g-platform'),
         gRcEnabled: safeGetElementById('g-rc-enabled'),
         gRcMode: safeGetElementById('g-rc-mode'),
         gCloseTabEnabled: safeGetElementById('g-close-tab-enabled'),
@@ -45,10 +56,11 @@
         gEdgeSide: safeGetElementById('g-edge-side'),
         gEdgeWidth: safeGetElementById('g-edge-width'),
         gEdgeSpeed: safeGetElementById('g-edge-speed'),
-        clipboardClear: safeGetElementById('clipboard-clear'),
         gestureBlockHostToggle: safeGetElementById('gesture-block-host-toggle'),
         gestureBlockHostLabel: safeGetElementById('gesture-block-host-label'),
         hostOnlyRows: Array.from(document.querySelectorAll('.host-only')),
+        gestureDesktopOnlyRows: Array.from(document.querySelectorAll('.g-desktop-only')),
+        gestureMobileOnlyRows: Array.from(document.querySelectorAll('.g-mobile-only')),
         popupRoot: document.querySelector('.popup'),
         panelCards: Array.from(document.querySelectorAll('.card[data-panel-id]')),
         panelHeaderTriggers: Array.from(document.querySelectorAll('[data-panel-header]')),
@@ -65,7 +77,6 @@
 
     ext.ui.popupElements.unblockCopyCard = ext.ui.popupElements.featureUnblockCopyEnabled.closest('.card');
     ext.ui.popupElements.gesturesCard = ext.ui.popupElements.featureGesturesEnabled.closest('.card');
-    ext.ui.popupElements.clipboardCard = ext.ui.popupElements.featureClipboardEnabled.closest('.card');
     ext.ui.popupElements.videoFloatingCard = ext.ui.popupElements.featureVideoFloatingEnabled.closest('.card');
     ext.ui.popupElements.videoScreenshotCard = ext.ui.popupElements.featureVideoScreenshotEnabled.closest('.card');
     ext.ui.popupElements.quickSearchCard = ext.ui.popupElements.featureQuickSearchEnabled.closest('.card');

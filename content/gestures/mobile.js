@@ -4,8 +4,7 @@
     const touch = ext.shared.touchCore;
     const { isEditable, isInteractive, getValidLink, dist, openTab, closeCurrentTab, addListenerHelper } = gestures.gestureUtils;
     const scroll = gestures.mobileScroll;
-    const tapManager = gestures.mobileTap;
-    const longPressManager = gestures.mobileLongPress;
+    const stateManagers = gestures.stateManagers;
 
     gestures.createMobileController = (context) => {
         const TOLERANCE = { move: 20 };
@@ -58,8 +57,8 @@
         };
 
         const { stopMomentum, stopEdgeRender, requestEdgeRender, startMomentum } = scroll.createScrollManager(state);
-        const { clearTapStart } = tapManager.createTapManager(state);
-        const { cancelLongPress } = longPressManager.createLongPressManager(state);
+        const { clearTapStart } = stateManagers.createTapManager(state);
+        const { cancelLongPress } = stateManagers.createLongPressManager(state);
 
         ['click', 'auxclick'].forEach((eventName) => {
             addListener(window, eventName, guard, true);

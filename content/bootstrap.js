@@ -41,7 +41,6 @@
             return;
         }
         const features = [
-            ext.features.clipboard,
             ext.features.googleSearch,
             ext.features.quickSearch,
             ext.features.inlineTranslate,
@@ -104,8 +103,8 @@
             syncFeatureActivation();
         });
 
-    if (globalThis.browser?.storage?.onChanged?.addListener) {
-        browser.storage.onChanged.addListener((changes, areaName) => {
+    if (globalThis.chrome?.storage?.onChanged?.addListener) {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
             if (areaName !== 'local' || !changes[STORAGE_KEY]) return;
             state.config = normalizeConfig(changes[STORAGE_KEY].newValue);
             syncFeatureActivation();

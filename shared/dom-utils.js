@@ -39,16 +39,6 @@
     };
 
     ext.shared.domUtils = {
-        escapeHtml: (text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'),
-        encodeAttribute: (text) => encodeURIComponent(text),
-        decodeAttribute: (text) => {
-            try {
-                return decodeURIComponent(text || '');
-            } catch {
-                return text || '';
-            }
-        },
-        previewText: (text, max = 140) => (text.length > max ? `${text.slice(0, max - 3)}...` : text),
         sanitizeFilename: (input) =>
             input
                 .replace(/[<>:"/\\|?*]+/g, '_')
@@ -73,18 +63,6 @@
             document.execCommand('copy');
             textarea.remove();
             return true;
-        },
-        isVisible: (element) => {
-            if (!(element instanceof HTMLElement)) return false;
-            const style = window.getComputedStyle(element);
-            const rect = element.getBoundingClientRect();
-            return (
-                style.display !== 'none' &&
-                style.visibility !== 'hidden' &&
-                style.pointerEvents !== 'none' &&
-                rect.width > 0 &&
-                rect.height > 0
-            );
         },
         hasVisibleSize: (node) => {
             if (!node) return false;

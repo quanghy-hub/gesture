@@ -3,8 +3,25 @@
     const { normalizeConfig } = ext.shared.config;
     const stateManager = ext.shared.cloudflareSyncState;
 
+    const sanitizeHeaderValue = (value) => {
+        if (!value) return '';
+        let cleaned = String(value)
+            .replace(/[\u200B-\u200D\uFEFF\u2060\u200E\u200F]/g, '')
+            .trim();
+        // eslint-disable-next-line no-control-regex
+        if (/[^\x00-\xFF]/.test(cleaned)) {
+            try {
+                cleaned = encodeURIComponent(cleaned);
+            } catch {
+                // eslint-disable-next-line no-control-regex
+                cleaned = cleaned.replace(/[^\x00-\xFF]/g, '');
+            }
+        }
+        return cleaned;
+    };
+
     const getHeaders = (apiCode) => {
-        const token = String(apiCode || '').trim();
+        const token = sanitizeHeaderValue(apiCode);
         if (!token) return null;
         return {
             Authorization: `Bearer ${token}`,
@@ -73,6 +90,13 @@
         if (res.status === 409) {
             const err = new Error('Revision conflict');
             err.status = 409;
+            throw err;
+        }
+        if (res.status === 401) {
+            const err = new Error(
+                'HTTP 401 Unauthorized: Mã API Code không chính xác hoặc không trùng khớp với SYNC_API_KEY trên Cloudflare Worker.'
+            );
+            err.status = 401;
             throw err;
         }
         if (!res.ok) {

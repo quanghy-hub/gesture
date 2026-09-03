@@ -44,12 +44,17 @@
             throw new Error(`${providerId} provider disabled`);
         }
 
+        const apiKey = String(ocrSettings.apiKey || '').trim();
+        if (!apiKey) {
+            throw new Error('Thiếu API key OCR. Vào popup → API Services → OCR để nhập key của bạn.');
+        }
+
         const translateApi = ext.background.translateApi;
         const formData = new FormData();
         formData.append('file', blob, 'image.jpg');
         formData.append('language', 'auto');
         formData.append('OCREngine', '3');
-        formData.append('apikey', String(ocrSettings.apiKey || 'helloworld'));
+        formData.append('apikey', apiKey);
 
         const ocrRes = await translateApi.fetchWithTimeout(
             buildOcrEndpoint(ocrSettings.endpoint),

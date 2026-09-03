@@ -42,6 +42,29 @@
         dom.applyInlineTranslateCssVars(settings);
 
         const uninstallEvents = eventHandler.install();
+        let orphanObserver = null;
+        const startOrphanObserver = () => {
+            if (orphanObserver || typeof MutationObserver === 'undefined') return;
+            const target = document.body || document.documentElement;
+            if (!target) {
+                document.addEventListener('DOMContentLoaded', startOrphanObserver, { once: true });
+                return;
+            }
+            try {
+                orphanObserver = new MutationObserver(() => {
+                    for (const box of document.querySelectorAll('.gesture-inline-translate-box')) {
+                        const src = box.__gestureSourceNode;
+                        if (src instanceof Node && !src.isConnected) {
+                            box.remove();
+                        }
+                    }
+                });
+                orphanObserver.observe(target, { childList: true, subtree: true });
+            } catch {
+                orphanObserver = null;
+            }
+        };
+        startOrphanObserver();
 
         return {
             onConfigChange(nextConfig) {
@@ -59,6 +82,13 @@
                     hideEditableSelectionPanelRef.current();
                 }
                 uninstallEvents();
+                if (orphanObserver) {
+                    orphanObserver.disconnect();
+                    orphanObserver = null;
+                }
+                for (const box of document.querySelectorAll('.gesture-inline-translate-box')) {
+                    box.remove();
+                }
             }
         };
     };

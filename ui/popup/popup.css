@@ -258,6 +258,18 @@ body {
     white-space: nowrap;
 }
 
+/* Ẩn các hàng gestures không thuộc platform đang chọn (desktop/mobile) */
+.table .item[hidden] {
+    display: none;
+}
+
+.hint-note {
+    grid-column: 1 / -1;
+    color: #9ca3af;
+    font-size: 10.5px;
+    line-height: 1.35;
+}
+
 .param {
     display: grid;
     grid-template-columns: subgrid;
@@ -484,4 +496,35 @@ button.secondary {
 .provider-tile-label {
     line-height: 1.2;
     word-break: break-word;
+}
+
+/* ---- Offline translation (Bergamot) ---- */
+.offline-block {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.offline-block .offline-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.offline-status-line {
+    color: #9ca3af;
+    font-size: 11px;
+    line-height: 1.35;
+    white-space: normal;
+    word-break: break-word;
+}
+.offline-actions {
+    display: flex;
+    gap: 8px;
+}
+.offline-actions button:disabled {
+    opacity: 0.5;
+    cursor: default;
 }

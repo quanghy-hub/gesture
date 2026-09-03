@@ -4,7 +4,7 @@
     const touch = ext.shared.touchCore;
     const { isEditable, isInteractive, getValidLink, dist, openTab, closeCurrentTab, addListenerHelper } = gestures.gestureUtils;
     const pager = gestures.desktopPager;
-    const longPress = gestures.desktopLongPress;
+    const longPress = gestures.stateManagers;
 
     gestures.createDesktopController = (context) => {
         const TOLERANCE = { move: 20 };

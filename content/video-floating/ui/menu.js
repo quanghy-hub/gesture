@@ -23,7 +23,32 @@
                 active: video === ctx.curVid,
                 onSelect: () => floatingSession.float(video)
             }));
-            const iframeItems = videoFloating.media.detector.getTrackedIframeEntries(ctx.iframeVideoMap).map(([iframe], index) => {
+            const tracked = videoFloating.media.detector.getTrackedIframeEntries(ctx.iframeVideoMap);
+            const trackedSet = new Set(tracked.map(([iframe]) => iframe));
+            let fallback = [];
+            try {
+                const detector = videoFloating.media.detector;
+                const utils = videoFloating.core.utils;
+                const allIframes = utils?.queryAllDeep ? utils.queryAllDeep('iframe') : [...document.querySelectorAll('iframe')];
+                const directVideos = videoFloating.media.detector.getDirectVideos?.() || [];
+                fallback = allIframes
+                    .filter((iframe) => !trackedSet.has(iframe))
+                    .filter((iframe) => !iframe.closest?.('#fvp-wrapper'))
+                    .filter((iframe) => detector.isLikelyVideoIframe?.(iframe))
+                    .filter((iframe) => !detector.isRedundantIframeCandidate?.(iframe, directVideos))
+                    .filter((iframe) => {
+                        const rect = iframe.getBoundingClientRect?.();
+                        const w = Math.max(iframe.offsetWidth || 0, rect?.width || 0);
+                        const h = Math.max(iframe.offsetHeight || 0, rect?.height || 0);
+                        if (w > 0 && h > 0 && (w < 32 || h < 32)) return false;
+                        return true;
+                    })
+                    .map((iframe) => [iframe, 0]);
+            } catch {
+                void 0;
+            }
+            const allIframeEntries = [...tracked, ...fallback];
+            const iframeItems = allIframeEntries.map(([iframe], index) => {
                 const domain = (() => {
                     try {
                         return new URL(iframe.src).hostname;
@@ -91,6 +116,12 @@
                 floatingSession.float(preferredVideo);
                 return;
             }
+            floatFirstAvailableMedia.fallbackToMenuItems?.();
+        };
+
+        // Exposed so core/controller.js's override can delegate the iframe fallback
+        // back here instead of silently dropping it.
+        floatFirstAvailableMedia.fallbackToMenuItems = () => {
             const [firstItem] = getAvailableMediaItems();
             if (!firstItem) {
                 ctx.menuRef?.hide();

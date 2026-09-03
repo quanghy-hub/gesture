@@ -1,6 +1,8 @@
+// @ts-check
 (() => {
     const ext = globalThis.GestureExtension;
-    const apiServicesUtils = ext.shared.apiServices || {};
+    const apiServicesUtils = /** @type {GestureExtensionShared['apiServices']} */ (ext.shared.apiServices || {});
+    /** @type {ApiServicesConfig} */
     const DEFAULT_API_SERVICES = apiServicesUtils.DEFAULT_API_SERVICES || {
         translate: {
             activeProvider: 'google',
@@ -17,7 +19,7 @@
             fallbackEnabled: false,
             fallbackProvider: 'ocrspace-alt',
             providers: {
-                ocrspace: { enabled: true, apiKey: 'helloworld', endpoint: '' },
+                ocrspace: { enabled: true, apiKey: '', endpoint: '' },
                 'ocrspace-alt': { enabled: false, apiKey: '', endpoint: '' }
             }
         }
@@ -28,7 +30,6 @@
         'host-blacklist',
         'unblock-copy',
         'gestures',
-        'clipboard',
         'floating-video',
         'video-screenshot',
         'quick-search',
@@ -39,13 +40,11 @@
         'forum'
     ]);
 
+    /** @type {GestureConfig} */
     const DEFAULT_CONFIG = Object.freeze({
         version: 1,
-        clipboard: {
-            enabled: true,
-            maxHistory: 5,
-            history: [],
-            pinned: []
+        offlineTranslation: {
+            enabled: false
         },
         unblockCopy: {
             enabled: true
@@ -115,6 +114,10 @@
             showOriginal: true,
             containerPosition: { x: '5%', y: '70px' },
             containerAlignment: 'left',
+            ttsEnabled: false,
+            ttsRate: 1,
+            ttsVoiceName: '',
+            ttsEngine: 'os',
             enabled: false
         },
         apiServices: DEFAULT_API_SERVICES,

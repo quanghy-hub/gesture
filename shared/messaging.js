@@ -1,26 +1,39 @@
+// @ts-check
 (() => {
     const ext = globalThis.GestureExtension;
 
-    const sendRuntimeMessage = async (type, payload = {}, options = {}) => {
-        const { alwaysResolve = false, unwrapResult = false } = options;
-        try {
-            const response = await browser.runtime.sendMessage({ type, payload });
-            if (response?.ok === false && !alwaysResolve) {
-                throw new Error(response.error || 'Unknown runtime messaging error');
+    const sendRuntimeMessage = (type, payload = {}, options = {}) =>
+        new Promise((resolve, reject) => {
+            const { alwaysResolve = false, unwrapResult = false } = options;
+            try {
+                chrome.runtime.sendMessage({ type, payload }, (response) => {
+                    const lastError = chrome.runtime.lastError;
+                    if (lastError) {
+                        if (alwaysResolve) {
+                            resolve({ ok: false, error: lastError.message });
+                        } else {
+                            reject(new Error(lastError.message));
+                        }
+                        return;
+                    }
+                    if (response?.ok === false && !alwaysResolve) {
+                        reject(new Error(response.error || 'Unknown runtime messaging error'));
+                        return;
+                    }
+                    if (unwrapResult && response?.ok !== false) {
+                        resolve(response?.result ?? response);
+                    } else {
+                        resolve(response || (alwaysResolve ? { ok: false, error: 'No response' } : null));
+                    }
+                });
+            } catch (error) {
+                if (alwaysResolve) {
+                    resolve({ ok: false, error: error?.message || String(error) });
+                } else {
+                    reject(error);
+                }
             }
-            if (unwrapResult && response?.ok !== false) {
-                return response?.result ?? response;
-            } else {
-                return response || (alwaysResolve ? { ok: false, error: 'No response' } : null);
-            }
-        } catch (error) {
-            if (alwaysResolve) {
-                return { ok: false, error: error?.message || String(error) };
-            } else {
-                throw error;
-            }
-        }
-    };
+        });
 
     ext.shared = ext.shared || {};
     ext.shared.messaging = { sendRuntimeMessage };

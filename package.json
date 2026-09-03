@@ -1,16 +1,19 @@
 {
     "name": "gesture-extension",
-    "version": "1.1.0",
+    "version": "1.4.6",
     "description": "Forum layout plus desktop and mobile gestures for Chromium and Kiwi Browser.",
     "main": "background/service-worker.js",
     "scripts": {
         "build": "node scripts/build.js",
+        "build:zip": "node scripts/zip.js",
         "watch": "node scripts/build.js --watch",
         "test": "node tests/run.js",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
+        "typecheck": "tsc -p jsconfig.json --noEmit",
         "format": "prettier --write .",
-        "build:firefox": "web-ext build --overwrite-dest",
+        "build:firefox": "npx web-ext build --filename \"{name}-{version}.xpi\" --overwrite-dest --ignore-files \"tests\" \"test-results\" \"scripts\" \"*.md\" \"eslint.config.js\" \"jsconfig.json\" \"package*.json\"",
+        "install:dev": "node scripts/install-dev.js",
         "prepare": "husky"
     },
     "keywords": [
@@ -35,6 +38,7 @@
         "globals": "^17.8.0",
         "husky": "^9.1.7",
         "lint-staged": "^17.2.0",
-        "prettier": "^3.9.6"
+        "prettier": "^3.9.6",
+        "typescript": "^5.9.2"
     }
 }

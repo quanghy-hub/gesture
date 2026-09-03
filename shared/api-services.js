@@ -43,7 +43,7 @@
             providers: {
                 ocrspace: {
                     enabled: true,
-                    apiKey: 'helloworld',
+                    apiKey: '',
                     endpoint: ''
                 },
                 'ocrspace-alt': {

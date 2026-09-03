@@ -29,7 +29,14 @@
             if (typeof document.elementsFromPoint === 'function') {
                 for (const node of document.elementsFromPoint(x, y)) {
                     if (!(node instanceof Element)) continue;
-                    const video = node.tagName === 'VIDEO' || node.tagName === 'AUDIO' ? node : node.closest?.('video, audio');
+                    const video =
+                        node.tagName === 'VIDEO' || node.tagName === 'AUDIO'
+                            ? node
+                            : node.closest?.('video, audio') ||
+                              node.querySelector?.('video, audio') ||
+                              node
+                                  .closest?.('.plyr, .video-js, .coverdiv, .coverimg, [data-video], .video-container, .player, .feed-video')
+                                  ?.querySelector?.('video, audio');
                     if (!video || !video.isConnected || video.closest('#fvp-wrapper')) continue;
                     if (videoFloating.media.detector.isDetectableVideo(video)) return video;
                 }
@@ -77,6 +84,13 @@
             return isVideoSeekEditableTarget(node) || Boolean(node.closest('button, a, label, [role="button"]'));
         };
 
+        const getFloatedIframeSeekBridge = () => {
+            const bridge = videoFloating.interactions?.floatedIframeSeek;
+            if (!bridge?.getDuration || !(bridge.getDuration() > 0)) return null;
+            const wrapper = videoFloating.core.utils.$('fvp-wrapper');
+            return wrapper?.querySelector('iframe') ? bridge : null;
+        };
+
         const getVideo = () => {
             const fs = videoFloating.core.utils.getFullscreenEl();
             if (fs) {
@@ -95,6 +109,7 @@
         return {
             getFloatingActiveVideo,
             isPointInFloatingUI,
+            getFloatedIframeSeekBridge,
             getVideoAtPoint,
             getSeekableVideoAtPoint,
             isFloatingGestureBlockedTarget,

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
@@ -30,6 +31,7 @@ const ISOLATED_FILES = [
     'shared/dom-utils.js',
     'shared/ocr-core.js',
     'content/unblock-copy/index.js',
+
     'content/forum/styles.js',
     'content/forum/layout.js',
     'content/forum/cache.js',
@@ -38,19 +40,11 @@ const ISOLATED_FILES = [
     'content/forum/index.js',
     'content/gestures/gesture-utils.js',
     'content/gestures/desktop-pager.js',
-    'content/gestures/desktop-long-press.js',
+    'content/gestures/state-managers.js',
     'content/gestures/desktop.js',
     'content/gestures/mobile-scroll.js',
-    'content/gestures/mobile-long-press.js',
-    'content/gestures/mobile-tap.js',
     'content/gestures/mobile.js',
     'content/gestures/index.js',
-    'content/clipboard/constants.js',
-    'content/clipboard/panel-data.js',
-    'content/clipboard/actions.js',
-    'content/clipboard/ui.js',
-    'content/clipboard/controller.js',
-    'content/clipboard/index.js',
     'content/google-search/index.js',
     'content/quick-search/constants.js',
     'content/quick-search/ui.js',
@@ -118,6 +112,8 @@ const ISOLATED_FILES = [
     'content/youtube-subtitles/dom.js',
     'content/youtube-subtitles/caption-source.js',
     'content/youtube-subtitles/translator.js',
+    'content/youtube-subtitles/prefetch.js',
+    'content/youtube-subtitles/tts.js',
     'content/youtube-subtitles/caption-manager.js',
     'content/youtube-subtitles/video-sync.js',
     'content/youtube-subtitles/page-events.js',
@@ -127,6 +123,51 @@ const ISOLATED_FILES = [
 ];
 
 const MAIN_FILES = ['content/video-floating/page-api.js'];
+
+/**
+ * Đọc danh sách import của service worker từ background/imports.js
+ * (single source of truth) để build-time validation.
+ */
+function readSwImportPaths() {
+    const importsPath = path.join(ROOT_DIR, 'background', 'imports.js');
+    if (!fs.existsSync(importsPath)) {
+        throw new Error('Missing background/imports.js (service worker import manifest)');
+    }
+    const code = fs.readFileSync(importsPath, 'utf8');
+    const sandbox = { GestureExtension: {} };
+    sandbox.globalThis = sandbox;
+    vm.runInNewContext(code, sandbox, { filename: 'background/imports.js' });
+    return sandbox.GestureExtension?.background?.SW_IMPORT_PATHS || [];
+}
+
+/**
+ * Kiểm tra danh sách import của service worker:
+ * - Mọi path phải tồn tại trên disk (tránh lỗi importScripts làm chết SW).
+ * - Không trùng lặp.
+ *
+ * Lưu ý: không ép danh sách này là subset của ISOLATED_FILES vì có những
+ * shared file chỉ dùng cho SW (vd: cloudflare-sync-*) và ngược lại
+ * (vd: touch-core, floating-*) — hai danh sách được phép khác nhau,
+ * nhưng mỗi danh sách chỉ tồn tại ở MỘT nơi (background/imports.js).
+ */
+function validateSwImports() {
+    const swPaths = readSwImportPaths();
+    if (!Array.isArray(swPaths) || swPaths.length === 0) {
+        throw new Error('background/imports.js must define a non-empty SW_IMPORT_PATHS array');
+    }
+    const seen = new Set();
+    for (const rel of swPaths) {
+        const clean = String(rel).replace(/^\//, '');
+        if (seen.has(clean)) {
+            throw new Error(`Duplicate SW import path: ${rel}`);
+        }
+        seen.add(clean);
+        if (!fs.existsSync(path.join(ROOT_DIR, clean))) {
+            throw new Error(`SW import file missing on disk: ${rel}`);
+        }
+    }
+    return swPaths.length;
+}
 
 function buildBundle(fileList, outputFileName) {
     const startTime = Date.now();
@@ -161,9 +202,8 @@ function buildBundle(fileList, outputFileName) {
 function build() {
     console.log('\x1b[36mBuilding Gesture Extension content bundles...\x1b[0m');
     try {
-        if (!fs.existsSync(DIST_DIR)) {
-            fs.mkdirSync(DIST_DIR, { recursive: true });
-        }
+        const swImportCount = validateSwImports();
+        console.log(`\x1b[36m✔ Service worker imports validated (${swImportCount} files).\x1b[0m`);
         buildBundle(ISOLATED_FILES, 'content-bundle.js');
         buildBundle(MAIN_FILES, 'page-api-bundle.js');
         console.log('\x1b[32m✔ All bundles built successfully.\x1b[0m');

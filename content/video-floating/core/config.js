@@ -82,7 +82,7 @@
     };
 
     const bindStorageListener = (onChange) => {
-        if (!globalThis.browser?.storage?.onChanged?.addListener) {
+        if (!globalThis.chrome?.storage?.onChanged?.addListener) {
             return () => {};
         }
         const handler = (changes, areaName) => {
@@ -94,12 +94,13 @@
             }
             onChange?.();
         };
-        browser.storage.onChanged.addListener(handler);
-        return () => browser.storage.onChanged.removeListener(handler);
+        chrome.storage.onChanged.addListener(handler);
+        return () => chrome.storage.onChanged.removeListener(handler);
     };
 
     videoFloating.core.config = {
         CONFIG_STORAGE_KEY,
+        TOUCH_SWITCH_VIDEO_EVENT: 'fvp-touch-switch-video',
         VIDEO_CHECK_INTERVAL: videoFloating.VIDEO_CHECK_INTERVAL,
         getFeatureConfig,
         isFeatureEnabled,

@@ -82,10 +82,10 @@
         return appState.pendingSave;
     };
 
-    const getActiveTab = async () => {
-        const tabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
-        return tabs?.[0] || null;
-    };
+    const getActiveTab = () =>
+        new Promise((resolve) => {
+            chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => resolve(tabs?.[0] || null));
+        });
 
     Promise.all([storage.getConfig(), getActiveTab()])
         .then(([loadedConfig, activeTab]) => {
@@ -104,4 +104,33 @@
         });
 
     eventsEngine.registerAll(els, appState, storage);
+
+    const checkAllUrlsPermission = async () => {
+        const api = globalThis.browser || globalThis.chrome;
+        const warningCard = document.getElementById('permission-warning-card');
+        const grantBtn = document.getElementById('grant-all-urls-btn');
+        if (!api?.permissions?.contains || !warningCard || !grantBtn) return;
+
+        try {
+            const hasPermission = await api.permissions.contains({ origins: ['<all_urls>'] });
+            if (hasPermission) {
+                warningCard.style.display = 'none';
+                return;
+            }
+            warningCard.style.display = 'block';
+            grantBtn.onclick = async () => {
+                try {
+                    const granted = await api.permissions.request({ origins: ['<all_urls>'] });
+                    if (granted) {
+                        warningCard.style.display = 'none';
+                    }
+                } catch (err) {
+                    console.error('[GestureExtension][popup] Failed to request permissions', err);
+                }
+            };
+        } catch {
+            // Ignore if permissions API unsupported
+        }
+    };
+    checkAllUrlsPermission();
 })();

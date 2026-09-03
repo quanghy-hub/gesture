@@ -191,6 +191,8 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'gesture-inline-translate-box';
             wrapper.dataset.textKey = text ? getTextKey(text) : '';
+            wrapper.title = 'Nhấn để đóng bản dịch';
+            wrapper.style.cursor = 'pointer';
             if (IS_REDDIT) {
                 const slot = targetNode?.getAttribute('slot') || 'text-body';
                 wrapper.setAttribute('slot', slot);
@@ -213,6 +215,11 @@
                 content.appendChild(meta);
             }
             wrapper.appendChild(content);
+            wrapper.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                wrapper.remove();
+            });
             return wrapper;
         },
         insertTranslationBox(node, box) {

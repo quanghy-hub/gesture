@@ -22,16 +22,20 @@
 
     const dist = (x1, y1, x2, y2) => touch.getDistance({ x: x1, y: y1 }, { x: x2, y: y2 });
 
+    // Chỉ cần chặn click tổng hợp phát sinh ngay sau pointerup/touchend (bắn trong
+    // vài ms). 300ms đủ an toàn mà không nuốt click thật nếu người dùng thao tác tiếp.
+    const SUPPRESS_MS = 300;
+
     const openTab = async (url, mode, context, suppress) => {
         const response = await context.tabActions.openTab(url, mode);
         if (!response?.ok) {
             window.open(url, '_blank', mode === 'fg' ? '' : 'noopener');
         }
-        suppress(800);
+        suppress(SUPPRESS_MS);
     };
 
     const closeCurrentTab = async (context, suppress) => {
-        suppress(800);
+        suppress(SUPPRESS_MS);
         await context.tabActions.closeCurrentTab();
     };
 
